@@ -40,7 +40,13 @@
             background-color: white;
             z-index: 1;
         }
-
+        .emoji-container {
+            display: none;
+            flex-wrap: wrap;
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 400px;
+        }
         .emoji {
             cursor: pointer;
             width: 20px;
@@ -84,6 +90,37 @@
         <div id="message-controls">
             <textarea id="message" rows="5" cols="40" placeholder="Message"></textarea>
             <button id="emoji-button">Emojis</button>
+    <div id="emojislists" style="display: none;">
+<br>
+    <div id="emoji-container" class="emoji-container" onclick="openEmojiContainer(event)"></div>
+
+    <select id="emoji-prefix" onchange="displayEmojis()">
+        <option value="0x1F300">0x1F300</option>
+        <option value="0x1F100">0x1F100</option>
+        <option value="0x1F200">0x1F200</option>
+        <option value="0x1F400">0x1F400</option>
+        <option value="0x1F500">0x1F500</option>
+        <option value="0x1F600">0x1F600</option>
+        <option value="0x1F700">0x1F700</option>
+        <option value="0x1F800">0x1F800</option>
+        <option value="0x1F900">0x1F900</option>
+        <!-- Ajoutez d'autres préfixes d'emojis ici -->
+    </select>
+
+    <select id="emoji-range" onchange="displayEmojis()">
+        <option value="0-99">0-99</option>
+        <option value="100-199">100-199</option>
+        <option value="200-299">200-299</option>
+        <option value="300-399">300-399</option>
+        <option value="400-499">400-499</option>
+        <option value="500-599">500-599</option>
+        <option value="600-699">600-699</option>
+        <option value="700-799">700-799</option>
+        <option value="800-899">800-899</option>
+        <option value="900-999">900-999</option>
+        <option value="1000-1099">1000-1099</option>
+    </select>
+   </div>
             <button onclick="sendMessage()">Envoyer</button>
             <textarea id="username" placeholder="Nom d'utilisateur"></textarea>
             <select id="user-list" size="5"></select>
@@ -146,9 +183,12 @@
     <button onclick="sendFile()">Envoyer fichier</button>
 </div>
     </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
     <script>
+        const emojiContainer = document.getElementById("emoji-container");
+        const selectedEmojisField = document.getElementById("messages");
 
 let storedPeerId = localStorage.getItem('peerId');
 let peer = storedPeerId ? new Peer(storedPeerId) : new Peer();
@@ -181,7 +221,11 @@ document.body.insertBefore(userLabel, document.getElementById("messages"));
         userOptionsContainer.style.top = userLabel.offsetTop + userLabel.offsetHeight + "px";
         document.body.appendChild(userOptionsContainer);
 
-        const emojis = ["😀", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉"];
+
+const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾", "🙈", "🙉", "🙊", "💥", "💫", "💦", "💨", "🐶", "🐺", "🦊", "🦝", "🐱", "🐭", "🐹", "🐰", "🦇", "🐻", "🐨", "🐼", "🦃", "🦆", "🦢", "🦉", "🦩", "🦚", "🦜", "🦔", "🦡", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌", "🐞", "🐜", "🦗", "🕷️", "🕸️", "🦂", "🦟", "🦠", "🐢", "🐍", "🦎", "🦖", "🦕", "🐙", "🦑", "🦐", "🦞", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🐋", "🦈", "🐊", "🐅", "🐆", "🦓", "🦍", "🦧", "🦣", "🐘", "🦛", "🦏", "🐪", "🐫", "🦒", "🦘", "🦬", "🐃", "🐂", "🐄", "🐎", "🐖", "🦙", "🦌", "🦛", "🦘", "🦡", "🦇", "🦦", "🦥", "🦨", "🦝", "🦥", "🦦", "🦨", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦤", "🦧", "🦨", "🦩", "🦚", "🦜", "🦛", "🦝", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦦", "🦧", "🦨", "🦩", "🦚", "🦜", "🦝", "🦧", "🦨"];
+
+// Vous pouvez continuer à ajouter davantage d'emojis à la liste
+
         emojis.forEach(emoji => {
             const emojiElement = document.createElement("span");
             emojiElement.className = "emoji";
@@ -193,6 +237,13 @@ document.body.insertBefore(userLabel, document.getElementById("messages"));
         emojiButton.addEventListener("click", toggleEmojiList);
 
         function toggleEmojiList() {
+    emojiContainer.style.display = emojiContainer.style.display === "flex" ? "none" : "flex";
+    if (emojiContainer.style.display === "flex") {
+        displayEmojis();
+    }
+
+            emojislists.style.display = emojislists.style.display === "block" ? "none" : "block";
+
             emojiList.style.display = emojiList.style.display === "block" ? "none" : "block";
         }
 
@@ -725,6 +776,44 @@ function decodeEmojiFromURI(encodedEmoji) {
             const savedIds = Array.from(connectIdElement.options).map(option => option.value);
 
             localStorage.setItem('savedIds', JSON.stringify(savedIds));
+        }
+
+        function displayEmojis() {
+            emojiContainer.innerHTML = "";
+            emojiContainer.style.display = "flex";
+
+            const selectedPrefix = document.getElementById("emoji-prefix").value;
+            const selectedRange = document.getElementById("emoji-range").value;
+
+            const startCode = parseInt(selectedPrefix, 16);
+            const rangeStart = parseInt(selectedRange.split("-")[0]);
+
+            let emojiRow = document.createElement("div");
+            emojiRow.classList.add("emoji-row");
+            for (let i = rangeStart; i < rangeStart + 100; i++) {
+                const emojiCode = String.fromCodePoint(startCode + i);
+                const emojiSpan = document.createElement("span");
+                emojiSpan.textContent = emojiCode;
+                emojiSpan.classList.add("emoji");
+                emojiSpan.addEventListener("click", function(event) {
+                    const selectedEmojis = emojiSpan.textContent + ' ';
+                    selectedEmojisField.value += selectedEmojis;
+                    emojiContainer.style.display = "none";
+                });
+                emojiRow.appendChild(emojiSpan);
+
+                if ((i + 1) % 10 === 0) {
+                    emojiContainer.appendChild(emojiRow);
+                    emojiRow = document.createElement("div");
+                    emojiRow.classList.add("emoji-row");
+                }
+            }
+        }
+
+        function openEmojiContainer(event) {
+            if (event.target === emojiContainer) {
+                emojiContainer.style.display = "none";
+            }
         }
 setInterval(refreshChat, 5000); // Rafraîchir le chat toutes les 5 secondes
     </script>
