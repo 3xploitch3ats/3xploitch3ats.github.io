@@ -275,14 +275,11 @@ function handleData(data) {
         requestSharedScreenStream();
     }
 }
-function excludeUserLocally(id) {
-    let excludedUsers = JSON.parse(localStorage.getItem("excludedUsers")) || [];
-  
-    if (!excludedUsers.includes(id)) {
-        excludedUsers.push(id);
-        localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
-        refreshExcludedUsersOptions();
-    }
+function excludeUserLocally(excludedUser) {
+    const excludedUsers = JSON.parse(localStorage.getItem("excludedUsers")) || [];
+    excludedUsers.push(excludedUser);
+    localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+    console.log(`Utilisateur ${excludedUser} exclu avec succès !`);
 }
 
 function requestSharedScreenStream() {
