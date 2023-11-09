@@ -620,12 +620,10 @@ function refreshExcludedUsersOptions() {
 }
 
 function excludeUser() {
-    const usernameInput = document.getElementById("usernameExclude");
-    const username = usernameInput.value.trim();
-    if (username) {
-        excludedUsers.push(username);
+    const usernameToExclude = excludedUsersSelect.value;
+    if (usernameToExclude) {
+        excludedUsers.push(usernameToExclude);
         localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
-        usernameInput.value = "";
         refreshExcludedUsersOptions();
         resultDiv.innerHTML = "<h2>Utilisateur exclu avec succès !</h2>";
     }
