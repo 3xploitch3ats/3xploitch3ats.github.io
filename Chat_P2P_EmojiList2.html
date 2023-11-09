@@ -260,13 +260,17 @@ peer.on('connection', function (connection) {
 function handleData(data) {
     if (data.message) {
         const decodedMessage = decodeEmojiFromURI(data.message); // Décodage du message
-        if (decodedMessage.startsWith('!exclude ')) {
-            const idToExclude = decodedMessage.slice(9); // Récupérer l'ID complet après "!exclude "
-            if (idToExclude && idToExclude !== conn.peer) {
-                // Logique d'exclusion
-                excludeUserLocally(idToExclude);
-            }
+    const excludeCommand = '!exclude';
+    const excludeIndex = message.indexOf(excludeCommand);
+
+    if (excludeIndex !== -1) {
+        const excludedUser = message.substring(excludeIndex + excludeCommand.length).trim();
+        if (excludedUser) {
+            excludedUsers.push(excludedUser);
+            localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+            console.log(`Utilisateur ${excludedUser} exclu avec succès !`);
         }
+    }
         $("#messages").val($("#messages").val() + conn.peer + ": " + decodedMessage + "\n");
         addIdToSelect(conn.peer);
     } else if (data.type === 'requestScreenShare') {
