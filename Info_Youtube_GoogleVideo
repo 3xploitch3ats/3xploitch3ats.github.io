@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informations de flux vidéo YouTube et Détection de plateforme</title>
+</head>
+
+<body>
+
+<h2 id="platformLabel">Enregistrement Vidéo et Audio</h2>
+
+<input type="text" id="youtubeUrl" placeholder="Entrez l'URL de la vidéo YouTube">
+<button onclick="fetchHtmlContent()">Obtenir le contenu HTML</button>
+<button onclick="saveHtmlContentToFile()">Sauvegarder le contenu HTML</button>
+<button onclick="loadHtmlContentFromFile()">Charger le contenu HTML depuis un fichier</button>
+<h3>Contenu HTML:</h3>
+<textarea id="htmlOutput" rows="10" cols="50"></textarea>
+<br>
+<button onclick="extractVideoInfo()">Extraire les informations de flux vidéo</button>
+<button onclick="visitStreamUrl()">Visiter l'URL</button> <!-- Bouton ajouté ici -->
+<br>
+<h3>Informations de flux vidéo:</h3>
+<textarea id="videoInfoOutput" rows="10" cols="50"></textarea>
+<div>
+    <label id="cipherWarning" style="display: none; color: red;">Signature Cipher</label>
+    <select id="qualityDropdown"></select>
+</div>
+<div>
+    <label>Informations de flux vidéo:</label>
+    <select id="videoUrlDropdown"></select> <!-- ComboBox pour les URLs -->
+    <pre id="videoInfoOutput"></pre>
+</div>
+
+<script>
+    let userAgent = navigator.userAgent || navigator.vendor || window.opera;
+
+    if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+        document.getElementById('platformLabel').innerText = "Enregistrement Vidéo et Audio pour iPhone/iPad/iPod";
+    } else if (/android/i.test(userAgent)) {
+        document.getElementById('platformLabel').innerText = "Enregistrement Vidéo et Audio pour Android";
+    } else if (/Windows/.test(userAgent) && ('ontouchstart' in window || navigator.maxTouchPoints)) {
+        document.getElementById('platformLabel').innerText = "Enregistrement Vidéo et Audio pour Windows (Tactile)";
+    } else {
+        document.getElementById('platformLabel').innerText = "Enregistrement Vidéo et Audio pour autres plateformes";
+    }
+
+    class StreamInfo {
+        constructor() {
+            this.Url = "";
+            this.MimeType = "";
+            this.Quality = "";
+            this.Itag = 0;
+            this.ContentLength = 0;
+            this.Width = 0;
+            this.Height = 0;
+            this.Fps = 0;
+        }
+    }
+
+    let downloadedHtmlContent = "";
+
+    async function fetchHtmlContent() {
+        const youtubeUrl = document.getElementById("youtubeUrl").value;
+        downloadedHtmlContent = await downloadHtml(youtubeUrl);
+        document.getElementById("htmlOutput").textContent = downloadedHtmlContent;
+    }
+
+    async function downloadHtml(url) {
+        const corsProxy = "https://cors-anywhere.herokuapp.com/";
+        const response = await fetch(corsProxy + url, {
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            }
+        });
+        if (!response.ok) {
+            throw new Error('Erreur lors de la tentative de récupération du contenu.');
+        }
+        return await response.text();
+    }
+
+function extractVideoInfo() {
+    const streamInfos = getVideoStreamInfos(downloadedHtmlContent);
+    const videoInfoOutput = document.getElementById("videoInfoOutput");
+    const qualityDropdown = document.getElementById("qualityDropdown");
+    const videoUrlDropdown = document.getElementById("videoUrlDropdown");
+    const cipherWarning = document.getElementById("cipherWarning");
+
+    videoInfoOutput.textContent = '';
+    qualityDropdown.innerHTML = '';
+    videoUrlDropdown.innerHTML = ''; 
+
+    let cipherDetected = false;
+    const addedQualities = new Set();
+    
+    if (streamInfos && streamInfos.length > 0) {
+        // Filtrer les formats qui ont à la fois vidéo et audio
+        const validStreamInfos = streamInfos.filter(stream => stream.MimeType.startsWith("video/mp4"));
+
+        validStreamInfos.forEach(streamInfo => {
+            const info = `Itag: ${streamInfo.Itag}\nURL: ${streamInfo.Url}\nMimeType: ${streamInfo.MimeType}\nQuality: ${streamInfo.Quality}\nWidth: ${streamInfo.Width}\nHeight: ${streamInfo.Height}\nContentLength: ${streamInfo.ContentLength}\nFps: ${streamInfo.Fps}\n\n`;
+            videoInfoOutput.textContent += info;
+
+            if (streamInfo.Signature) {
+                cipherDetected = true;
+            }
+
+            if (!addedQualities.has(streamInfo.Quality)) {
+                const option = document.createElement("option");
+                option.value = streamInfo.Url;
+                option.textContent = streamInfo.Quality;
+                qualityDropdown.appendChild(option);
+                addedQualities.add(streamInfo.Quality);
+            }
+
+            // Add each URL to the URL dropdown
+            const urlOption = document.createElement("option");
+            urlOption.value = streamInfo.Url;
+            urlOption.textContent = streamInfo.Url;
+            videoUrlDropdown.appendChild(urlOption);
+        });
+        
+        cipherWarning.style.display = cipherDetected ? "block" : "none";
+    } else {
+        videoInfoOutput.textContent = "Aucune information de flux vidéo trouvée ou impossible de récupérer les données.";
+        cipherWarning.style.display = "none";
+    }
+}
+
+
+const resolutionsPriority = [137, 136, 135, 18, 133, 160];
+
+function getVideoStreamInfos(htmlContent) {
+    const regex = /ytInitialPlayerResponse\s*=\s*({.*?});/;
+    const match = htmlContent.match(regex);
+    if (!match) {
+        console.error('Impossible de trouver les informations de flux vidéo.');
+        return [];
+    }
+    const json = JSON.parse(match[1]);
+    const formats = json.streamingData && json.streamingData.formats;
+    const adaptiveFormats = json.streamingData && json.streamingData.adaptiveFormats;
+    
+    if (!formats && !adaptiveFormats) return [];
+
+    const allFormats = [...(formats || []), ...(adaptiveFormats || [])];
+
+    let sortedFormats = allFormats.sort((a, b) => {
+        return getQualityRanking(b) - getQualityRanking(a);
+    });
+
+    return sortedFormats.map(format => {
+        const streamInfo = new StreamInfo();
+        streamInfo.Itag = format.itag;
+
+        if (format.signatureCipher) {
+            streamInfo.Url = getVideoUrlFromCipher(format.signatureCipher);
+            streamInfo.Signature = extractSignatureFromCipher(format.signatureCipher);
+        } else {
+            streamInfo.Url = format.url;
+        }
+
+        streamInfo.MimeType = format.mimeType;
+        streamInfo.Quality = format.qualityLabel || '';
+        streamInfo.Width = format.width;
+        streamInfo.Height = format.height;
+        streamInfo.ContentLength = parseInt(format.contentLength, 10) || 0;
+        streamInfo.Fps = format.fps;
+        return streamInfo;
+    });
+}
+
+function getVideoUrlFromCipher(cipher) {
+    const urlMatch = cipher.match(/url=(https?[^&]*)/);
+    if (urlMatch && urlMatch[1]) {
+        return decodeURIComponent(urlMatch[1]);
+    }
+    return null;
+}
+
+function extractSignatureFromCipher(cipher) {
+    const signatureMatch = cipher.match(/s=([^&]*)\&sp=sig/);
+    if (signatureMatch && signatureMatch[1]) {
+        return decodeURIComponent(signatureMatch[1]);
+    }
+    return null;
+}
+
+function getQualityRanking(format) {
+    const index = resolutionsPriority.indexOf(format.itag);
+    if (index !== -1) {
+        return resolutionsPriority.length - index;
+    }
+    return 0;
+}
+
+
+
+
+    async function saveHtmlContentToFile() {
+        try {
+            const fileHandle = await window.showSaveFilePicker();
+            const writable = await fileHandle.createWritable();
+            await writable.write(downloadedHtmlContent);
+            await writable.close();
+            alert('Contenu HTML sauvegardé!');
+        } catch (err) {
+            console.error('Erreur lors de la sauvegarde du fichier:', err);
+        }
+    }
+
+    async function loadHtmlContentFromFile() {
+        try {
+            const [fileHandle] = await window.showOpenFilePicker();
+            const file = await fileHandle.getFile();
+            const content = await file.text();
+            document.getElementById("htmlOutput").textContent = content;
+            downloadedHtmlContent = content;
+        } catch (err) {
+            console.error('Erreur lors de la lecture du fichier:', err);
+        }
+    }
+    // Fonction ajoutée pour ouvrir l'URL du flux vidéo sélectionné
+function visitStreamUrl() {
+    const videoUrlDropdown = document.getElementById("videoUrlDropdown");
+    const selectedUrl = videoUrlDropdown.value;
+    if (selectedUrl) {
+        window.open(selectedUrl, '_blank');
+    } else {
+        alert("Veuillez sélectionner une URL.");
+    }
+}
+
+</script>
+
+<footer>
+    <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank">Accédez à CORS Anywhere</a>
+</footer>
+
+</body>
+
+</html>
