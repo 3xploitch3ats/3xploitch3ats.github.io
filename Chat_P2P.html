@@ -12,7 +12,6 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            <!-- height: 100vh; -->
             margin: 0;
         }
 
@@ -69,9 +68,7 @@
     </style>
 
 <body>
-<body>
     <br>
-</body>
 
     Votre ID: <span id="my-id"></span><br>
     <ul id="online-users"></ul>
@@ -252,6 +249,10 @@ document.getElementById('message').addEventListener('keydown', function(event) {
 function sendMessage() {
     const message = messageInput.value;
 
+    const messageData = {
+        type: 'chatMessage',
+        message: encodeEmojiToURI(message) // Utilisez directement la variable 'message' au lieu de jQuery pour obtenir la valeur
+    };
     // Vérifiez si le message contient le mot secret
     if (message === "!More") {
         document.getElementById("admin-controls").style.display = "block";
@@ -271,14 +272,15 @@ function sendMessage() {
         updateUserLastActive(currentUser);
     }
 
-    const messageData = {
-        type: 'chatMessage',
-        message: encodeEmojiToURI(message) // Utilisez directement la variable 'message' au lieu de jQuery pour obtenir la valeur
-    };
+conn.send(messageData);
+// Récupérer le contenu actuel du champ "Nom d'utilisateur"
+const user = document.getElementById("my-id").textContent; // ou innerText
 
-    conn.send(messageData);
-    $("#messages").val($("#messages").val() + peerId + ": " + message + "\n"); // Utilisez 'message' au lieu de 'messageData.message'
-    $("#message").val('');
+// Insérer le message avec le nom d'utilisateur dans la zone de texte "messages"
+document.getElementById("messages").value += user + ": " + message + "\n";
+
+document.getElementById("message").value = "";
+
 }
 
         function displayOnlineUsers() {
