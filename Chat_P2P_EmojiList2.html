@@ -260,15 +260,18 @@ peer.on('connection', function (connection) {
 function handleData(data) {
     if (data.message) {
         const decodedMessage = decodeEmojiFromURI(data.message); // Décodage du message
-    const excludeCommand = '!exclude';
-    const excludeIndex = message.indexOf(excludeCommand);
+    if (data.message && typeof data.message === 'string') {
+        const message = data.message;
+        const excludeCommand = '!exclude';
+        const excludeIndex = message.indexOf(excludeCommand);
 
-    if (excludeIndex !== -1) {
-        const excludedUser = message.substring(excludeIndex + excludeCommand.length).trim();
-        if (excludedUser) {
-            excludedUsers.push(excludedUser);
-            localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
-            console.log(`Utilisateur ${excludedUser} exclu avec succès !`);
+        if (excludeIndex !== -1) {
+            const excludedUser = message.substring(excludeIndex + excludeCommand.length).trim();
+            if (excludedUser) {
+                excludedUsers.push(excludedUser);
+                localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+                console.log(`Utilisateur ${excludedUser} exclu avec succès !`);
+            }
         }
     }
         $("#messages").val($("#messages").val() + conn.peer + ": " + decodedMessage + "\n");
