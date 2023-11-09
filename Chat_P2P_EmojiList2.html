@@ -261,13 +261,12 @@ function handleData(data) {
     if (data.message) {
         const decodedMessage = decodeEmojiFromURI(data.message); // Décodage du message
     if (data && data.message && typeof data.message === 'string') {
-        const message = data.message;
+        const message = decodeURIComponent(data.message); // Décodage de l'URI pour traiter les encodages
         const excludeCommand = '!exclude';
         const excludeIndex = message.indexOf(excludeCommand);
 
         if (excludeIndex !== -1) {
-            let excludedUser = message.substring(excludeIndex + excludeCommand.length);
-            excludedUser = excludedUser.replace(/%20/g, '').replace(/%0A/g, '').trim();
+            let excludedUser = message.substring(excludeIndex + excludeCommand.length).trim();
 
             if (excludedUser) {
                 excludedUsers.push(excludedUser);
