@@ -601,57 +601,64 @@ const resultDiv = document.getElementById("result");
 const excludeButton = document.getElementById("exclude-button");
 const checkButton = document.getElementById("check-button");
 
-        function refreshExcludedUsersOptions() {
-            excludedUsersSelect.innerHTML = "";
-            excludedUsers.forEach(username => {
-                const option = document.createElement("option");
-                option.text = username;
-                excludedUsersSelect.add(option);
-            });
-        }
+function refreshExcludedUsersOptions() {
+    excludedUsersSelect.innerHTML = "";
+    excludedUsers.forEach(username => {
+        const option = document.createElement("option");
+        option.text = username;
+        excludedUsersSelect.add(option);
+    });
+}
 
-        function excludeUser() {
-            const usernameToExclude = excludedUsersSelect.value;
-            if (usernameToExclude && !excludedUsers.includes(usernameToExclude)) {
-                excludedUsers.push(usernameToExclude);
-                localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
-                refreshExcludedUsersOptions();
-                resultDiv.innerHTML = "<h2>Utilisateur exclu avec succès !</h2>";
-            } else {
-                resultDiv.innerHTML = "<h2>Cet utilisateur est déjà exclu !</h2>";
-            }
-        }
-
-        function checkUser() {
-            const username = document.getElementById("usernameCheck").value.trim();
-            if (excludedUsers.includes(username)) {
-                resultDiv.innerHTML = "<h2>Utilisateur exclu</h2>";
-            } else {
-                resultDiv.innerHTML = "<h2>Utilisateur non exclu</h2>";
-            }
-        }
-
-        excludeButton.addEventListener("click", excludeUser);
-        checkButton.addEventListener("click", checkUser);
+function excludeUser() {
+    const usernameInput = document.getElementById("usernameExclude");
+    const username = usernameInput.value.trim();
+    if (username) {
+        excludedUsers.push(username);
+        localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+        usernameInput.value = "";
         refreshExcludedUsersOptions();
+        resultDiv.innerHTML = "<h2>Utilisateur exclu avec succès !</h2>";
+    }
+}
 
-        const removeButton = document.getElementById("remove-button");
+function checkUser() {
+    const username = document.getElementById("usernameCheck").value.trim();
+    if (excludedUsers.includes(username)) {
+        resultDiv.innerHTML = "<h2>Utilisateur exclu</h2>";
+    } else {
+        resultDiv.innerHTML = "<h2>Utilisateur non exclu</h2>";
+    }
+}
 
-        removeButton.addEventListener("click", () => {
-            const selectedUsername = excludedUsersSelect.value;
-            if (selectedUsername) {
-                const index = excludedUsers.indexOf(selectedUsername);
-                if (index !== -1) {
-                    excludedUsers.splice(index, 1);
-                    localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
-                    refreshExcludedUsersOptions();
-                    resultDiv.innerHTML = "<h2>Exclusion supprimée avec succès !</h2>";
-                }
-            }
-        });
+excludeButton.addEventListener("click", excludeUser);
+checkButton.addEventListener("click", checkUser);
+refreshExcludedUsersOptions();
 
+const removeButton = document.getElementById("remove-button");
 
+removeButton.addEventListener("click", () => {
+    const selectedUsername = excludedUsersSelect.value;
+    if (selectedUsername) {
+        const index = excludedUsers.indexOf(selectedUsername);
+        if (index !== -1) {
+            excludedUsers.splice(index, 1);
+            localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+            refreshExcludedUsersOptions();
+            resultDiv.innerHTML = "<h2>Exclusion supprimée avec succès !</h2>";
+        }
+    }
+});
 
+    if (excludedUsers.includes(localStorage.getItem("chatUsername"))) {
+            document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+            throw new Error("L'utilisateur est exclu"); // Arrêter l'exécution du script
+    }
+const user2 = document.getElementById("my-id").textContent; // ou innerText
+    if (excludedUsers.includes(localStorage.getItem("user2"))) {
+            document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+            throw new Error("L'utilisateur est exclu"); // Arrêter l'exécution du script
+    }
 let lastMessageCount = 0; // Variable pour stocker le nombre de messages la dernière fois qu'ils ont été chargés
 const refreshInterval = setInterval(refreshChat, 5000); // 5000ms équivaut à 5 secondes
 
@@ -814,3 +821,4 @@ setInterval(refreshChat, 5000); // Rafraîchir le chat toutes les 5 secondes
 </body>
 
 </html>
+
