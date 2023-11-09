@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Effacer les exclusions</title>
+</head>
+<body>
+    <button id="clearExclusions">Effacer toutes les exclusions</button>
+
+    <script>
+        document.getElementById("clearExclusions").addEventListener("click", function() {
+            localStorage.removeItem("excludedUsers");
+            alert("Toutes les exclusions ont été effacées.");
+        });
+    </script>
+</body>
+</html>
