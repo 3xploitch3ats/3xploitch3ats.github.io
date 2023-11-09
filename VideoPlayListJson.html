@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Player</title>
+</head>
+<body>
+    <video id="videoPlayer" width="640" height="360" controls>
+        <source src="" type="video/mp4">
+        <source src="" type="video/webm">
+        <source src="" type="video/ogg">
+        Your browser does not support the video tag.
+    </video>
+    <br>
+    <button id="playButton">Play</button>
+    <button id="pauseButton">Pause</button>
+    <button id="stopButton">Stop</button>
+    <button id="backButton">Back</button>
+    <button id="nextButton">Next</button>
+    <button id="openButton">Open Video</button>
+    <button id="deleteButton">Delete Video</button>
+    <button id="refreshButton">Refresh List from JSON</button>
+    <button id="saveButton">Save Video List</button>
+    <select id="videoList"></select>
+
+    <script>
+        var videoPlayer = document.getElementById('videoPlayer');
+        var playButton = document.getElementById('playButton');
+        var pauseButton = document.getElementById('pauseButton');
+        var stopButton = document.getElementById('stopButton');
+        var backButton = document.getElementById('backButton');
+        var nextButton = document.getElementById('nextButton');
+        var openButton = document.getElementById('openButton');
+        var deleteButton = document.getElementById('deleteButton');
+        var refreshButton = document.getElementById('refreshButton');
+        var saveButton = document.getElementById('saveButton');
+        var videoList = document.getElementById('videoList');
+        var currentVideoIndex = 0;
+
+        var videos = [];
+
+        function loadVideosFromConfig(config) {
+            videos = config;
+            videoList.innerHTML = ''; // Clear existing options
+            videos.forEach(function (video, index) {
+                addOptionToComboBox(index, video.name);
+            });
+            loadCurrentVideo();
+        }
+
+        function loadCurrentVideo() {
+            videoPlayer.src = videos[currentVideoIndex].src;
+            videoPlayer.load();
+        }
+
+        playButton.addEventListener('click', function () {
+            videoPlayer.play();
+        });
+
+        pauseButton.addEventListener('click', function () {
+            videoPlayer.pause();
+        });
+
+        stopButton.addEventListener('click', function () {
+            videoPlayer.pause();
+            videoPlayer.currentTime = 0;
+        });
+
+        backButton.addEventListener('click', function () {
+            if (currentVideoIndex > 0) {
+                currentVideoIndex--;
+                loadCurrentVideo();
+            }
+        });
+
+        nextButton.addEventListener('click', function () {
+            if (currentVideoIndex < videos.length - 1) {
+                currentVideoIndex++;
+                loadCurrentVideo();
+            }
+        });
+
+        openButton.addEventListener('click', function () {
+            var fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'video/*';
+            fileInput.addEventListener('change', function (event) {
+                var file = event.target.files[0];
+                if (file) {
+                    var videoSrc = URL.createObjectURL(file);
+                    var videoName = prompt('Enter video name:');
+                    if (videoName) {
+                        videos.push({ name: videoName, src: videoSrc });
+                        addOptionToComboBox(videos.length - 1, videoName);
+                    }
+                }
+            });
+            fileInput.click();
+        });
+
+        deleteButton.addEventListener('click', function () {
+            var selectedIndex = parseInt(videoList.value);
+            if (selectedIndex >= 0) {
+                var videoName = videos[selectedIndex].name;
+                var deleteConfirm = confirm('Delete ' + videoName + '?');
+                if (deleteConfirm) {
+                    videos.splice(selectedIndex, 1);
+                    videoList.removeChild(videoList.options[selectedIndex]);
+                    if (currentVideoIndex === selectedIndex) {
+                        currentVideoIndex = 0;
+                        loadCurrentVideo();
+                    }
+                }
+            }
+        });
+
+        refreshButton.addEventListener('click', function () {
+            var fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json';
+            fileInput.addEventListener('change', function (event) {
+                var file = event.target.files[0];
+                if (file) {
+                    var reader = new FileReader();
+                    reader.onload = function (event) {
+                        var config = JSON.parse(event.target.result);
+                        loadVideosFromConfig(config);
+                    };
+                    reader.readAsText(file);
+                }
+            });
+            fileInput.click();
+        });
+
+        saveButton.addEventListener('click', function () {
+            var jsonString = JSON.stringify(videos, null, 2);
+            var blob = new Blob([jsonString], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'videos.json';
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        videoList.addEventListener('change', function () {
+            currentVideoIndex = parseInt(videoList.value);
+            loadCurrentVideo();
+        });
+
+        function addOptionToComboBox(index, text) {
+            var option = document.createElement('option');
+            option.value = index;
+            option.textContent = text;
+            videoList.appendChild(option);
+        }
+    </script>
+</body>
+</html>
+<!--
+https://encodedecodetobmp.w3spaces.com/VideoPlayListJson.html
+-->
