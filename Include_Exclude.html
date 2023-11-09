@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Gestion des Utilisateurs</title>
+</head>
+<body>
+    <h1>Admin - Gestion des Utilisateurs</h1>
+    <div>
+        <h2>Exclure un Utilisateur</h2>
+        <label for="usernameExclude">Nom d'utilisateur à exclure :</label>
+        <input type="text" id="usernameExclude">
+        <button onclick="excludeUser()">Exclure</button>
+    </div>
+
+    <div>
+        <h2>Vérifier et Supprimer les Exclusions</h2>
+        <label for="usernameCheck">Nom d'utilisateur :</label>
+        <input type="text" id="usernameCheck">
+        <button id="check-button">Vérifier</button>
+        <div id="result"></div>
+        <label for="excludedUsers">Utilisateurs exclus :</label>
+        <select id="excludedUsers"></select>
+        <button id="remove-button">Supprimer l'exclusion</button>
+    </div>
+
+    <script>
+        const excludedUsersSelect = document.getElementById("excludedUsers");
+
+        function refreshExcludedUsersOptions() {
+            excludedUsersSelect.innerHTML = "";
+            excludedUsers.forEach(username => {
+                const option = document.createElement("option");
+                option.text = username;
+                excludedUsersSelect.add(option);
+            });
+        }
+
+        function excludeUser() {
+            const usernameInput = document.getElementById("usernameExclude");
+            const username = usernameInput.value.trim();
+            
+            if (username) {
+                excludedUsers.push(username);
+                localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+                usernameInput.value = "";
+                refreshExcludedUsersOptions();
+                showResultMessage("Utilisateur exclu avec succès !");
+            }
+        }
+
+        const checkButton = document.getElementById("check-button");
+        const usernameInput = document.getElementById("usernameCheck");
+        const resultDiv = document.getElementById("result");
+        const removeButton = document.getElementById("remove-button");
+
+        checkButton.addEventListener("click", () => {
+            const username = usernameInput.value.trim();
+            if (excludedUsers.includes(username)) {
+                showResultMessage("Utilisateur exclu");
+            } else {
+                showResultMessage("Utilisateur non exclu");
+            }
+        });
+
+        removeButton.addEventListener("click", () => {
+            const selectedUsername = excludedUsersSelect.value;
+            if (selectedUsername) {
+                const index = excludedUsers.indexOf(selectedUsername);
+                if (index !== -1) {
+                    excludedUsers.splice(index, 1);
+                    localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+                    refreshExcludedUsersOptions();
+                    showResultMessage("Exclusion supprimée avec succès !");
+                }
+            }
+        });
+
+        function showResultMessage(message) {
+            resultDiv.innerHTML = "<h2>" + message + "</h2>";
+        }
+
+        // Initial load
+        const excludedUsers = JSON.parse(localStorage.getItem("excludedUsers")) || [];
+        refreshExcludedUsersOptions();
+    </script>
+</body>
+</html>
