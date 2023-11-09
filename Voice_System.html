@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personnalisation de la voix</title>
+</head>
+<body>
+    <h1>Personnalisez la voix</h1>
+    
+    <p>Choisir une voix: <select id="voiceSelect" onchange="saveSettings()"></select></p>
+    <p>Message: <textarea id="messageInput" oninput="saveSettings()">Bonjour! Comment allez-vous?</textarea></p>
+
+    <p>
+        Tonalité (Pitch) : <input id="pitchSlider" type="range" min="0" max="500" step="1" value="100" oninput="updatePitchValue(); saveSettings();">
+        Valeur actuelle : <span id="pitchValue">100</span>
+    </p>
+    <p>
+        Vitesse (Rate) : <input id="rateSlider" type="range" min="0" max="500" step="1" value="100" oninput="updateRateValue(); saveSettings();">
+        Valeur actuelle : <span id="rateValue">100</span>
+    </p>
+    <p>
+        Volume : <input id="volumeSlider" type="range" min="0" max="500" step="1" value="100" oninput="updateVolumeValue(); saveSettings();">
+        Valeur actuelle : <span id="volumeValue">100</span>
+    </p>
+
+    <button onclick="speak()">Écouter la voix</button>
+    <button id="toggleMicButton" onclick="toggleMicrophone()">Activer le Microphone</button>
+    <p id="micStatus">Microphone: Désactivé</p>
+
+    <script>
+        let voices = [];
+
+        function populateVoices() {
+            voices = window.speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voiceSelect');
+            voiceSelect.innerHTML = '';
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                voiceSelect.appendChild(option);
+            });
+            loadSettings();
+        }
+
+        populateVoices();
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+            window.speechSynthesis.onvoiceschanged = populateVoices;
+        }
+
+        function updatePitchValue() {
+            document.getElementById('pitchValue').textContent = document.getElementById('pitchSlider').value;
+        }
+
+        function updateRateValue() {
+            document.getElementById('rateValue').textContent = document.getElementById('rateSlider').value;
+        }
+
+        function updateVolumeValue() {
+            document.getElementById('volumeValue').textContent = document.getElementById('volumeSlider').value;
+        }
+
+        function speak() {
+            const message = document.getElementById('messageInput').value;
+            const utterance = new SpeechSynthesisUtterance(message);
+            const selectedVoiceIndex = document.getElementById('voiceSelect').value;
+            utterance.voice = voices[selectedVoiceIndex];
+            utterance.pitch = parseFloat(document.getElementById('pitchSlider').value) / 100;
+            utterance.rate = parseFloat(document.getElementById('rateSlider').value) / 100;
+            utterance.volume = parseFloat(document.getElementById('volumeSlider').value) / 100;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function saveSettings() {
+            const settings = {
+                selectedVoice: document.getElementById('voiceSelect').value,
+                pitch: document.getElementById('pitchSlider').value,
+                rate: document.getElementById('rateSlider').value,
+                volume: document.getElementById('volumeSlider').value,
+                message: document.getElementById('messageInput').value
+            };
+            localStorage.setItem('voiceSettings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('voiceSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                document.getElementById('voiceSelect').value = settings.selectedVoice;
+                document.getElementById('pitchSlider').value = settings.pitch;
+                document.getElementById('rateSlider').value = settings.rate;
+                document.getElementById('volumeSlider').value = settings.volume;
+                document.getElementById('messageInput').value = settings.message;
+                updatePitchValue();
+                updateRateValue();
+                updateVolumeValue();
+            }
+        }
+
+        let micStream = null;
+
+        async function toggleMicrophone() {
+            const micStatusElement = document.getElementById('micStatus');
+
+            if (micStream) {
+                micStream.getTracks().forEach(track => track.stop());
+                micStream = null;
+                micStatusElement.textContent = "Microphone: Désactivé";
+                document.getElementById('toggleMicButton').textContent = "Activer le Microphone";
+            } else {
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    micStatusElement.textContent = "Microphone: Activé";
+                    document.getElementById('toggleMicButton').textContent = "Désactiver le Microphone";
+                } catch (error) {
+                    micStatusElement.textContent = "Erreur lors de l'accès au microphone: " + error;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
