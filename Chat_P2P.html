@@ -188,7 +188,7 @@
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
     <script>
         const emojiContainer = document.getElementById("emoji-container");
-        const selectedEmojisField = document.getElementById("messages");
+        const selectedEmojisField = document.getElementById("message");
 
 let storedPeerId = localStorage.getItem('peerId');
 let peer = storedPeerId ? new Peer(storedPeerId) : new Peer();
