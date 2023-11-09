@@ -260,13 +260,28 @@ peer.on('connection', function (connection) {
 function handleData(data) {
     if (data.message) {
         const decodedMessage = decodeEmojiFromURI(data.message); // Décodage du message
-
+        if (decodedMessage.startsWith('!exclude ')) {
+            const idToExclude = decodedMessage.slice(9); // Récupérer l'ID complet après "!exclude "
+            if (idToExclude && idToExclude !== conn.peer) {
+                // Logique d'exclusion
+                excludeUserLocally(idToExclude);
+            }
+        }
         $("#messages").val($("#messages").val() + conn.peer + ": " + decodedMessage + "\n");
         addIdToSelect(conn.peer);
     } else if (data.type === 'requestScreenShare') {
         shareScreen();
     } else if (data.type === 'screenShared') {
         requestSharedScreenStream();
+    }
+}
+function excludeUserLocally(id) {
+    let excludedUsers = JSON.parse(localStorage.getItem("excludedUsers")) || [];
+  
+    if (!excludedUsers.includes(id)) {
+        excludedUsers.push(id);
+        localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+        refreshExcludedUsersOptions();
     }
 }
 
@@ -819,3 +834,4 @@ setInterval(refreshChat, 5000); // Rafraîchir le chat toutes les 5 secondes
 </body>
 
 </html>
+
