@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enregistrement Vidéo et Audio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+#controlForm {
+    z-index: 1000;
+    position: relative;
+}
+
+        #videoContainer {
+            width: 640px;
+            transition: width 0.2s, transform 0.2s;
+ z-index: 500;
+        }
+
+        form {
+            display: none;
+            position: fixed;
+            right: 0;
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-left: 1px solid #ddd;
+        }
+
+        label.toggle {
+    color: red;
+            cursor: pointer;
+            background-color: #ddd;
+            padding: 5px;
+    font-size: 24px;
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+        }
+    </style>
+</head>
+
+<body>
+    <h1 id="platformLabel">Enregistrement Vidéo et Audio</h1>
+    <div id="videoContainer">
+        <video id="videoRecorder" playsinline controls></video>
+    </div>
+    <label class="toggle" onclick="toggleForm()"><</label>
+
+<form id="controlForm" onsubmit="preventFormSubmit(event)" style="display: none;">
+        <label class="toggle" onclick="toggleForm()">></label><br>
+        <label for="realSizeCheckbox">Taille réelle :</label>
+        <input type="checkbox" id="realSizeCheckbox"><br>
+        <label for="zoomSlider">Zoom :</label>
+        <input type="range" id="zoomSlider" min="0.5" max="2" step="0.1" value="1"><br>
+        <label for="formatSelect">Format de la vidéo :</label>
+        <select id="formatSelect"></select><br>
+        <label for="resolutionSelect">Résolution :</label>
+        <select id="resolutionSelect">
+            <option value="1080">Full HD (1080p)</option>
+            <option value="720">HD (720p)</option>
+        </select><br>
+        <label for="cameraSelect">Caméra :</label>
+        <select id="cameraSelect">
+            <option value="environment">Caméra Arrière</option>
+            <option value="user">Caméra Frontale</option>
+        </select><br>
+        <label for="fileName">Nom du fichier :</label>
+        <input type="text" id="fileName" value="enregistrement"><br>
+        <button id="startRecord">Démarrer l'enregistrement</button>
+        <button id="stopRecord" disabled>Arrêter l'enregistrement</button>
+    </form>
+
+    <script>
+        let videoRecorder = document.getElementById('videoRecorder');
+        let mediaStream;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let startButton = document.getElementById('startRecord');
+        let stopButton = document.getElementById('stopRecord');
+        let platformLabel = document.getElementById('platformLabel');
+        let formatSelect = document.getElementById('formatSelect');
+        let resolutionSelect = document.getElementById('resolutionSelect');
+        let realSizeCheckbox = document.getElementById('realSizeCheckbox');
+        let zoomSlider = document.getElementById('zoomSlider');
+        const fileNameInput = document.getElementById('fileName');
+        let videoContainer = document.getElementById('videoContainer');
+        const originalWidth = videoContainer.style.width;
+
+        realSizeCheckbox.addEventListener('change', toggleRealSize);
+        zoomSlider.addEventListener('input', adjustZoom);
+        startButton.addEventListener('click', startRecording);
+        stopButton.addEventListener('click', stopRecording);
+
+        let userAgent = navigator.userAgent || navigator.vendor || window.opera;
+
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            platformLabel.innerText = "Enregistrement Vidéo et Audio pour iPhone/iPad/iPod";
+            formatSelect.innerHTML = `
+        <option value="video/mp4">MP4</option>
+        <option value="video/quicktime">MOV</option>
+        <option value="video/h264">H.264</option>
+        <option value="video/h265">H.265</option>
+        <option value="video/mpeg">MPEG-4</option>
+        <option value="video/jpeg">M-JPEG</option>`;
+        } else if (/android/i.test(userAgent)) {
+            platformLabel.innerText = "Enregistrement Vidéo et Audio pour Android";
+            formatSelect.innerHTML = `
+        <option value="video/mp4">MP4</option>
+        <option value="video/quicktime">MOV</option>
+        <option value="video/x-msvideo">AVI</option>
+        <option value="video/x-matroska">MKV</option>
+        <option value="video/x-m4v">M4V</option>
+        <option value="video/x-flv">FLV</option>`;
+        } else if (/Windows/.test(userAgent)) {
+            platformLabel.innerText = "Enregistrement Vidéo et Audio pour Windows";
+            formatSelect.innerHTML = `
+        <option value="video/mp4">MP4</option>
+        <option value="video/quicktime">MOV</option>
+        <option value="video/x-ms-asf">ASF</option>
+        <option value="video/x-ms-wmv">WMV</option>
+        <option value="video/x-m2ts">M2TS</option>`;
+        } else if (/Mac/.test(userAgent)) {
+            platformLabel.innerText = "Enregistrement Vidéo et Audio pour Mac";
+            formatSelect.innerHTML = `
+        <option value="video/mp4">MP4</option>
+        <option value="video/quicktime">MOV</option>
+        <option value="video/mpeg">MPEG-4</option>
+        <option value="video/avi">AVI</option>
+        <option value="video/mkv">MKV</option>`;
+        } else {
+            platformLabel.innerText = "Enregistrement Vidéo et Audio pour Autres Plateformes";
+            formatSelect.innerHTML = `
+        <option value="video/mp4">MP4</option>
+        <option value="video/quicktime">MOV</option>
+        <option value="video/mpeg">MPEG-4</option>
+        <option value="video/avi">AVI</option>
+        <option value="video/mkv">MKV</option>`;
+        }
+
+        async function startRecording() {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: document.getElementById('cameraSelect').value,
+                    width: parseInt(resolutionSelect.value)
+                },
+                audio: true
+            });
+
+            videoRecorder.srcObject = mediaStream;
+            videoRecorder.play();
+
+            mediaRecorder = new MediaRecorder(mediaStream, { mimeType: formatSelect.value });
+
+            mediaRecorder.ondataavailable = handleDataAvailable;
+            mediaRecorder.onstop = handleStop;
+
+            mediaRecorder.start();
+            startButton.disabled = true;
+            stopButton.disabled = false;
+        }
+
+        function handleDataAvailable(event) {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        }
+
+        function handleStop() {
+            const blob = new Blob(recordedChunks, { type: formatSelect.value });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = fileNameInput.value + '.' + getExtensionFromMimeType(formatSelect.value);
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function getExtensionFromMimeType(mimeType) {
+            const extensions = {
+                'video/mp4': 'mp4',
+                'video/quicktime': 'mov',
+                'video/x-msvideo': 'avi',
+                'video/x-matroska': 'mkv',
+                'video/x-m4v': 'm4v',
+                'video/x-flv': 'flv',
+                'video/x-ms-asf': 'asf',
+                'video/x-ms-wmv': 'wmv',
+                'video/x-m2ts': 'm2ts',
+                'video/webm': 'webm',
+                'video/ogg': 'ogv',
+                'video/h264': 'h264',
+                'video/h265': 'h265',
+                'video/mpeg': 'mpg',
+                'video/jpeg': 'mjpeg'
+            };
+            return extensions[mimeType] || 'unknown';
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            mediaStream.getTracks().forEach(track => track.stop());
+            videoRecorder.srcObject = null;
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        }
+
+        function toggleRealSize() {
+            if (realSizeCheckbox.checked) {
+                videoContainer.style.transform = 'scale(1)';
+            } else {
+                videoContainer.style.transform = 'scale(' + zoomSlider.value + ')';
+            }
+        }
+
+        function adjustZoom() {
+            if (!realSizeCheckbox.checked) {
+                videoContainer.style.transform = 'scale(' + zoomSlider.value + ')';
+            }
+        }
+
+        function toggleForm() {
+            const form = document.getElementById('controlForm');
+            form.style.display = (form.style.display === 'none' || form.style.display === '') ? 'block' : 'none';
+        }
+function preventFormSubmit(e) {
+    e.preventDefault();
+}
+
+    </script>
+</body>
+
+</html>
