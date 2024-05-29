@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créateur de GIF à partir d'images</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
+</head>
+<body>
+    <input type="file" accept="image/*" id="file-input" multiple>
+    <div>
+        <label for="resize-checkbox">Redimensionner le GIF</label>
+        <input type="checkbox" id="resize-checkbox">
+    </div>
+    <div id="sliders" style="display: none;">
+        <label for="width-slider">Largeur: <span id="width-value"></span>px</label>
+        <input type="range" id="width-slider" min="1" max="1000">
+        <br>
+        <label for="height-slider">Hauteur: <span id="height-value"></span>px</label>
+        <input type="range" id="height-slider" min="1" max="1000">
+    </div>
+    <label for="slide-delay-input">Délai entre les images (ms): </label>
+    <input type="range" id="slide-delay-input" min="100" max="1000" value="500">
+    <output id="slide-delay-output">500 ms</output>
+    <div id="image-preview"></div>
+    <button id="create-gif-button">Créer le GIF</button>
+    <img id="result-gif" alt="GIF result" />
+    <a id="download-link" download="animated.gif" style="display:none;">Télécharger le GIF</a>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const slideDelayInput = document.getElementById('slide-delay-input');
+        const slideDelayOutput = document.getElementById('slide-delay-output');
+        const imagePreview = document.getElementById('image-preview');
+        const createGifButton = document.getElementById('create-gif-button');
+        const resultGif = document.getElementById('result-gif');
+        const downloadLink = document.getElementById('download-link');
+        const resizeCheckbox = document.getElementById('resize-checkbox');
+        const sliders = document.getElementById('sliders');
+        const widthSlider = document.getElementById('width-slider');
+        const heightSlider = document.getElementById('height-slider');
+        const widthValue = document.getElementById('width-value');
+        const heightValue = document.getElementById('height-value');
+
+        let originalWidth;
+        let originalHeight;
+
+        slideDelayInput.addEventListener('input', () => {
+            slideDelayOutput.textContent = `${slideDelayInput.value} ms`;
+        });
+
+        resizeCheckbox.addEventListener('change', () => {
+            sliders.style.display = resizeCheckbox.checked ? 'block' : 'none';
+            if (!resizeCheckbox.checked) {
+                widthSlider.value = originalWidth;
+                heightSlider.value = originalHeight;
+                widthValue.textContent = originalWidth;
+                heightValue.textContent = originalHeight;
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            const files = fileInput.files;
+            if (!files.length) return;
+
+            imagePreview.innerHTML = '';
+
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(files[0]);
+            img.onload = () => {
+                originalWidth = img.naturalWidth;
+                originalHeight = img.naturalHeight;
+
+                widthSlider.max = originalWidth * 2;
+                heightSlider.max = originalHeight * 2;
+                widthSlider.value = originalWidth;
+                heightSlider.value = originalHeight;
+                widthValue.textContent = originalWidth;
+                heightValue.textContent = originalHeight;
+
+                for (let i = 0; i < files.length; i++) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(files[i]);
+                    img.style.maxWidth = '200px';
+                    img.style.maxHeight = '200px';
+                    img.style.marginRight = '5px';
+                    img.style.marginBottom = '5px';
+                    imagePreview.appendChild(img);
+                }
+            };
+        });
+
+        widthSlider.addEventListener('input', () => {
+            widthValue.textContent = widthSlider.value;
+        });
+
+        heightSlider.addEventListener('input', () => {
+            heightValue.textContent = heightSlider.value;
+        });
+
+        createGifButton.addEventListener('click', () => {
+            const images = Array.from(imagePreview.querySelectorAll('img')).map(img => img.src);
+            const delay = parseInt(slideDelayInput.value);
+            const gifWidth = resizeCheckbox.checked ? parseInt(widthSlider.value) : originalWidth;
+            const gifHeight = resizeCheckbox.checked ? parseInt(heightSlider.value) : originalHeight;
+
+            gifshot.createGIF({
+                images: images,
+                interval: delay / 1000,
+                gifWidth: gifWidth,
+                gifHeight: gifHeight
+            }, function (obj) {
+                if (!obj.error) {
+                    const image = obj.image;
+                    resultGif.src = image;
+
+                    // Convertir le GIF en blob et créer un lien de téléchargement
+                    fetch(image)
+                        .then(res => res.blob())
+                        .then(blob => {
+                            const url = URL.createObjectURL(blob);
+                            downloadLink.href = url;
+                            downloadLink.style.display = 'block';
+                            downloadLink.textContent = 'Télécharger le GIF';
+                        });
+                } else {
+                    console.error('Error creating GIF:', obj.error);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
