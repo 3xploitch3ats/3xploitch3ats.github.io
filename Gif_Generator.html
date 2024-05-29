@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recherche de GIFs Aléatoires</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .slideshow-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-width: 1200px;
+            position: relative;
+            border: 2px solid #ddd;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .slideshow img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .image-container {
+            width: 50%;
+            padding: 10px;
+        }
+        .save-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .save-button:hover {
+            background-color: #45a049;
+        }
+        .selector-container, .slider-container {
+            margin-bottom: 20px;
+        }
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+        .slider:hover {
+            opacity: 1;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<script src="https://cdn.jsdelivr.net/npm/gif-lib/dist/gif-lib.js"></script>
+<body>
+    <div class="selector-container">
+        <label for="image-source1">Sélectionnez la première source de GIF : </label>
+        <select id="image-source1">
+            <option value="tenor">Tenor</option>
+        </select>
+        <label for="image-source2">Sélectionnez la deuxième source de GIF : </label>
+        <select id="image-source2">
+            <option value="tenor">Tenor</option>
+        </select>
+    </div>
+    <div class="slider-container">
+        <label for="size-slider">Taille des GIFs</label>
+        <input type="range" min="0.5" max="2" step="0.1" value="1" class="slider" id="size-slider">
+    </div>
+    <div class="slider-container">
+        <label for="transparency-slider">Transparence de l'image superposée</label>
+        <input type="range" min="0" max="1" step="0.05" value="0.5" class="slider" id="transparency-slider">
+    </div>
+    <div class="slideshow-container" id="slideshow-container">
+        <div class="image-container">
+            <img src="" alt="GIF 1" id="slideshow-image1">
+        </div>
+        <div class="image-container">
+            <img src="" alt="GIF 2" id="slideshow-image2">
+        </div>
+    </div>
+    <label for="overlay-checkbox">Superposer les GIFs :</label>
+    <input type="checkbox" id="overlay-checkbox">
+    <button class="save-button" id="save-button">Sauvegarder les GIFs</button>
+    <input type="text" id="additional-word1" placeholder="Mot supplémentaire 1">
+    <button id="add-word-button1">Ajouter mot</button>
+    <button id="remove-word-button1">Supprimer mot</button>
+    <select id="additional-words-list1">
+        <!-- Options seront ajoutées dynamiquement par JavaScript -->
+    </select>
+    <input type="text" id="additional-word2" placeholder="Mot supplémentaire 2">
+    <button id="add-word-button2">Ajouter mot</button>
+    <button id="remove-word-button2">Supprimer mot</button>
+    <select id="additional-words-list2">
+        <!-- Options seront ajoutées dynamiquement par JavaScript -->
+    </select>
+
+    <script>
+        const words = ['funny', 'cat', 'dog', 'meme', 'reaction', 'happy', 'sad', 'wow', 'fail', 'dance'];
+        const imageElement1 = document.getElementById('slideshow-image1');
+        const imageElement2 = document.getElementById('slideshow-image2');
+        const saveButton = document.getElementById('save-button');
+        const imageSourceSelector1 = document.getElementById('image-source1');
+        const imageSourceSelector2 = document.getElementById('image-source2');
+        const sizeSlider = document.getElementById('size-slider');
+        const transparencySlider = document.getElementById('transparency-slider');
+        const overlayCheckbox = document.getElementById('overlay-checkbox');
+        const additionalWordInput1 = document.getElementById('additional-word1');
+        const addWordButton1 = document.getElementById('add-word-button1');
+        const removeWordButton1 = document.getElementById('remove-word-button1');
+        const additionalWordsList1 = document.getElementById('additional-words-list1');
+        const additionalWordInput2 = document.getElementById('additional-word2');
+        const addWordButton2 = document.getElementById('add-word-button2');
+        const removeWordButton2 = document.getElementById('remove-word-button2');
+        const additionalWordsList2 = document.getElementById('additional-words-list2');
+        const slideshowContainer = document.getElementById('slideshow-container');
+        let currentImageUrl1 = '';
+        let currentImageUrl2 = '';
+        let additionalWords1 = [];
+        let additionalWords2 = [];
+
+        function getRandomWord() {
+            return words[Math.floor(Math.random() * words.length)];
+        }
+
+        async function fetchRandomGif(sourceSelector, imageElement, setCurrentImageUrl, additionalWords) {
+            const randomWord = additionalWords.length > 0 ? additionalWords[Math.floor(Math.random() * additionalWords.length)] : getRandomWord();
+            const source = sourceSelector.value;
+            let imageUrl = '';
+
+            if (source === 'tenor') {
+                const response = await fetch(`https://api.tenor.com/v1/random?q=${randomWord}&key=LIVDSRZULELA&limit=1`);
+                const data = await response.json();
+                if (data.results && data.results.length > 0) {
+                    imageUrl = data.results[0].media[0].gif.url;
+                }
+            }
+
+            setCurrentImageUrl(imageUrl);
+            imageElement.src = imageUrl;
+        }
+
+        function saveAdditionalWords1() {
+            localStorage.setItem('additionalWords1', JSON.stringify(additionalWords1));
+        }
+
+        function saveAdditionalWords2() {
+            localStorage.setItem('additionalWords2', JSON.stringify(additionalWords2));
+        }
+
+        function loadAdditionalWords1() {
+            const savedWords = localStorage.getItem('additionalWords1');
+            if (savedWords) {
+                additionalWords1 = JSON.parse(savedWords);
+                populateAdditionalWordsList(additionalWordsList1, additionalWords1);
+            }
+        }
+
+        function loadAdditionalWords2() {
+            const savedWords = localStorage.getItem('additionalWords2');
+            if (savedWords) {
+                additionalWords2 = JSON.parse(savedWords);
+                populateAdditionalWordsList(additionalWordsList2, additionalWords2);
+            }
+        }
+
+        function populateAdditionalWordsList(selectElement, wordsArray) {
+            selectElement.innerHTML = '';
+            wordsArray.forEach(word => {
+                const option = document.createElement('option');
+                option.value = word;
+                option.text = word;
+                selectElement.appendChild(option);
+            });
+        }
+
+        function addWord1() {
+            const word = additionalWordInput1.value.trim();
+            if (word && !additionalWords1.includes(word)) {
+                additionalWords1.push(word);
+                saveAdditionalWords1();
+                additionalWordInput1.value = '';
+                populateAdditionalWordsList(additionalWordsList1, additionalWords1);
+                fetchRandomGif(imageSourceSelector1, imageElement1, setCurrentImageUrl1, additionalWords1);
+            }
+        }
+
+        function removeWord1() {
+            const selectedWord = additionalWordsList1.value;
+            additionalWords1 = additionalWords1.filter(word => word !== selectedWord);
+            saveAdditionalWords1();
+            populateAdditionalWordsList(additionalWordsList1, additionalWords1);
+            fetchRandomGif(imageSourceSelector1, imageElement1, setCurrentImageUrl1, additionalWords1);
+        }
+
+        function addWord2() {
+            const word = additionalWordInput2.value.trim();
+            if (word && !additionalWords2.includes(word)) {
+                additionalWords2.push(word);
+                saveAdditionalWords2();
+                additionalWordInput2.value = '';
+                populateAdditionalWordsList(additionalWordsList2, additionalWords2);
+                fetchRandomGif(imageSourceSelector2, imageElement2, setCurrentImageUrl2, additionalWords2);
+            }
+        }
+
+        function removeWord2() {
+            const selectedWord = additionalWordsList2.value;
+            additionalWords2 = additionalWords2.filter(word => word !== selectedWord);
+            saveAdditionalWords2();
+            populateAdditionalWordsList(additionalWordsList2, additionalWords2);
+            fetchRandomGif(imageSourceSelector2, imageElement2, setCurrentImageUrl2, additionalWords2);
+        }
+
+        async function downloadImage(url, filename) {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+        }
+
+        function mergeGifsAndDownload(gifUrl1, gifUrl2, size, transparency) {
+            Promise.all([fetch(gifUrl1), fetch(gifUrl2)])
+                .then(responses => Promise.all(responses.map(res => res.blob())))
+                .then(blobs => Promise.all(blobs.map(blob => gifLib.fromBlob(blob))))
+                .then(gifs => {
+                    const [gif1, gif2] = gifs;
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+
+                    const width = gif1.width * size;
+                    const height = gif1.height * size;
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    gif1.frames.forEach((frame, index) => {
+                        setTimeout(() => {
+                            context.clearRect(0, 0, width, height);
+                            context.globalAlpha = 1.0;
+                            context.drawImage(frame.image, 0, 0, width, height);
+                            context.globalAlpha = transparency;
+                            if (gif2.frames[index]) {
+                                context.drawImage(gif2.frames[index].image, 0, 0, width, height);
+                            }
+                            if (index === gif1.frames.length - 1) {
+                                const mergedGif = gifLib.fromCanvas(canvas);
+                                mergedGif.then(finalGif => {
+                                    const url = URL.createObjectURL(finalGif.blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = 'merged_gif.gif';
+                                    link.click();
+                                });
+                            }
+                        }, frame.delay);
+                    });
+                });
+        }
+
+        function setCurrentImageUrl1(url) {
+            currentImageUrl1 = url;
+        }
+
+        function setCurrentImageUrl2(url) {
+            currentImageUrl2 = url;
+        }
+
+        imageSourceSelector1.addEventListener('change', () => {
+            fetchRandomGif(imageSourceSelector1, imageElement1, setCurrentImageUrl1, additionalWords1);
+        });
+
+        imageSourceSelector2.addEventListener('change', () => {
+            fetchRandomGif(imageSourceSelector2, imageElement2, setCurrentImageUrl2, additionalWords2);
+        });
+
+        addWordButton1.addEventListener('click', addWord1);
+        removeWordButton1.addEventListener('click', removeWord1);
+
+        addWordButton2.addEventListener('click', addWord2);
+        removeWordButton2.addEventListener('click', removeWord2);
+
+        saveButton.addEventListener('click', () => {
+            const size = parseFloat(sizeSlider.value);
+            const transparency = parseFloat(transparencySlider.value);
+            if (overlayCheckbox.checked) {
+                mergeGifsAndDownload(currentImageUrl1, currentImageUrl2, size, transparency);
+            } else {
+                downloadImage(currentImageUrl1, 'gif1.gif');
+                downloadImage(currentImageUrl2, 'gif2.gif');
+            }
+        });
+
+        loadAdditionalWords1();
+        loadAdditionalWords2();
+
+        fetchRandomGif(imageSourceSelector1, imageElement1, setCurrentImageUrl1, additionalWords1);
+        fetchRandomGif(imageSourceSelector2, imageElement2, setCurrentImageUrl2, additionalWords2);
+
+        // Ajouter un intervalle pour changer les images toutes les secondes
+        setInterval(() => {
+            fetchRandomGif(imageSourceSelector1, imageElement1, setCurrentImageUrl1, additionalWords1);
+            fetchRandomGif(imageSourceSelector2, imageElement2, setCurrentImageUrl2, additionalWords2);
+        }, 5000);
+    </script>
+</body>
+</html>
