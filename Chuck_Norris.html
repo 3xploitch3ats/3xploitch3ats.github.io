@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de blagues</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+    <h1>Générateur de blagues</h1>
+    <label id="jokeLabel">Aucun mot-clé sélectionné</label>
+    <br>
+    <select id="keywordSelect">
+        <option value="">Sélectionner un mot-clé</option>
+    </select>
+    <input type="text" id="keywordInput" placeholder="Ajouter ou supprimer un mot-clé">
+    <button onclick="addKeyword()">Ajouter</button>
+    <button onclick="removeKeyword()">Supprimer</button>
+    <br><br>
+    <button onclick="clearLocalStorage()">Effacer le stockage local</button>
+    <button onclick="saveJoke()">Sauvegarder la blague</button>
+
+    <script>
+        var intervalId;
+        var jokes = [];
+        var keywords = [];
+
+        // Charger les mots-clés sauvegardés lors du chargement de la page
+        window.onload = function() {
+            var savedKeywords = localStorage.getItem('savedKeywords');
+            if (savedKeywords) {
+                keywords = JSON.parse(savedKeywords);
+                refreshKeywordSelect();
+            } else {
+                // Utiliser les mots-clés par défaut si aucun n'est enregistré
+                var defaultKeywords = ["cat", "dog", "bird"];
+                keywords = defaultKeywords;
+                refreshKeywordSelect();
+            }
+
+            // Sélectionner un mot aléatoire dans le combobox
+            if (document.getElementById("keywordSelect").options.length > 1) {
+                var randomIndex = Math.floor(Math.random() * (document.getElementById("keywordSelect").options.length - 1)) + 1;
+                document.getElementById("keywordSelect").selectedIndex = randomIndex;
+            }
+        }
+
+var defaultKeywords = ["cat", "dog", "bird", "fish", "wow"]; // Liste de mots-clés par défaut
+
+function searchJokes() {
+    var keyword = "";
+    var selectedIndex = document.getElementById("keywordSelect").selectedIndex;
+    if (selectedIndex > 0) {
+        keyword = document.getElementById("keywordSelect").options[selectedIndex].value;
+    } else {
+        var comboboxKeywords = Array.from(document.getElementById("keywordSelect").options).map(option => option.value);
+        var nonEmptyKeywords = comboboxKeywords.filter(keyword => keyword !== "");
+        if (nonEmptyKeywords.length > 0) {
+            keyword = getRandomKeywordFromList(nonEmptyKeywords);
+        } else {
+            keyword = getRandomKeywordFromList(defaultKeywords);
+        }
+    }
+
+    fetch(`https://api.chucknorris.io/jokes/search?query=${keyword}`)
+        .then(response => response.json())
+        .then(data => {
+            jokes = data.result.map(joke => joke.value);
+            displayJoke();
+        })
+        .catch(error => console.error('Erreur lors de la recherche de blagues:', error));
+}
+
+
+function getRandomKeywordFromList(keywordList) {
+    var randomIndex = Math.floor(Math.random() * keywordList.length);
+    return keywordList[randomIndex];
+}
+
+
+        function displayJoke() {
+            if (jokes.length > 0) {
+                var randomIndex = Math.floor(Math.random() * jokes.length);
+                var joke = jokes[randomIndex];
+                document.getElementById("jokeLabel").innerText = joke;
+                localStorage.setItem('savedJoke', joke);
+            } else {
+                document.getElementById("jokeLabel").innerText = "Aucune blague disponible pour ce mot-clé.";
+            }
+        }
+
+        function addKeyword() {
+            var keyword = document.getElementById("keywordInput").value.trim();
+            if (keyword !== "" && !keywords.includes(keyword)) {
+                keywords.push(keyword);
+                refreshKeywordSelect();
+                document.getElementById("keywordInput").value = "";
+                saveKeywordsToLocal();
+            }
+        }
+
+        function removeKeyword() {
+            var select = document.getElementById("keywordSelect");
+            var selectedIndex = select.selectedIndex;
+            if (selectedIndex !== -1) {
+                var removedKeyword = select.options[selectedIndex].value;
+                select.remove(selectedIndex);
+                keywords.splice(selectedIndex, 1);
+                saveKeywordsToLocal();
+                removeFromLocalStorage(removedKeyword); // Supprimer le mot-clé du stockage local
+            }
+        }
+
+        function removeFromLocalStorage(keyword) {
+            var savedKeywords = localStorage.getItem('savedKeywords');
+            if (savedKeywords) {
+                var parsedKeywords = JSON.parse(savedKeywords);
+                var index = parsedKeywords.indexOf(keyword);
+                if (index !== -1) {
+                    parsedKeywords.splice(index, 1);
+                    localStorage.setItem('savedKeywords', JSON.stringify(parsedKeywords));
+                }
+            }
+        }
+
+        function refreshKeywordSelect() {
+            var select = document.getElementById("keywordSelect");
+            select.innerHTML = "<option value=''>Sélectionner un mot-clé</option>";
+            keywords.forEach(function(keyword) {
+                var option = document.createElement("option");
+                option.value = keyword;
+                option.text = keyword;
+                select.appendChild(option);
+            });
+        }
+
+        function saveKeywordsToLocal() {
+            localStorage.setItem('savedKeywords', JSON.stringify(keywords));
+        }
+
+        function clearLocalStorage() {
+            localStorage.clear();
+            keywords = [];
+            refreshKeywordSelect();
+        }
+
+        function saveJoke() {
+            var savedJoke = localStorage.getItem('savedJoke');
+            if (savedJoke) {
+                var blob = new Blob([savedJoke], { type: "text/plain;charset=utf-8" });
+                saveAs(blob, "blague.txt");
+            }
+        }
+
+        function getRandomKeyword() {
+            var randomIndex = Math.floor(Math.random() * keywords.length);
+            return keywords[randomIndex];
+        }
+
+        // Recherche automatique des blagues toutes les 5 secondes
+        intervalId = setInterval(searchJokes, 5000);
+    </script>
+</body>
+</html>
