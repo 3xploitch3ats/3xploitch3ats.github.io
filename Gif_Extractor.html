@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extraction d'images GIF</title>
+    <!-- Bibliothèque gif-frames -->
+    <script src="https://cdn.jsdelivr.net/npm/gif-frames/dist/gif-frames.min.js"></script>
+    <!-- Bibliothèque JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
+</head>
+<body>
+    <input type="file" accept=".gif" id="file-input">
+    <div id="image-container"></div>
+    <button id="download-button" disabled>Télécharger les images extraites</button>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const imageContainer = document.getElementById('image-container');
+        const downloadButton = document.getElementById('download-button');
+
+        let gifName; // Nom du GIF sélectionné
+
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                imageContainer.innerHTML = ''; // Réinitialise le conteneur d'images
+
+                // Utilisation de gif-frames pour extraire les images du GIF
+                const frames = await gifFrames({
+                    url: URL.createObjectURL(file),
+                    frames: 'all',
+                    outputType: 'canvas',
+                    cumulative: true
+                });
+
+                gifName = file.name.replace(/\.[^/.]+$/, ''); // Obtient le nom du GIF sans extension
+
+                frames.forEach((frame, index) => {
+                    const canvas = frame.getImage();
+                    const img = document.createElement('img');
+                    img.src = canvas.toDataURL(); // Convertit le canevas en données d'URL pour l'image
+                    img.style.width = canvas.width + 'px'; // Conserve la largeur d'origine
+                    img.style.height = canvas.height + 'px'; // Conserve la hauteur d'origine
+                    imageContainer.appendChild(img);
+                });
+
+                // Active le bouton de téléchargement
+                downloadButton.disabled = false;
+            }
+        });
+
+        downloadButton.addEventListener('click', () => {
+            if (!gifName) return; // Vérifie si un GIF est sélectionné
+
+            const zip = new JSZip();
+            const imgFolder = zip.folder(gifName); // Crée un dossier pour les images avec le nom du GIF
+
+            const images = imageContainer.querySelectorAll('img');
+
+            images.forEach((image, index) => {
+                const imageData = image.src; // Récupère les données de l'URL de l'image
+                imgFolder.file(`${gifName}_${index}.png`, imageData.split(';base64,')[1], { base64: true });
+            });
+
+            zip.generateAsync({ type: 'blob' }).then((content) => {
+                // Télécharge le fichier ZIP
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `${gifName}_images.zip`;
+                link.click();
+            });
+        });
+    </script>
+</body>
+</html>
