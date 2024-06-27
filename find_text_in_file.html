@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recherche de texte dans des fichiers</title>
+</head>
+<body>
+    <h1>Recherche de texte dans des fichiers</h1>
+    <input type="text" id="searchText" placeholder="Entrez le texte à rechercher">
+    <button id="openFolder">Ouvrir le dossier</button>
+    <button id="saveResults">Sauvegarder les résultats</button>
+    <pre id="output"></pre>
+
+    <script>
+        const outputElement = document.getElementById('output');
+        let searchResults = [];
+
+        document.getElementById('openFolder').addEventListener('click', async () => {
+            try {
+                const directoryHandle = await window.showDirectoryPicker();
+                const searchText = document.getElementById('searchText').value;
+
+                outputElement.textContent = 'Recherche en cours...';
+                searchResults = [];
+
+                for await (const entry of directoryHandle.values()) {
+                    if (entry.kind === 'file') {
+                        const file = await entry.getFile();
+                        const text = await file.text();
+                        if (text.includes(searchText)) {
+                            searchResults.push(entry.name);
+                        }
+                    }
+                }
+
+                outputElement.textContent = searchResults.length > 0 
+                    ? `Fichiers trouvés:\n${searchResults.join('\n')}` 
+                    : 'Aucun fichier trouvé.';
+            } catch (err) {
+                outputElement.textContent = `Erreur: ${err.message}`;
+            }
+        });
+
+        document.getElementById('saveResults').addEventListener('click', async () => {
+            if (searchResults.length === 0) {
+                outputElement.textContent = 'Aucun résultat à sauvegarder.';
+                return;
+            }
+
+            try {
+                const newFileHandle = await window.showSaveFilePicker({
+                    suggestedName: 'resultats.txt',
+                    types: [{
+                        description: 'Text Files',
+                        accept: {
+                            'text/plain': ['.txt'],
+                        },
+                    }],
+                });
+
+                const writableStream = await newFileHandle.createWritable();
+                await writableStream.write(searchResults.join('\n'));
+                await writableStream.close();
+
+                outputElement.textContent = 'Résultats sauvegardés avec succès.';
+            } catch (err) {
+                outputElement.textContent = `Erreur: ${err.message}`;
+            }
+        });
+    </script>
+</body>
+</html>
