@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hex Pattern Replacer</title>
+</head>
+<body>
+    <h1>Replace Hex Pattern in ScriptHookV.dll</h1>
+    <input type="file" id="fileInput" />
+    <p id="status"></p>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', replaceHexPattern);
+
+        function replaceHexPattern(event) {
+            const file = event.target.files[0];
+
+            if (!file) {
+                document.getElementById('status').textContent = 'Please select a file.';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                const uint8Array = new Uint8Array(arrayBuffer);
+                const hexPattern = [0x74, 0x3A, 0x48, 0x8D, 0x0D];
+                const replacementPattern = [0xEB, 0x3A, 0x48, 0x8D, 0x0D];
+
+                for (let i = 0; i < uint8Array.length - hexPattern.length; i++) {
+                    let match = true;
+                    for (let j = 0; j < hexPattern.length; j++) {
+                        if (uint8Array[i + j] !== hexPattern[j]) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match) {
+                        for (let j = 0; j < replacementPattern.length; j++) {
+                            uint8Array[i + j] = replacementPattern[j];
+                        }
+                        break;
+                    }
+                }
+
+                const blob = new Blob([uint8Array], { type: 'application/octet-stream' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'ScriptHookV_modified.dll';
+                link.click();
+
+                document.getElementById('status').textContent = 'Pattern replaced and file downloaded.';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
