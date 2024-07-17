@@ -55,7 +55,7 @@
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
         <label>
-            <input type="checkbox" id="muteCheckbox"> Mute Mic
+            <input type="checkbox" id="muteCheckbox"> Mute Micro
         </label>
     </div>
 
@@ -121,7 +121,19 @@
                 },
                 audio: true
             };
-            return navigator.mediaDevices.getUserMedia(constraints);
+            return navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    localStream = stream;
+                    if (muteCheckbox.checked) {
+                        toggleAudioMute();
+                    }
+                    localVideo.srcObject = stream;
+                    return stream;
+                })
+                .catch((err) => {
+                    console.error('Failed to get local stream', err);
+                    throw err;
+                });
         }
 
         function detectCameraFacingMode() {
@@ -147,6 +159,15 @@
             return "user"; // Caméra frontale par défaut pour les autres
         }
 
+        function toggleAudioMute() {
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    audioTracks[0].enabled = !muteCheckbox.checked;
+                }
+            }
+        }
+
         callButton.addEventListener('click', () => {
             const peerId = peerIdInput.value.trim();
             if (!peerId) {
@@ -156,7 +177,6 @@
 
             getLocalStream()
                 .then((stream) => {
-                    localStream = stream;
                     localVideo.srcObject = stream;
                     call = peer.call(peerId, stream);
                     call.on('stream', (remoteStream) => {
@@ -180,12 +200,7 @@
         });
 
         muteCheckbox.addEventListener('change', () => {
-            if (localStream) {
-                const audioTracks = localStream.getAudioTracks();
-                if (audioTracks.length > 0) {
-                    audioTracks[0].enabled = !muteCheckbox.checked;
-                }
-            }
+            toggleAudioMute();
         });
 
         document.addEventListener('DOMContentLoaded', () => {
