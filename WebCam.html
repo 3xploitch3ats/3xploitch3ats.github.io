@@ -115,7 +115,7 @@
         function getLocalStream() {
             const constraints = {
                 video: {
-                    facingMode: 'user'
+                    facingMode: { exact: 'environment' }
                 },
                 audio: true
             };
