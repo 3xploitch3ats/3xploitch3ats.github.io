@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -54,6 +54,9 @@
         </label>
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
+        <label>
+            <input type="checkbox" id="muteCheckbox"> Mute Micro
+        </label>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
@@ -69,6 +72,7 @@
         const peerIdInput = document.getElementById('peerId');
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
+        const muteCheckbox = document.getElementById('muteCheckbox');
 
         generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
@@ -113,11 +117,20 @@
         function getLocalStream() {
             const constraints = {
                 video: {
-                    facingMode: 'user'
+                    facingMode: detectCameraFacingMode()
                 },
                 audio: true
             };
             return navigator.mediaDevices.getUserMedia(constraints);
+        }
+
+        function detectCameraFacingMode() {
+            const device = detectDevice();
+            if (device === 'iOS') {
+                return 'user'; // Front-facing camera for iOS
+            } else {
+                return { exact: 'environment' }; // Rear-facing camera for others
+            }
         }
 
         function detectDevice() {
@@ -164,6 +177,15 @@
             }
             localVideo.srcObject = null;
             remoteVideo.srcObject = null;
+        });
+
+        muteCheckbox.addEventListener('change', () => {
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    audioTracks[0].enabled = !muteCheckbox.checked;
+                }
+            }
         });
 
         document.addEventListener('DOMContentLoaded', () => {
