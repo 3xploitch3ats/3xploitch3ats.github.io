@@ -104,10 +104,10 @@
             });
 
             peer.on('call', (call) => {
-                navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
                     .then((stream) => {
                         localStream = stream;
-                        localVideo.srcObject = stream;
+                        localVideo.srcObject = null; // Ne pas afficher localement la vidéo
                         call.answer(stream); // Répondre à l'appel en envoyant le flux vidéo local
                         call.on('stream', (remoteStream) => {
                             // Afficher le flux vidéo du peer distant dans une balise vidéo
@@ -125,7 +125,7 @@
             return Math.random().toString(36).substr(2, 8); // Génère une chaîne aléatoire de 8 caractères
         }
 
-        // Fonction pour démarrer la vidéo locale et appeler un peer
+        // Fonction pour démarrer l'appel à un peer
         function startCall() {
             const peerId = peerIdInput.value.trim();
             if (!peerId) {
@@ -134,10 +134,10 @@
             }
 
             // Demander l'autorisation pour le microphone et la caméra
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
                 .then((stream) => {
                     localStream = stream;
-                    localVideo.srcObject = stream;
+                    localVideo.srcObject = null; // Ne pas afficher localement la vidéo
                     const call = peer.call(peerId, stream);
                     call.on('stream', (remoteStream) => {
                         // Afficher le flux vidéo du peer distant dans une balise vidéo
