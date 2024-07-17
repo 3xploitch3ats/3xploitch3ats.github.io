@@ -44,6 +44,9 @@
             margin-top: 10px;
             padding: 10px;
         }
+        #muteCheckbox {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -63,6 +66,8 @@
         </label>
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
+        <label for="muteCheckbox">Muet mon micro localement :</label>
+        <input type="checkbox" id="muteCheckbox">
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
@@ -80,6 +85,7 @@
         const peerIdInput = document.getElementById('peerId');
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
+        const muteCheckbox = document.getElementById('muteCheckbox');
 
         // Générer un ID aléatoire pour mon ID
         generateMyIdButton.addEventListener('click', () => {
@@ -107,7 +113,7 @@
                 navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
                     .then((stream) => {
                         localStream = stream;
-                        localVideo.srcObject = stream; // Afficher localement la vidéo
+                        localVideo.srcObject = null; // Ne pas afficher localement la vidéo
                         call.answer(stream); // Répondre à l'appel en envoyant le flux vidéo local
                         call.on('stream', (remoteStream) => {
                             // Afficher le flux vidéo du peer distant dans une balise vidéo
@@ -166,6 +172,15 @@
         // Événements des boutons
         callButton.addEventListener('click', startCall);
         hangupButton.addEventListener('click', hangUp);
+
+        // Événement pour muter/démuter le microphone localement
+        muteCheckbox.addEventListener('change', () => {
+            if (localStream) {
+                localStream.getAudioTracks().forEach(track => {
+                    track.enabled = !muteCheckbox.checked; // Activer/désactiver le track audio en fonction de la checkbox
+                });
+            }
+        });
     </script>
 </body>
 </html>
