@@ -87,15 +87,7 @@
         }
 
         function initializePeer(myId) {
-            peer = new Peer(myId, {
-                debug: 3,
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
-                    ]
-                }
-            });
+            peer = new Peer(myId);
 
             peer.on('open', (id) => {
                 console.log('My peer ID is: ' + id);
@@ -104,10 +96,7 @@
             peer.on('call', (call) => {
                 getUserMedia().then(stream => {
                     call.answer(stream);
-                    call.on('stream', (remoteStream) => {
-                        remoteVideo.srcObject = remoteStream;
-                    });
-                    currentCall = call;
+                    handleCallStream(call);
                 }).catch(handleGetUserMediaError);
             });
         }
@@ -117,23 +106,15 @@
         }
 
         function getUserMedia() {
-            const constraints = {
-                video: {
-                    facingMode: 'user'
-                },
-                audio: true
-            };
-            return navigator.mediaDevices.getUserMedia(constraints)
-                .then(stream => {
-                    localStream = stream;
-                    localVideo.srcObject = stream;
-                    return stream;
-                })
-                .catch(handleGetUserMediaError);
+            const constraints = { video: true, audio: true };
+            return navigator.mediaDevices.getUserMedia(constraints);
         }
 
-        function handleGetUserMediaError(e) {
-            console.error('getUserMedia error:', e);
+        function handleCallStream(call) {
+            call.on('stream', (remoteStream) => {
+                remoteVideo.srcObject = remoteStream;
+            });
+            currentCall = call;
         }
 
         callButton.addEventListener('click', () => {
@@ -145,10 +126,7 @@
 
             getUserMedia().then(stream => {
                 const call = peer.call(peerId, stream);
-                call.on('stream', (remoteStream) => {
-                    remoteVideo.srcObject = remoteStream;
-                });
-                currentCall = call;
+                handleCallStream(call);
             }).catch((err) => {
                 console.error('Failed to get local stream', err);
             });
