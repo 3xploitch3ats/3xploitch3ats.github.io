@@ -29,11 +29,29 @@
         }
         #controls {
             display: flex;
+            flex-direction: column;
             align-items: center;
             margin-bottom: 20px;
+            width: 90%;
+            max-width: 500px;
         }
-        #controls label {
-            margin-right: 10px;
+        #controls label, #controls input, #controls button {
+            margin: 5px;
+            width: 100%;
+        }
+        #controls input {
+            padding: 5px;
+        }
+        #controls button {
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #controls button:disabled {
+            background-color: #ccc;
         }
     </style>
 </head>
@@ -62,7 +80,7 @@
         let localStream; // Pour stocker le flux vidéo local
         let remoteStream; // Pour stocker le flux vidéo distant
         let peer;
-        let myId;
+        let currentCall;
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -81,9 +99,14 @@
         });
 
         // Charger l'ID enregistré depuis le localStorage ou générer un nouvel ID
-        myId = localStorage.getItem('chatUsername');
+        let myId = localStorage.getItem('chatUsername');
         if (myId) {
             myIdInput.value = myId;
+            initializePeer();
+        } else {
+            myId = generateRandomId();
+            myIdInput.value = myId;
+            localStorage.setItem('chatUsername', myId);
             initializePeer();
         }
 
@@ -104,6 +127,7 @@
                             // Afficher le flux vidéo du peer distant dans une balise vidéo
                             remoteVideo.srcObject = remoteStream;
                         });
+                        currentCall = call;
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
@@ -116,15 +140,30 @@
             return Math.random().toString(36).substr(2, 8); // Génère une chaîne aléatoire de 8 caractères
         }
 
-        // Fonction pour démarrer la vidéo locale et appeler un peer
-        function startCall() {
+        // Fonction pour démarrer la vidéo locale
+        function startLocalVideo() {
+            navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            }).then(stream => {
+                localStream = stream;
+                localVideo.srcObject = stream;
+            }).catch(handleGetUserMediaError);
+        }
+
+        // Fonction pour gérer les erreurs de getUserMedia
+        function handleGetUserMediaError(e) {
+            console.log('getUserMedia error:', e);
+        }
+
+        // Fonction pour appeler un autre peer
+        function callPeer() {
             const peerId = peerIdInput.value.trim();
             if (!peerId) {
                 alert('Veuillez entrer l\'ID de la personne à appeler.');
                 return;
             }
 
-            // Demander l'autorisation pour le microphone et la caméra
             navigator.mediaDevices.getUserMedia({ video: true, audio: true })
                 .then((stream) => {
                     localStream = stream;
@@ -134,6 +173,7 @@
                         // Afficher le flux vidéo du peer distant dans une balise vidéo
                         remoteVideo.srcObject = remoteStream;
                     });
+                    currentCall = call;
                 })
                 .catch((err) => {
                     console.error('Failed to get local stream', err);
@@ -145,6 +185,9 @@
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
+            if (currentCall) {
+                currentCall.close();
+            }
             if (peer) {
                 peer.disconnect();
                 peer.destroy();
@@ -155,9 +198,8 @@
         }
 
         // Événements des boutons
-        callButton.addEventListener('click', startCall);
+        callButton.addEventListener('click', callPeer);
         hangupButton.addEventListener('click', hangUp);
     </script>
 </body>
 </html>
-
