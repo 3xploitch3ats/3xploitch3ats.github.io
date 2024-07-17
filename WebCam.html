@@ -107,7 +107,7 @@
                 navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true })
                     .then((stream) => {
                         localStream = stream;
-                        localVideo.srcObject = null; // Ne pas afficher localement la vidéo
+                        localVideo.srcObject = stream; // Afficher localement la vidéo
                         call.answer(stream); // Répondre à l'appel en envoyant le flux vidéo local
                         call.on('stream', (remoteStream) => {
                             // Afficher le flux vidéo du peer distant dans une balise vidéo
