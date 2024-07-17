@@ -29,11 +29,15 @@
         }
         #controls {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            margin-bottom: 20px;
         }
-        #controls label {
-            margin-right: 10px;
+        #controls label, #controls input, #controls button {
+            margin: 5px;
+        }
+        #controls button {
+            padding: 10px;
+            font-size: 16px;
         }
     </style>
 </head>
@@ -60,7 +64,6 @@
     <script>
         // Variables globales
         let localStream;
-        let remoteStream;
         let peer;
         let currentCall;
 
@@ -95,7 +98,7 @@
             });
 
             peer.on('call', (call) => {
-                navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                getUserMedia()
                     .then((stream) => {
                         localStream = stream;
                         localVideo.srcObject = stream;
@@ -118,23 +121,15 @@
         }
 
         // Fonction pour démarrer la vidéo locale
-        function startLocalVideo() {
+        function getUserMedia() {
             return navigator.mediaDevices.getUserMedia({
-                video: true,
+                video: { facingMode: 'user' },
                 audio: true
             }).then(stream => {
                 localStream = stream;
                 localVideo.srcObject = stream;
                 return stream;
             }).catch(handleGetUserMediaError);
-        }
-
-        // Fonction pour arrêter la vidéo locale
-        function stopLocalVideo() {
-            if (localStream && localStream.getTracks) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            localVideo.srcObject = null;
         }
 
         // Fonction pour gérer les erreurs de getUserMedia
@@ -150,7 +145,7 @@
                 return;
             }
 
-            startLocalVideo().then((stream) => {
+            getUserMedia().then((stream) => {
                 const call = peer.call(peerId, stream);
                 call.on('stream', (remoteStream) => {
                     remoteVideo.srcObject = remoteStream;
