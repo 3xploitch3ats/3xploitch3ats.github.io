@@ -587,7 +587,17 @@ emojiList.appendChild(emojiGroup);
 
 	peer.on('open', function (id) {
    	$("#my-id").text(id);
-    	localStorage.setItem('peerId', id);
+let storedUsername = localStorage.getItem('chatUsername');
+let storedPeerId = localStorage.getItem('peerId');
+
+let peer;
+if (storedUsername) {
+    peer = new Peer(storedUsername);
+} else if (storedPeerId) {
+    peer = new Peer(storedPeerId);
+} else {
+    peer = new Peer(); 
+}
         onlineUsers.push(id);
         displayOnlineUsers();
 	});
