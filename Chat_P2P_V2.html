@@ -508,16 +508,16 @@ let storedUsername = localStorage.getItem('chatUsername');
 let storedPeerId = localStorage.getItem('peerId');
 
 let peer;
+
 if (storedUsername) {
     peer = new Peer(storedUsername);
     localStorage.setItem('peerId', storedUsername);
 } else if (storedPeerId) {
     peer = new Peer(storedPeerId);
-    localStorage.setItem('peerId', storedPeerId);
 } else {
-    peer = new Peer(); 
+    peer = new Peer();
+    localStorage.setItem('peerId', peer.id);
 }
-
 let conn = null;
 let screenStream = null;
 
