@@ -112,9 +112,7 @@
 
         function getLocalStream() {
             const constraints = {
-                video: {
-                    facingMode: 'user'
-                },
+                video: true,
                 audio: true
             };
             return navigator.mediaDevices.getUserMedia(constraints);
