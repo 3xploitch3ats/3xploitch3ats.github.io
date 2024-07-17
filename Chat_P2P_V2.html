@@ -667,6 +667,7 @@ document.getElementById('message').addEventListener('keydown', function(event) {
 
 function sendMessage() {
     const message = messageInput.value;
+    const username = document.getElementById("username").value.trim(); // Récupérer le nom d'utilisateur
 
     const messageData = {
         type: 'chatMessage',
@@ -681,23 +682,33 @@ function sendMessage() {
         return;  // Ne pas envoyer le message secret aux autres
     }
 
-    if (currentUser && message) {
-        const newMessage = document.createElement("div");
-        newMessage.className = "chat-message";
-        newMessage.innerHTML = `<strong>${currentUser}:</strong> ${message}`; // Utilisez la variable 'message' au lieu de 'messages'
-	messages.appendChild(newMessage);
-        saveMessage(currentUser, message);
-        messageInput.value = "";
-        updateUserLastActive(currentUser);
-	}
-	conn.send(messageData);
-	// Récupérer le contenu actuel du champ "Nom d'utilisateur"
-	const user = document.getElementById("my-id").textContent; // ou innerText
-	// Insérer le message avec le nom d'utilisateur dans la zone de texte "messages"
-	document.getElementById("messages").value += user + ": " + message + "\n";
-	document.getElementById("message").value = "";
-scrollToBottom();
-	}
+if (currentUser && message) {
+    const newMessage = document.createElement("div");
+    newMessage.className = "chat-message";
+    newMessage.innerHTML = `<strong>${currentUser}:</strong> ${message}`;
+    messages.appendChild(newMessage); // Ajoute le nouveau message à la liste des messages
+
+    saveMessage(currentUser, message); // Sauvegarde le message dans votre système de sauvegarde
+
+    messageInput.value = ""; // Efface le champ de saisie après l'envoi du message
+
+    updateUserLastActive(currentUser); // Met à jour l'activité de l'utilisateur
+
+    conn.send(messageData); // Envoie le message via la connexion WebSocket ou autre
+
+    // Récupère le contenu actuel du champ "Nom d'utilisateur"
+    const user = document.getElementById("my-id").textContent.trim(); // Récupère le contenu et supprime les espaces autour
+
+    // Affiche le message avec le nom d'utilisateur dans la zone de texte "messages"
+    const messageDisplay = `${user}: ${message}\n`;
+    const messagesTextArea = document.getElementById("messages");
+    messagesTextArea.value += messageDisplay; // Ajoute le message au contenu existant
+
+    document.getElementById("message").value = ""; // Efface le champ de saisie après l'envoi du message
+
+    scrollToBottom(); // Fait défiler vers le bas pour afficher le dernier message
+}
+
 
         function displayOnlineUsers() {
             $('#online-users').empty();
