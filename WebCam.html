@@ -19,39 +19,21 @@
         #video-container {
             display: flex;
             justify-content: space-around;
-            width: 90%;
+            width: 80%;
             margin-bottom: 20px;
         }
         video {
-            width: 100%;
-            max-width: 300px;
+            max-width: 40%;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
         #controls {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            width: 90%;
-            max-width: 500px;
+            margin-bottom: 20px;
         }
-        #controls label, #controls input, #controls button {
-            margin: 5px;
-            width: 100%;
-        }
-        #controls input {
-            padding: 5px;
-        }
-        #controls button {
-            padding: 10px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #controls button:disabled {
-            background-color: #ccc;
+        #controls label {
+            margin-right: 10px;
         }
     </style>
 </head>
@@ -103,11 +85,6 @@
         if (myId) {
             myIdInput.value = myId;
             initializePeer();
-        } else {
-            myId = generateRandomId();
-            myIdInput.value = myId;
-            localStorage.setItem('chatUsername', myId);
-            initializePeer();
         }
 
         function initializePeer() {
@@ -122,32 +99,42 @@
                     .then((stream) => {
                         localStream = stream;
                         localVideo.srcObject = stream;
-                        call.answer(stream);
+                        call.answer(stream); // Répondre à l'appel en envoyant le flux vidéo local
                         call.on('stream', (remoteStream) => {
                             remoteVideo.srcObject = remoteStream;
                         });
-                        currentCall = call;
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
                     });
+
+                currentCall = call;
             });
         }
 
         // Fonction pour générer un ID aléatoire
         function generateRandomId() {
-            return Math.random().toString(36).substr(2, 8);
+            return Math.random().toString(36).substr(2, 8); // Génère une chaîne aléatoire de 8 caractères
         }
 
         // Fonction pour démarrer la vidéo locale
         function startLocalVideo() {
-            navigator.mediaDevices.getUserMedia({
+            return navigator.mediaDevices.getUserMedia({
                 video: true,
                 audio: true
             }).then(stream => {
                 localStream = stream;
                 localVideo.srcObject = stream;
+                return stream;
             }).catch(handleGetUserMediaError);
+        }
+
+        // Fonction pour arrêter la vidéo locale
+        function stopLocalVideo() {
+            if (localStream && localStream.getTracks) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            localVideo.srcObject = null;
         }
 
         // Fonction pour gérer les erreurs de getUserMedia
@@ -156,48 +143,35 @@
         }
 
         // Fonction pour appeler un autre peer
-        function callPeer() {
+        callButton.addEventListener('click', () => {
             const peerId = peerIdInput.value.trim();
             if (!peerId) {
                 alert('Veuillez entrer l\'ID de la personne à appeler.');
                 return;
             }
 
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-                .then((stream) => {
-                    localStream = stream;
-                    localVideo.srcObject = stream;
-                    const call = peer.call(peerId, stream);
-                    call.on('stream', (remoteStream) => {
-                        remoteVideo.srcObject = remoteStream;
-                    });
-                    currentCall = call;
-                })
-                .catch((err) => {
-                    console.error('Failed to get local stream', err);
+            startLocalVideo().then((stream) => {
+                const call = peer.call(peerId, stream);
+                call.on('stream', (remoteStream) => {
+                    remoteVideo.srcObject = remoteStream;
                 });
-        }
+                currentCall = call;
+            }).catch((err) => {
+                console.error('Failed to get local stream', err);
+            });
+        });
 
         // Fonction pour raccrocher la connexion
-        function hangUp() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
+        hangupButton.addEventListener('click', () => {
             if (currentCall) {
                 currentCall.close();
             }
-            if (peer) {
-                peer.disconnect();
-                peer.destroy();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
             }
             localVideo.srcObject = null;
             remoteVideo.srcObject = null;
-            peer = null;
-        }
-
-        // Événements des boutons
-        callButton.addEventListener('click', callPeer);
-        hangupButton.addEventListener('click', hangUp);
+        });
     </script>
 </body>
 </html>
