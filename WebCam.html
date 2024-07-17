@@ -84,7 +84,11 @@
         }
 
         function initializePeer(id) {
-            peer = new Peer(id);
+            peer = new Peer(id, {
+                host: 'your-peerjs-server.com', // Replace with your PeerJS server host
+                port: 9000, // Replace with your PeerJS server port
+                path: '/myapp' // Replace with your PeerJS server path
+            });
 
             peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
@@ -96,9 +100,7 @@
                         localStream = stream;
                         localVideo.srcObject = stream;
                         incomingCall.answer(stream);
-                        incomingCall.on('stream', (remoteStream) => {
-                            remoteVideo.srcObject = remoteStream;
-                        });
+                        setupCallListeners(incomingCall);
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
