@@ -60,7 +60,6 @@
     <script>
         let localStream;
         let peer;
-        let myId;
         let call;
 
         const callButton = document.getElementById('callButton');
@@ -72,22 +71,22 @@
         const remoteVideo = document.getElementById('remoteVideo');
 
         generateMyIdButton.addEventListener('click', () => {
-            myId = generateRandomId();
+            const myId = generateRandomId();
             myIdInput.value = myId;
             localStorage.setItem('chatUsername', myId);
-            initializePeer();
+            initializePeer(myId);
         });
 
-        myId = localStorage.getItem('chatUsername');
-        if (myId) {
-            myIdInput.value = myId;
-            initializePeer();
+        const storedId = localStorage.getItem('chatUsername');
+        if (storedId) {
+            myIdInput.value = storedId;
+            initializePeer(storedId);
         }
 
-        function initializePeer() {
-            peer = new Peer(myId);
+        function initializePeer(id) {
+            peer = new Peer(id);
 
-            peer.on('open', (id) => {
+            peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
             });
 
