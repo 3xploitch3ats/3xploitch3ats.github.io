@@ -28,15 +28,12 @@
         }
         #controls {
             display: flex;
-            flex-direction: column;
             align-items: center;
+            flex-direction: column;
+            width: 100%;
         }
-        #controls label, #controls input, #controls button {
-            margin: 5px;
-        }
-        #controls button {
-            padding: 10px;
-            font-size: 16px;
+        #controls label, #controls button {
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -63,7 +60,7 @@
     <script>
         let localStream;
         let peer;
-        let currentCall;
+        let call;
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -80,24 +77,32 @@
             initializePeer(myId);
         });
 
-        const storedMyId = localStorage.getItem('chatUsername');
-        if (storedMyId) {
-            myIdInput.value = storedMyId;
-            initializePeer(storedMyId);
+        const storedId = localStorage.getItem('chatUsername');
+        if (storedId) {
+            myIdInput.value = storedId;
+            initializePeer(storedId);
         }
 
-        function initializePeer(myId) {
-            peer = new Peer(myId);
+        function initializePeer(id) {
+            peer = new Peer(id);
 
-            peer.on('open', (id) => {
+            peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
             });
 
-            peer.on('call', (call) => {
-                getUserMedia().then(stream => {
-                    call.answer(stream);
-                    handleCallStream(call);
-                }).catch(handleGetUserMediaError);
+            peer.on('call', (incomingCall) => {
+                getLocalStream()
+                    .then((stream) => {
+                        localStream = stream;
+                        localVideo.srcObject = stream;
+                        incomingCall.answer(stream);
+                        incomingCall.on('stream', (remoteStream) => {
+                            remoteVideo.srcObject = remoteStream;
+                        });
+                    })
+                    .catch((err) => {
+                        console.error('Failed to get local stream', err);
+                    });
             });
         }
 
@@ -105,16 +110,28 @@
             return Math.random().toString(36).substr(2, 8);
         }
 
-        function getUserMedia() {
-            const constraints = { video: true, audio: true };
+        function getLocalStream() {
+            const constraints = {
+                video: {
+                    facingMode: 'user'
+                },
+                audio: true
+            };
             return navigator.mediaDevices.getUserMedia(constraints);
         }
 
-        function handleCallStream(call) {
-            call.on('stream', (remoteStream) => {
-                remoteVideo.srcObject = remoteStream;
-            });
-            currentCall = call;
+        function detectDevice() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            if (/windows phone/i.test(userAgent)) {
+                return "Windows Phone";
+            }
+            if (/android/i.test(userAgent)) {
+                return "Android";
+            }
+            if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+                return "iOS";
+            }
+            return "unknown";
         }
 
         callButton.addEventListener('click', () => {
@@ -124,23 +141,34 @@
                 return;
             }
 
-            getUserMedia().then(stream => {
-                const call = peer.call(peerId, stream);
-                handleCallStream(call);
-            }).catch((err) => {
-                console.error('Failed to get local stream', err);
-            });
+            getLocalStream()
+                .then((stream) => {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    call = peer.call(peerId, stream);
+                    call.on('stream', (remoteStream) => {
+                        remoteVideo.srcObject = remoteStream;
+                    });
+                })
+                .catch((err) => {
+                    console.error('Failed to get local stream', err);
+                });
         });
 
         hangupButton.addEventListener('click', () => {
-            if (currentCall) {
-                currentCall.close();
-            }
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
+            if (call) {
+                call.close();
+            }
             localVideo.srcObject = null;
             remoteVideo.srcObject = null;
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const device = detectDevice();
+            console.log('Appareil détecté : ' + device);
         });
     </script>
 </body>
