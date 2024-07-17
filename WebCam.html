@@ -19,11 +19,12 @@
         #video-container {
             display: flex;
             justify-content: space-around;
-            width: 80%;
+            width: 90%;
             margin-bottom: 20px;
         }
         video {
-            max-width: 40%;
+            width: 100%;
+            max-width: 300px;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
@@ -31,7 +32,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-bottom: 20px;
             width: 90%;
             max-width: 500px;
         }
@@ -77,8 +77,8 @@
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
     <script>
         // Variables globales
-        let localStream; // Pour stocker le flux vidéo local
-        let remoteStream; // Pour stocker le flux vidéo distant
+        let localStream;
+        let remoteStream;
         let peer;
         let currentCall;
 
@@ -122,9 +122,8 @@
                     .then((stream) => {
                         localStream = stream;
                         localVideo.srcObject = stream;
-                        call.answer(stream); // Répondre à l'appel en envoyant le flux vidéo local
+                        call.answer(stream);
                         call.on('stream', (remoteStream) => {
-                            // Afficher le flux vidéo du peer distant dans une balise vidéo
                             remoteVideo.srcObject = remoteStream;
                         });
                         currentCall = call;
@@ -137,7 +136,7 @@
 
         // Fonction pour générer un ID aléatoire
         function generateRandomId() {
-            return Math.random().toString(36).substr(2, 8); // Génère une chaîne aléatoire de 8 caractères
+            return Math.random().toString(36).substr(2, 8);
         }
 
         // Fonction pour démarrer la vidéo locale
@@ -170,7 +169,6 @@
                     localVideo.srcObject = stream;
                     const call = peer.call(peerId, stream);
                     call.on('stream', (remoteStream) => {
-                        // Afficher le flux vidéo du peer distant dans une balise vidéo
                         remoteVideo.srcObject = remoteStream;
                     });
                     currentCall = call;
