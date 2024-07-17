@@ -510,8 +510,10 @@ let storedPeerId = localStorage.getItem('peerId');
 let peer;
 if (storedUsername) {
     peer = new Peer(storedUsername);
+    localStorage.setItem('peerId', storedUsername);
 } else if (storedPeerId) {
     peer = new Peer(storedPeerId);
+    localStorage.setItem('peerId', storedPeerId);
 } else {
     peer = new Peer(); 
 }
@@ -587,17 +589,7 @@ emojiList.appendChild(emojiGroup);
 
 	peer.on('open', function (id) {
    	$("#my-id").text(id);
-let storedUsername = localStorage.getItem('chatUsername');
-let storedPeerId = localStorage.getItem('peerId');
-
-let peer;
-if (storedUsername) {
-    peer = new Peer(storedUsername);
-} else if (storedPeerId) {
-    peer = new Peer(storedPeerId);
-} else {
-    peer = new Peer(); 
-}
+    	localStorage.setItem('peerId', id);
         onlineUsers.push(id);
         displayOnlineUsers();
 	});
