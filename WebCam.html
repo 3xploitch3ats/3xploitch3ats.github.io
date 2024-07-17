@@ -94,19 +94,10 @@
             });
 
             peer.on('call', (call) => {
-                getUserMedia()
-                    .then((stream) => {
-                        localStream = stream;
-                        localVideo.srcObject = stream;
-                        call.answer(stream);
-                        call.on('stream', (remoteStream) => {
-                            remoteVideo.srcObject = remoteStream;
-                        });
-                    })
-                    .catch((err) => {
-                        console.error('Failed to get local stream', err);
-                    });
-
+                call.answer(localStream);
+                call.on('stream', (remoteStream) => {
+                    remoteVideo.srcObject = remoteStream;
+                });
                 currentCall = call;
             });
         }
@@ -117,7 +108,7 @@
 
         function getUserMedia() {
             return navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user' },
+                video: true,
                 audio: true
             }).then(stream => {
                 localStream = stream;
