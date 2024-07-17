@@ -55,7 +55,7 @@
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
         <label>
-            <input type="checkbox" id="muteCheckbox"> Mute Micro
+            <input type="checkbox" id="muteCheckbox"> Mute
         </label>
     </div>
 
@@ -139,12 +139,12 @@
                 return "Windows Phone";
             }
             if (/android/i.test(userAgent)) {
-                return "Android";
+                return "environment"; // Rear-facing camera for Android
             }
             if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
                 return "iOS";
             }
-            return "unknown";
+            return "user"; // Front-facing camera for others by default
         }
 
         callButton.addEventListener('click', () => {
