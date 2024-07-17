@@ -30,6 +30,7 @@
         #controls {
             display: flex;
             align-items: center;
+            margin-bottom: 20px;
         }
         #controls label {
             margin-right: 10px;
@@ -51,173 +52,111 @@
             ID de la personne à appeler :
             <input type="text" id="peerId">
         </label>
-        <label>
-            <input type="checkbox" id="webcamCheckbox"> Activer Webcam
-        </label>
-        <button id="startButton">Démarrer</button>
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
     <script>
         // Variables globales
         let localStream; // Pour stocker le flux vidéo local
         let remoteStream; // Pour stocker le flux vidéo distant
-        let localPeerConnection; // Connexion peer locale
-        let remotePeerConnection; // Connexion peer distante
+        let peer;
+        let myId;
 
-        const startButton = document.getElementById('startButton');
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
-        const webcamCheckbox = document.getElementById('webcamCheckbox');
+        const generateMyIdButton = document.getElementById('generateMyId');
         const myIdInput = document.getElementById('myId');
         const peerIdInput = document.getElementById('peerId');
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
-        const generateMyIdButton = document.getElementById('generateMyId');
 
         // Générer un ID aléatoire pour mon ID
         generateMyIdButton.addEventListener('click', () => {
-            myIdInput.value = generateRandomId();
+            myId = generateRandomId();
+            myIdInput.value = myId;
+            localStorage.setItem('chatUsername', myId);
+            initializePeer();
         });
 
+        // Charger l'ID enregistré depuis le localStorage ou générer un nouvel ID
+        myId = localStorage.getItem('chatUsername');
+        if (myId) {
+            myIdInput.value = myId;
+            initializePeer();
+        }
+
+        function initializePeer() {
+            peer = new Peer(myId);
+
+            peer.on('open', (id) => {
+                console.log('My peer ID is: ' + id);
+            });
+
+            peer.on('call', (call) => {
+                navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                    .then((stream) => {
+                        localStream = stream;
+                        localVideo.srcObject = stream;
+                        call.answer(stream); // Répondre à l'appel en envoyant le flux vidéo local
+                        call.on('stream', (remoteStream) => {
+                            // Afficher le flux vidéo du peer distant dans une balise vidéo
+                            remoteVideo.srcObject = remoteStream;
+                        });
+                    })
+                    .catch((err) => {
+                        console.error('Failed to get local stream', err);
+                    });
+            });
+        }
+
+        // Fonction pour générer un ID aléatoire
         function generateRandomId() {
             return Math.random().toString(36).substr(2, 8); // Génère une chaîne aléatoire de 8 caractères
         }
 
-        webcamCheckbox.addEventListener('change', () => {
-            if (webcamCheckbox.checked) {
-                startLocalVideo();
-            } else {
-                stopLocalVideo();
-            }
-        });
-
-        // Fonction pour démarrer la vidéo locale
-        function startLocalVideo() {
-            navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            }).then(stream => {
-                localStream = stream;
-                localVideo.srcObject = stream;
-            }).catch(handleGetUserMediaError);
-        }
-
-        // Fonction pour arrêter la vidéo locale
-        function stopLocalVideo() {
-            if (localStream && localStream.getTracks) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            localVideo.srcObject = null;
-        }
-
-        // Fonction pour gérer les erreurs de getUserMedia
-        function handleGetUserMediaError(e) {
-            console.log('getUserMedia error:', e);
-        }
-
-        // Fonction pour démarrer la connexion peer
-        async function startPeerConnection() {
-            const configuration = {
-                iceServers: [{ urls: 'stun:stun.example.org' }]
-            };
-            localPeerConnection = new RTCPeerConnection(configuration);
-            localPeerConnection.addEventListener('icecandidate', handleConnection);
-            localPeerConnection.addEventListener('iceconnectionstatechange', handleConnectionChange);
-            
-            // Ajouter le flux vidéo local à la connexion
-            localStream.getTracks().forEach(track => {
-                localPeerConnection.addTrack(track, localStream);
-            });
-
-            // Créer l'offre SDP
-            const offer = await localPeerConnection.createOffer();
-            await localPeerConnection.setLocalDescription(offer);
-
-            // Envoyer l'offre SDP à l'autre utilisateur (via signalisation)
-            // En supposant que vous avez un mécanisme pour cela
-        }
-
-        // Fonction pour répondre à une offre SDP reçue
-        async function handleOffer(offer) {
-            // Initialiser la connexion peer distante
-            const configuration = {
-                iceServers: [{ urls: 'stun:stun.example.org' }]
-            };
-            remotePeerConnection = new RTCPeerConnection(configuration);
-            remotePeerConnection.addEventListener('icecandidate', handleConnection);
-            remotePeerConnection.addEventListener('iceconnectionstatechange', handleConnectionChange);
-            remotePeerConnection.addEventListener('track', handleRemoteTrack);
-
-            // Ajouter le flux vidéo à la connexion
-            remoteStream.getTracks().forEach(track => {
-                remotePeerConnection.addTrack(track, remoteStream);
-            });
-
-            // Définir l'offre SDP reçue comme l'offre distante
-            await remotePeerConnection.setRemoteDescription(offer);
-
-            // Créer la réponse SDP
-            const answer = await remotePeerConnection.createAnswer();
-            await remotePeerConnection.setLocalDescription(answer);
-
-            // Envoyer la réponse SDP à l'initiateur (via signalisation)
-        }
-
-        // Fonction pour gérer les candidates ICE
-        function handleConnection(event) {
-            const peerConnection = event.target;
-            const iceCandidate = event.candidate;
-
-            if (iceCandidate) {
-                // Envoyer iceCandidate à l'autre peer via signalisation
-            }
-        }
-
-        // Fonction pour gérer les changements d'état de la connexion ICE
-        function handleConnectionChange(event) {
-            const peerConnection = event.target;
-            console.log(`ICE state change event: ${peerConnection.iceConnectionState}`);
-        }
-
-        // Fonction pour gérer les pistes vidéo distantes
-        function handleRemoteTrack(event) {
-            const stream = event.streams[0];
-            remoteVideo.srcObject = stream;
-            remoteStream = stream;
-        }
-
-        // Événements des boutons
-        startButton.addEventListener('click', startLocalVideo);
-        callButton.addEventListener('click', () => {
-            const myId = myIdInput.value.trim();
+        // Fonction pour démarrer la vidéo locale et appeler un peer
+        function startCall() {
             const peerId = peerIdInput.value.trim();
-            if (myId && peerId) {
-                startPeerConnection();
-            } else {
-                alert('Veuillez entrer votre ID et l\'ID de la personne à appeler.');
+            if (!peerId) {
+                alert('Veuillez entrer l\'ID de la personne à appeler.');
+                return;
             }
-        });
-        hangupButton.addEventListener('click', hangUp);
+
+            // Demander l'autorisation pour le microphone et la caméra
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then((stream) => {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    const call = peer.call(peerId, stream);
+                    call.on('stream', (remoteStream) => {
+                        // Afficher le flux vidéo du peer distant dans une balise vidéo
+                        remoteVideo.srcObject = remoteStream;
+                    });
+                })
+                .catch((err) => {
+                    console.error('Failed to get local stream', err);
+                });
+        }
 
         // Fonction pour raccrocher la connexion
         function hangUp() {
-            localPeerConnection.close();
-            remotePeerConnection.close();
-            localPeerConnection = null;
-            remotePeerConnection = null;
-            stopLocalVideo();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peer) {
+                peer.disconnect();
+                peer.destroy();
+            }
+            localVideo.srcObject = null;
             remoteVideo.srcObject = null;
+            peer = null;
         }
 
-        // Appel initial pour démarrer la vidéo locale si la case est cochée
-        if (webcamCheckbox.checked) {
-            startLocalVideo();
-        }
-
-        // Génération initiale d'un ID aléatoire pour mon ID
-        myIdInput.value = generateRandomId();
+        // Événements des boutons
+        callButton.addEventListener('click', startCall);
+        hangupButton.addEventListener('click', hangUp);
     </script>
 </body>
 </html>
