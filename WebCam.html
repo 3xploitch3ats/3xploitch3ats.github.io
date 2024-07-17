@@ -74,19 +74,19 @@
         const remoteVideo = document.getElementById('remoteVideo');
 
         generateMyIdButton.addEventListener('click', () => {
-            myId = generateRandomId();
+            const myId = generateRandomId();
             myIdInput.value = myId;
             localStorage.setItem('chatUsername', myId);
-            initializePeer();
+            initializePeer(myId);
         });
 
-        let myId = localStorage.getItem('chatUsername');
-        if (myId) {
-            myIdInput.value = myId;
-            initializePeer();
+        const storedMyId = localStorage.getItem('chatUsername');
+        if (storedMyId) {
+            myIdInput.value = storedMyId;
+            initializePeer(storedMyId);
         }
 
-        function initializePeer() {
+        function initializePeer(myId) {
             peer = new Peer(myId);
 
             peer.on('open', (id) => {
@@ -94,11 +94,13 @@
             });
 
             peer.on('call', (call) => {
-                call.answer(localStream);
-                call.on('stream', (remoteStream) => {
-                    remoteVideo.srcObject = remoteStream;
-                });
-                currentCall = call;
+                getUserMedia().then(stream => {
+                    call.answer(stream);
+                    call.on('stream', (remoteStream) => {
+                        remoteVideo.srcObject = remoteStream;
+                    });
+                    currentCall = call;
+                }).catch(handleGetUserMediaError);
             });
         }
 
@@ -128,7 +130,7 @@
                 return;
             }
 
-            getUserMedia().then((stream) => {
+            getUserMedia().then(stream => {
                 const call = peer.call(peerId, stream);
                 call.on('stream', (remoteStream) => {
                     remoteVideo.srcObject = remoteStream;
