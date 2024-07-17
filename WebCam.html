@@ -112,7 +112,9 @@
 
         function getLocalStream() {
             const constraints = {
-                video: true,
+                video: {
+                    facingMode: 'user'
+                },
                 audio: true
             };
             return navigator.mediaDevices.getUserMedia(constraints);
@@ -130,14 +132,27 @@
                     localStream = stream;
                     localVideo.srcObject = stream;
                     call = peer.call(peerId, stream);
-                    call.on('stream', (remoteStream) => {
-                        remoteVideo.srcObject = remoteStream;
-                    });
+                    setupCallListeners(call);
                 })
                 .catch((err) => {
                     console.error('Failed to get local stream', err);
                 });
         });
+
+        function setupCallListeners(call) {
+            call.on('stream', (remoteStream) => {
+                remoteVideo.srcObject = remoteStream;
+            });
+
+            call.on('close', () => {
+                console.log('Call ended.');
+                remoteVideo.srcObject = null;
+            });
+
+            call.on('error', (err) => {
+                console.error('Call error:', err);
+            });
+        }
 
         hangupButton.addEventListener('click', () => {
             if (localStream) {
