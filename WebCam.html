@@ -61,7 +61,7 @@
         </label>
         <label>
             Sélectionner la caméra :
-            <select id="cameraSelect"></select> <!-- Combobox pour sélectionner la caméra -->
+            <select id="cameraSelect"></select>
         </label>
         <label>
             Format de la vidéo :
@@ -131,7 +131,7 @@
         async function getLocalStream() {
             const constraints = {
                 video: {
-                    deviceId: { exact: cameraSelect.value },
+                    facingMode: cameraSelect.value,
                     width: parseInt(resolutionSelect.value)
                 },
                 audio: true
@@ -148,7 +148,6 @@
                 throw err;
             }
         }
-
 
 async function listCameras() {
     try {
@@ -179,7 +178,7 @@ async function listCameras() {
             try {
                 const stream = await getLocalStream();
                 if (call) {
-                    call.replaceStream(stream);
+                    call.replaceTrack(stream.getVideoTracks()[0]);
                 }
             } catch (err) {
                 console.error('Failed to start video', err);
