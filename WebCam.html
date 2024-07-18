@@ -32,7 +32,7 @@
             flex-direction: column;
             width: 100%;
         }
-        #controls label, #controls button, #controls input[type="checkbox"] {
+        #controls label, #controls button {
             margin-bottom: 10px;
         }
     </style>
@@ -55,7 +55,7 @@
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
         <label>
-            <input type="checkbox" id="muteCheckbox"> Mute Mic
+            <input type="checkbox" id="muteCheckbox"> Mute Micro
         </label>
     </div>
 
@@ -99,9 +99,6 @@
                     .then((stream) => {
                         localStream = stream;
                         localVideo.srcObject = stream;
-                        if (muteCheckbox.checked) {
-                            toggleAudioMute();
-                        }
                         incomingCall.answer(stream);
                         incomingCall.on('stream', (remoteStream) => {
                             remoteVideo.srcObject = remoteStream;
@@ -118,12 +115,7 @@
         }
 
         function getLocalStream() {
-            const constraints = {
-                video: {
-                    facingMode: detectCameraFacingMode()
-                },
-                audio: true
-            };
+            const constraints = detectCameraConstraints();
             return navigator.mediaDevices.getUserMedia(constraints)
                 .then(stream => {
                     localStream = stream;
@@ -136,13 +128,36 @@
                 });
         }
 
-        function detectCameraFacingMode() {
+        function detectCameraConstraints() {
             const device = detectDevice();
+            let constraints = {
+                audio: true
+            };
+
             if (device === 'iOS') {
-                return 'user'; // Caméra frontale pour iOS
+                // Pour iOS, essayons de sélectionner explicitement la caméra frontale
+                constraints.video = {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: { exact: 'user' }
+                };
+            } else if (device === 'Android') {
+                // Pour Android, sélectionnons la caméra arrière par défaut
+                constraints.video = {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: { exact: 'environment' }
+                };
             } else {
-                return { facingMode: 'environment' }; // Caméra arrière pour les autres
+                // Par défaut, utilisons la caméra arrière pour d'autres appareils
+                constraints.video = {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'environment'
+                };
             }
+
+            return constraints;
         }
 
         function detectDevice() {
@@ -159,15 +174,6 @@
             return "unknown";
         }
 
-        function toggleAudioMute() {
-            if (localStream) {
-                const audioTracks = localStream.getAudioTracks();
-                if (audioTracks.length > 0) {
-                    audioTracks[0].enabled = !muteCheckbox.checked;
-                }
-            }
-        }
-
         callButton.addEventListener('click', () => {
             const peerId = peerIdInput.value.trim();
             if (!peerId) {
@@ -177,6 +183,7 @@
 
             getLocalStream()
                 .then((stream) => {
+                    localStream = stream;
                     localVideo.srcObject = stream;
                     call = peer.call(peerId, stream);
                     call.on('stream', (remoteStream) => {
@@ -200,7 +207,12 @@
         });
 
         muteCheckbox.addEventListener('change', () => {
-            toggleAudioMute();
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    audioTracks[0].enabled = !muteCheckbox.checked;
+                }
+            }
         });
 
         document.addEventListener('DOMContentLoaded', () => {
