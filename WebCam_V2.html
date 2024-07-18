@@ -71,6 +71,7 @@
         let localStream;
         let peer;
         let call;
+        let selectedCameraId = null; // Variable globale pour mémoriser l'ID de la caméra sélectionnée
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -84,7 +85,6 @@
         const cameraSelect = document.getElementById('cameraSelect');
         const cameraLabel = document.getElementById('cameraLabel');
 
-        // Génère un ID aléatoire pour le peer
         generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
             myIdInput.value = myId;
@@ -92,7 +92,6 @@
             initializePeer(myId);
         });
 
-        // Charge l'ID stocké si disponible
         const storedId = localStorage.getItem('chatUsername');
         if (storedId) {
             myIdInput.value = storedId;
@@ -120,16 +119,6 @@
                         console.error('Failed to get local stream', err);
                     });
             });
-
-            // Vérifie chaque 5 secondes si les utilisateurs dans le ComboBox sont toujours valides
-            setInterval(() => {
-                const options = cameraSelect.querySelectorAll('option');
-                options.forEach(option => {
-                    if (!peer.listAllPeers().includes(option.value)) {
-                        option.remove();
-                    }
-                });
-            }, 5000);
         }
 
         function generateRandomId() {
@@ -160,41 +149,34 @@
 
             if (device === 'iOS') {
                 // Pour iOS, lister les caméras disponibles
-                await listCameras(); // Fonction pour lister les caméras
-                constraints.video = {
-                    deviceId: { exact: cameraSelect.value }
-                };
-            } else if (device === 'Android') {
-                // Pour Android, utiliser la caméra arrière par défaut
-                constraints.video = {
-                    facingMode: 'environment'
-                };
-            } else {
-                constraints.video = {
-                    facingMode: 'user' // Utiliser la caméra frontale par défaut pour les autres appareils
-                };
-            }
-
-            return constraints;
-        }
-
-        async function listCameras() {
-            try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 cameraSelect.innerHTML = '';
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
-                    option.text = device.label || `Camera ${index + 1}`;
+                    option.text = `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
-                const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front')) ||
-                    videoDevices[0];
-                cameraSelect.value = defaultCamera.deviceId;
-            } catch (err) {
-                console.error('Error listing cameras', err);
+                cameraLabel.style.display = 'block';
+                if (selectedCameraId) {
+                    constraints.video = {
+                        deviceId: { exact: selectedCameraId }
+                    };
+                } else {
+                    constraints.video = {
+                        deviceId: { exact: videoDevices[0].deviceId }
+                    };
+                }
+            } else {
+                // Pour les autres appareils, utilisez la caméra arrière par défaut
+                constraints.video = {
+                    facingMode: 'environment'
+                };
+                cameraLabel.style.display = 'none';
             }
+
+            return constraints;
         }
 
         function detectDevice() {
@@ -267,22 +249,18 @@
         });
 
         muteCheckbox.addEventListener('change', () => {
-            applyMicMute();
+            applyMicMute(); // Mute ou unmute le microphone localement
         });
 
         muteRemoteCheckbox.addEventListener('change', () => {
-            if (call) {
-                sendMuteSignal(muteRemoteCheckbox.checked);
-            }
+            sendMuteSignal(muteRemoteCheckbox.checked); // Envoie le signal de mute au deuxième utilisateur
         });
 
-        // Fonction pour sauvegarder la caméra sélectionnée
-        cameraSelect.addEventListener('change', () => {
-            const selectedCameraId = cameraSelect.value;
-            getLocalStream(); // Recharge le stream avec la caméra sélectionnée
+        cameraSelect.addEventListener('change', async () => {
+            selectedCameraId = cameraSelect.value;
+            await getLocalStream();
         });
 
-        // Fonction pour vérifier si les utilisateurs sont toujours valides dans le combobox
         function checkUsersValidity() {
             const options = cameraSelect.querySelectorAll('option');
             options.forEach(option => {
@@ -292,17 +270,35 @@
             });
         }
 
-        // Vérifie chaque 5 secondes si les utilisateurs dans le ComboBox sont toujours valides
         setInterval(checkUsersValidity, 5000);
 
-        // Initialisation
         async function initialize() {
-            const constraints = await detectCameraConstraints();
-            if (constraints.video.deviceId) {
-                cameraSelect.value = constraints.video.deviceId;
-            }
-            await getLocalStream();
             await listCameras();
+            await getLocalStream();
+        }
+
+        async function listCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                cameraSelect.innerHTML = '';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = `Caméra ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                // Si une caméra a déjà été sélectionnée, la maintenir comme sélectionnée
+                if (selectedCameraId) {
+                    cameraSelect.value = selectedCameraId;
+                } else {
+                    const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
+                    cameraSelect.value = defaultCamera ? defaultCamera.deviceId : videoDevices[0].deviceId;
+                }
+            } catch (err) {
+                console.error('Error listing cameras', err);
+            }
         }
 
         initialize();
