@@ -207,6 +207,15 @@
             }
         });
 
+        hangupButton.addEventListener('click', () => {
+            if (call) {
+                call.close();
+                call = null;
+                localVideo.srcObject = null;
+                remoteVideo.srcObject = null;
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', async () => {
             const device = detectDevice();
             deviceInfo.textContent = 'Appareil détecté : ' + device;
