@@ -57,12 +57,10 @@
         <label>
             <input type="checkbox" id="muteCheckbox"> Mute Micro
         </label>
-        <label id="cameraLabel" style="display: none;">
+        <button id="muteBothButton">Mute Both</button>
+        <label id="cameraLabel">
             Sélectionner la caméra :
-            <select id="cameraSelect">
-                <option value="user">Caméra Frontale</option>
-                <option value="environment">Caméra Arrière</option>
-            </select>
+            <select id="cameraSelect"></select>
         </label>
     </div>
 
@@ -80,6 +78,7 @@
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
         const muteCheckbox = document.getElementById('muteCheckbox');
+        const muteBothButton = document.getElementById('muteBothButton');
         const cameraSelect = document.getElementById('cameraSelect');
         const cameraLabel = document.getElementById('cameraLabel');
 
@@ -123,8 +122,8 @@
             return Math.random().toString(36).substr(2, 8);
         }
 
-        function getLocalStream() {
-            const constraints = detectCameraConstraints();
+        async function getLocalStream() {
+            const constraints = await detectCameraConstraints();
             return navigator.mediaDevices.getUserMedia(constraints)
                 .then(stream => {
                     localStream = stream;
@@ -138,7 +137,7 @@
                 });
         }
 
-        function detectCameraConstraints() {
+        async function detectCameraConstraints() {
             const device = detectDevice();
             let constraints = {
                 audio: true,
@@ -146,23 +145,26 @@
             };
 
             if (device === 'iOS') {
-                // Pour iOS, essayons de sélectionner explicitement la caméra frontale
+                // Pour iOS, lister les caméras disponibles
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                cameraSelect.innerHTML = '';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Caméra ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                cameraLabel.style.display = 'block';
                 constraints.video = {
-                    facingMode: { exact: 'user' }
+                    deviceId: { exact: cameraSelect.value }
                 };
-                cameraLabel.style.display = 'block'; // Afficher le label de sélection de la caméra
-            } else if (device === 'Android') {
-                // Pour Android, sélectionnons la caméra arrière par défaut
-                constraints.video = {
-                    facingMode: { exact: 'environment' }
-                };
-                cameraLabel.style.display = 'block'; // Afficher le label de sélection de la caméra
             } else {
-                // Par défaut, utilisons la caméra arrière pour d'autres appareils
+                // Pour les autres appareils, utilisez la caméra arrière par défaut
                 constraints.video = {
                     facingMode: 'environment'
                 };
-                cameraLabel.style.display = 'none'; // Masquer le label de sélection de la caméra
+                cameraLabel.style.display = 'none';
             }
 
             return constraints;
@@ -191,6 +193,16 @@
             }
         }
 
+        function sendMuteSignal() {
+            if (call) {
+                call.peerConnection.getSenders().forEach(sender => {
+                    if (sender.track && sender.track.kind === 'audio') {
+                        sender.track.enabled = !muteCheckbox.checked;
+                    }
+                });
+            }
+        }
+
         callButton.addEventListener('click', () => {
             const peerId = peerIdInput.value.trim();
             if (!peerId) {
@@ -206,6 +218,9 @@
                     call = peer.call(peerId, stream);
                     call.on('stream', (remoteStream) => {
                         remoteVideo.srcObject = remoteStream;
+                    });
+                    call.on('close', () => {
+                        remoteVideo.srcObject = null;
                     });
                 })
                 .catch((err) => {
@@ -226,11 +241,28 @@
 
         muteCheckbox.addEventListener('change', () => {
             applyMicMute(); // Mute ou unmute le microphone localement
+            sendMuteSignal(); // Envoie le signal de mute
         });
 
-        document.addEventListener('DOMContentLoaded', () => {
+        muteBothButton.addEventListener('click', () => {
+            muteCheckbox.checked = !muteCheckbox.checked;
+            applyMicMute(); // Mute ou unmute le microphone localement
+            sendMuteSignal(); // Envoie le signal de mute
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const device = detectDevice();
             console.log('Appareil détecté : ' + device);
+            if (device === 'iOS') {
+                await detectCameraConstraints();
+            }
+        });
+
+        cameraSelect.addEventListener('change', async () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            await getLocalStream();
         });
     </script>
 </body>
