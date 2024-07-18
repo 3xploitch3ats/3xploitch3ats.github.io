@@ -162,7 +162,7 @@
                     option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
                     cameraSelect.appendChild(option);
                 });
-                const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('back'));
+                const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
                 cameraSelect.value = defaultCamera ? defaultCamera.deviceId : videoDevices[0].deviceId;
             } catch (err) {
                 console.error('Error listing cameras', err);
@@ -204,6 +204,16 @@
                 call = null;
                 localVideo.srcObject = null;
                 remoteVideo.srcObject = null;
+            }
+        });
+
+        callButton.addEventListener('click', () => {
+            const peerId = peerSelect.value;
+            if (peerId && peerId !== myIdInput.value) {
+                const peerConnection = peer.connect(peerId);
+                peerConnection.on('open', () => {
+                    console.log('Connected to ' + peerId);
+                });
             }
         });
 
