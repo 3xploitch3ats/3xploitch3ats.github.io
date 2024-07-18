@@ -55,7 +55,14 @@
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
         <label>
-            <input type="checkbox" id="muteCheckbox"> Mute Micro
+            <input type="checkbox" id="muteCheckbox"> Mute Mic
+        </label>
+        <label>
+            Sélectionner la caméra :
+            <select id="cameraSelect">
+                <option value="user">Caméra Frontale</option>
+                <option value="environment">Caméra Arrière</option>
+            </select>
         </label>
     </div>
 
@@ -73,6 +80,7 @@
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
         const muteCheckbox = document.getElementById('muteCheckbox');
+        const cameraSelect = document.getElementById('cameraSelect');
 
         generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
@@ -136,22 +144,10 @@
                 video: true
             };
 
-            if (device === 'iOS') {
-                // Pour iOS, essayons de sélectionner explicitement la caméra frontale
-                constraints.video = {
-                    facingMode: { exact: 'user' }
-                };
-            } else if (device === 'Android') {
-                // Pour Android, sélectionnons la caméra arrière par défaut
-                constraints.video = {
-                    facingMode: { exact: 'environment' }
-                };
-            } else {
-                // Par défaut, utilisons la caméra arrière pour d'autres appareils
-                constraints.video = {
-                    facingMode: 'environment'
-                };
-            }
+            // Utilisation de la valeur sélectionnée dans le select pour facingMode
+            constraints.video = {
+                facingMode: cameraSelect.value
+            };
 
             return constraints;
         }
