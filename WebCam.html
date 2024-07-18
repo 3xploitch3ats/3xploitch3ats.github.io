@@ -59,13 +59,10 @@
             <input type="text" id="peerIdInput">
             <button id="addPeerButton">Ajouter</button>
         </label>
-        <label id="cameraLabel">
+        <label>
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
-        </label>
-        <label id="secondCameraLabel" style="display:none;">
-            Sélectionner une deuxième caméra :
-            <select id="secondCameraSelect"></select>
+            <select id="secondCameraSelect"></select> <!-- Ajout du second select pour la deuxième caméra -->
         </label>
         <label>
             Format de la vidéo :
@@ -88,7 +85,7 @@
         let call;
         let peerSelect = document.getElementById('peerSelect');
         let cameraSelect = document.getElementById('cameraSelect');
-        let secondCameraSelect = document.getElementById('secondCameraSelect');
+        let secondCameraSelect = document.getElementById('secondCameraSelect'); // Référence au second select pour la deuxième caméra
         let resolutionSelect = document.getElementById('resolutionSelect');
         let addPeerButton = document.getElementById('addPeerButton');
         let startVideoButton = document.getElementById('startVideoButton');
@@ -159,38 +156,21 @@
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 cameraSelect.innerHTML = '';
-                secondCameraSelect.innerHTML = '';
-
-                let hasFrontCamera = false;
-                let hasBackCamera = false;
-
+                secondCameraSelect.innerHTML = ''; // Réinitialisation du second select
                 videoDevices.forEach(device => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
                     cameraSelect.appendChild(option);
-
-                    if (device.label.toLowerCase().includes('front')) {
-                        hasFrontCamera = true;
-                    }
-                    if (device.label.toLowerCase().includes('back')) {
-                        hasBackCamera = true;
-                    }
+                    // Ajout de l'option au second select pour la deuxième caméra
+                    const secondOption = document.createElement('option');
+                    secondOption.value = device.deviceId;
+                    secondOption.text = device.label || `Camera ${secondCameraSelect.options.length + 1}`;
+                    secondCameraSelect.appendChild(secondOption);
                 });
-
-                if (hasFrontCamera && hasBackCamera) {
-                    secondCameraLabel.style.display = 'block';
-                    secondCameraSelect.disabled = false;
-                    secondCameraSelect.appendChild(new Option('Caméra avant', 'user'));
-                    secondCameraSelect.appendChild(new Option('Caméra arrière', 'environment'));
-                } else {
-                    secondCameraLabel.style.display = 'none';
-                    secondCameraSelect.disabled = true;
-                }
-
                 const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
                 cameraSelect.value = defaultCamera ? defaultCamera.deviceId : videoDevices[0].deviceId;
-                secondCameraSelect.value = 'user'; // Sélectionner la caméra avant par défaut
+                secondCameraSelect.value = videoDevices.length > 1 ? videoDevices[1].deviceId : ''; // Sélection automatique de la deuxième caméra si disponible
             } catch (err) {
                 console.error('Error listing cameras', err);
             }
