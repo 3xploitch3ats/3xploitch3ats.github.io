@@ -62,7 +62,10 @@
         </label>
         <label id="cameraLabel">
             Sélectionner la caméra :
-            <select id="cameraSelect"></select>
+            <select id="cameraSelect">
+                <option value="0">Caméra 1</option>
+                <option value="1">Caméra 2</option>
+            </select>
         </label>
         <label>
             Sélectionner un utilisateur :
@@ -88,7 +91,6 @@
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
         const userSelect = document.getElementById('userSelect');
-        const cameraLabel = document.getElementById('cameraLabel');
 
         generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
@@ -101,6 +103,8 @@
         if (storedId) {
             myIdInput.value = storedId;
             initializePeer(storedId);
+        } else {
+            generateMyIdButton.click();
         }
 
         function initializePeer(id) {
@@ -125,6 +129,8 @@
                         console.error('Failed to get local stream', err);
                     });
             });
+
+            setInterval(checkValidUsers, 5000);
         }
 
         function generateRandomId() {
@@ -150,23 +156,19 @@
             const device = detectDevice();
             let constraints = {
                 audio: true,
-                video: true
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
             };
 
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
+
             videoDevices.forEach((device, index) => {
                 const option = document.createElement('option');
                 option.value = device.deviceId;
-                option.text = device.label || `Caméra ${index + 1}`;
+                option.text = `Caméra ${index + 1}`;
                 cameraSelect.appendChild(option);
             });
-
-            cameraLabel.style.display = 'block';
-            constraints.video = {
-                deviceId: { exact: cameraSelect.value }
-            };
 
             return constraints;
         }
@@ -254,7 +256,6 @@
             if (device === 'iOS' || device === 'Android') {
                 await detectCameraConstraints();
             }
-            setInterval(checkValidUsers, 5000);
         });
 
         cameraSelect.addEventListener('change', async () => {
@@ -294,6 +295,7 @@
             validUsers = newValidUsers;
             updateValidUsersComboBox();
         }
+
     </script>
 </body>
 </html>
