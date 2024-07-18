@@ -121,28 +121,31 @@
             return Math.random().toString(36).substr(2, 8);
         }
 
-        function getLocalStream() {
-            const constraints = detectCameraConstraints();
-            return navigator.mediaDevices.getUserMedia(constraints)
-                .then(stream => {
-                    localStream = stream;
-                    localVideo.srcObject = stream;
-                    applyMicMute();
-                    return stream;
-                })
-                .catch((err) => {
-                    console.error('Failed to get local stream', err);
-                    throw err;
-                });
-        }
-
-        function detectCameraConstraints() {
-            return {
+        async function getLocalStream() {
+            const constraints = {
                 audio: true,
-                video: {
-                    facingMode: 'user' // Attempt to use the front camera
-                }
+                video: true
             };
+
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoInputDevices = devices.filter(device => device.kind === 'videoinput');
+
+                if (videoInputDevices.length > 0) {
+                    constraints.video = {
+                        deviceId: { exact: videoInputDevices[0].deviceId }
+                    };
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                localStream = stream;
+                localVideo.srcObject = stream;
+                applyMicMute();
+                return stream;
+            } catch (err) {
+                console.error('Failed to get local stream', err);
+                throw err;
+            }
         }
 
         function applyMicMute() {
