@@ -35,6 +35,9 @@
         #controls label, #controls button {
             margin-bottom: 10px;
         }
+        #likesContainer {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -64,6 +67,10 @@
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
         </label>
+        <div id="likesContainer">
+            <button id="likeButton">❤️</button>
+            <div id="likesCount">Likes reçus: 0</div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
@@ -71,7 +78,7 @@
         let localStream;
         let peer;
         let call;
-        let validPeers = {};  // Utilisé pour stocker les IDs de pairs valides
+        let likedUsers = JSON.parse(localStorage.getItem('likedUsers')) || {};
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -84,6 +91,8 @@
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
         const cameraLabel = document.getElementById('cameraLabel');
+        const likeButton = document.getElementById('likeButton');
+        const likesCount = document.getElementById('likesCount');
 
         generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
@@ -103,6 +112,7 @@
 
             peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
+                updatePeerList();
             });
 
             peer.on('call', (incomingCall) => {
@@ -119,21 +129,27 @@
                         console.error('Failed to get local stream', err);
                     });
             });
-
-            peer.on('connection', (conn) => {
-                conn.on('open', () => {
-                    console.log('Connection established with:', conn.peer);
-                    validPeers[conn.peer] = true;
-                    updatePeerList();
-                });
-
-                conn.on('close', () => {
-                    delete validPeers[conn.peer];
-                    updatePeerList();
-                });
-            });
         }
-
+        function updatePeerList() {
+            // Assurez-vous que cette fonction ajoute les utilisateurs connectés au combobox
+            // Ceci est une simulation, à remplacer avec le vrai code pour la gestion des pairs
+            setInterval(async () => {
+                // Exemple de gestion des pairs, cette logique doit être adaptée à votre code
+                // La liste des pairs peut être maintenue en interne ou obtenue à partir d'une source de vérité
+                // Exemple :
+                let peerList = {}; // Obtenez la liste des pairs d'une source
+                // Mettez à jour le combobox
+                const options = Object.keys(peerList).map(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = id;
+                    return option;
+                });
+                // Ajoutez ou mettez à jour les options dans le combobox
+                cameraSelect.innerHTML = '';
+                options.forEach(option => cameraSelect.appendChild(option));
+            }, 5000); // Vérifiez toutes les 5 secondes
+        }
         function generateRandomId() {
             return Math.random().toString(36).substr(2, 8);
         }
@@ -157,11 +173,12 @@
             const device = detectDevice();
             let constraints = {
                 audio: true,
-                video: true
+                video: {
+                    facingMode: 'environment' // Par défaut, caméra arrière
+                }
             };
 
             if (device === 'iOS') {
-                // Pour iOS, lister les caméras disponibles
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 cameraSelect.innerHTML = '';
@@ -171,18 +188,19 @@
                     option.text = device.label || `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
-                const savedCameraId = localStorage.getItem('selectedCamera');
-                cameraSelect.value = savedCameraId || videoDevices[0].deviceId;
+                const selectedCamera = localStorage.getItem('selectedCamera');
+                cameraSelect.value = selectedCamera || videoDevices[0].deviceId;
                 constraints.video = {
                     deviceId: { exact: cameraSelect.value }
                 };
-                cameraLabel.style.display = 'block';
             } else {
-                // Pour les autres appareils, utilisez la caméra arrière par défaut
-                constraints.video = {
-                    facingMode: 'environment'
-                };
                 cameraLabel.style.display = 'none';
+                const selectedCamera = localStorage.getItem('selectedCamera');
+                if (selectedCamera) {
+                    constraints.video = {
+                        deviceId: { exact: selectedCamera }
+                    };
+                }
             }
 
             return constraints;
@@ -266,82 +284,98 @@
         });
 
         cameraSelect.addEventListener('change', async () => {
-            localStorage.setItem('selectedCamera', cameraSelect.value); // Sauvegarder la sélection de la caméra
-            await getLocalStream(); // Reprendre le flux avec la nouvelle caméra sélectionnée
+            localStorage.setItem('selectedCamera', cameraSelect.value);
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            await getLocalStream();
         });
 
-        function updatePeerList() {
-            const peerList = document.getElementById('peerList');
-            peerList.innerHTML = '';
-            Object.keys(validPeers).forEach(id => {
-                const option = document.createElement('option');
-                option.value = id;
-                option.text = id;
-                peerList.appendChild(option);
-            });
-        }
-
-        async function checkPeers() {
-            // Vérifie tous les 5 secondes si les pairs sont toujours connectés
-            setInterval(() => {
-                Object.keys(validPeers).forEach(id => {
-                    const conn = peer.connections[id];
-                    if (conn && conn.length === 0) {
-                        delete validPeers[id];
-                        updatePeerList();
-                    }
-                });
-            }, 5000);
-        }
-
-        function initializePeer(id) {
-            peer = new Peer(id);
-
-            peer.on('open', () => {
-                console.log('My peer ID is: ' + id);
-                checkPeers(); // Vérifie les pairs dès l'ouverture de la connexion
-            });
-
-            peer.on('call', (incomingCall) => {
-                getLocalStream()
-                    .then((stream) => {
-                        localStream = stream;
-                        localVideo.srcObject = stream;
-                        incomingCall.answer(stream);
-                        incomingCall.on('stream', (remoteStream) => {
-                            remoteVideo.srcObject = remoteStream;
-                        });
-                    })
-                    .catch((err) => {
-                        console.error('Failed to get local stream', err);
-                    });
-            });
-
-            peer.on('connection', (conn) => {
-                conn.on('open', () => {
-                    console.log('Connection established with:', conn.peer);
-                    validPeers[conn.peer] = true;
-                    updatePeerList();
-                });
-
-                conn.on('close', () => {
-                    delete validPeers[conn.peer];
-                    updatePeerList();
-                });
-            });
-        }
-
-        // Initialisation
-        (async function init() {
-            const storedId = localStorage.getItem('chatUsername');
-            if (storedId) {
-                myIdInput.value = storedId;
-                initializePeer(storedId);
-            } else {
-                generateMyIdButton.click();
+        likeButton.addEventListener('click', () => {
+            const peerId = peerIdInput.value.trim();
+            if (!peerId) {
+                alert('Veuillez entrer l\'ID de la personne à qui envoyer un like.');
+                return;
             }
-        })();
 
+            // Assurez-vous que l'ID peer est valide
+            if (!Object.keys(peerList).includes(peerId)) {
+                alert('ID utilisateur invalide.');
+                return;
+            }
+
+            // Envoi du like à l'utilisateur
+            if (!likedUsers[peerId]) {
+                likedUsers[peerId] = 0;
+            }
+            likedUsers[peerId] += 1;
+            localStorage.setItem('likedUsers', JSON.stringify(likedUsers));
+            updateLikesCount();
+
+            // Ajout du like à l'utilisateur distant (si la connexion est active)
+            if (call && call.peer === peerId) {
+                call.send({ type: 'like', count: likedUsers[peerId] });
+            }
+        });
+
+        // Fonction pour mettre à jour le compteur de likes affiché
+        function updateLikesCount() {
+            const totalLikes = Object.values(likedUsers).reduce((a, b) => a + b, 0);
+            likesCount.textContent = `Total Likes reçus: ${totalLikes}`;
+        }
+
+        // Fonction pour gérer les messages entrants (comme les likes reçus)
+        peer.on('connection', (conn) => {
+            conn.on('data', (data) => {
+                if (data.type === 'like') {
+                    const { count } = data;
+                    alert(`Vous avez reçu un like! Total Likes: ${count}`);
+                    // Mettre à jour le compteur de likes local
+                    likedUsers[conn.peer] = count;
+                    localStorage.setItem('likedUsers', JSON.stringify(likedUsers));
+                    updateLikesCount();
+                }
+            });
+        });
+        function handlePeerConnection(peerId) {
+            // Simulez la connexion et la gestion des pairs
+            // Cette partie devrait gérer la connexion du peer et l'ajout au combobox
+            if (!peerId) return;
+
+            getLocalStream()
+                .then(stream => {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    applyMicMute(); // Applique le mute initial
+
+                    call = peer.call(peerId, stream);
+                    call.on('stream', remoteStream => {
+                        remoteVideo.srcObject = remoteStream;
+                    });
+                    call.on('close', () => {
+                        remoteVideo.srcObject = null;
+                    });
+                })
+                .catch(err => {
+                    console.error('Failed to get local stream', err);
+                });
+        }
+        // Lors du chargement de la page, mettez à jour les likes
+        document.addEventListener('DOMContentLoaded', () => {
+            const storedLikes = localStorage.getItem('likedUsers');
+            if (storedLikes) {
+                likedUsers = JSON.parse(storedLikes);
+                updateLikesCount();
+            }
+            const savedCameraId = localStorage.getItem('selectedCamera');
+            if (savedCameraId) {
+                cameraSelect.value = savedCameraId;
+                getLocalStream();
+            }
+
+            updatePeerList(); // Met à jour la liste des pairs
+        });
     </script>
 </body>
 </html>
+
