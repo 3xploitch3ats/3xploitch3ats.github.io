@@ -71,7 +71,7 @@
         let localStream;
         let peer;
         let call;
-        let selectedCameraId = null; // Mémorisation de l'ID de la caméra sélectionnée
+        let validPeers = {};  // Utilisé pour stocker les IDs de pairs valides
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -119,6 +119,19 @@
                         console.error('Failed to get local stream', err);
                     });
             });
+
+            peer.on('connection', (conn) => {
+                conn.on('open', () => {
+                    console.log('Connection established with:', conn.peer);
+                    validPeers[conn.peer] = true;
+                    updatePeerList();
+                });
+
+                conn.on('close', () => {
+                    delete validPeers[conn.peer];
+                    updatePeerList();
+                });
+            });
         }
 
         function generateRandomId() {
@@ -148,21 +161,22 @@
             };
 
             if (device === 'iOS') {
-                // Pour iOS, lister toutes les caméras disponibles
+                // Pour iOS, lister les caméras disponibles
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 cameraSelect.innerHTML = '';
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`; // Ajouter une option pour chaque caméra
+                    option.text = device.label || `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
-                cameraLabel.style.display = 'block';
-                // Utiliser la caméra précédemment sélectionnée ou la première disponible
+                const savedCameraId = localStorage.getItem('selectedCamera');
+                cameraSelect.value = savedCameraId || videoDevices[0].deviceId;
                 constraints.video = {
-                    deviceId: { exact: selectedCameraId || videoDevices[0].deviceId }
+                    deviceId: { exact: cameraSelect.value }
                 };
+                cameraLabel.style.display = 'block';
             } else {
                 // Pour les autres appareils, utilisez la caméra arrière par défaut
                 constraints.video = {
@@ -248,37 +262,86 @@
         });
 
         muteRemoteCheckbox.addEventListener('change', () => {
-            sendMuteSignal(muteRemoteCheckbox.checked); // Mute ou unmute le microphone du distant
+            sendMuteSignal(muteRemoteCheckbox.checked); // Envoie le signal de mute au deuxième utilisateur
         });
 
         cameraSelect.addEventListener('change', async () => {
-            selectedCameraId = cameraSelect.value; // Sauvegarder la sélection
-            const constraints = await detectCameraConstraints();
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop()); // Arrêter les anciens tracks
-            }
-            getLocalStream(); // Reprendre le stream avec la nouvelle caméra
+            localStorage.setItem('selectedCamera', cameraSelect.value); // Sauvegarder la sélection de la caméra
+            await getLocalStream(); // Reprendre le flux avec la nouvelle caméra sélectionnée
         });
 
-        async function listUsers() {
-            const users = []; // Remplacez par vos propres données d'utilisateurs
-            const userList = document.getElementById('userList');
-            userList.innerHTML = '';
-
-            users.forEach(user => {
+        function updatePeerList() {
+            const peerList = document.getElementById('peerList');
+            peerList.innerHTML = '';
+            Object.keys(validPeers).forEach(id => {
                 const option = document.createElement('option');
-                option.value = user.id;
-                option.text = user.name;
-                userList.appendChild(option);
+                option.value = id;
+                option.text = id;
+                peerList.appendChild(option);
             });
         }
 
-        function updateUsers() {
-            listUsers();
-            setInterval(listUsers, 5000); // Mise à jour toutes les 5 secondes
+        async function checkPeers() {
+            // Vérifie tous les 5 secondes si les pairs sont toujours connectés
+            setInterval(() => {
+                Object.keys(validPeers).forEach(id => {
+                    const conn = peer.connections[id];
+                    if (conn && conn.length === 0) {
+                        delete validPeers[id];
+                        updatePeerList();
+                    }
+                });
+            }, 5000);
         }
 
-        updateUsers();
+        function initializePeer(id) {
+            peer = new Peer(id);
+
+            peer.on('open', () => {
+                console.log('My peer ID is: ' + id);
+                checkPeers(); // Vérifie les pairs dès l'ouverture de la connexion
+            });
+
+            peer.on('call', (incomingCall) => {
+                getLocalStream()
+                    .then((stream) => {
+                        localStream = stream;
+                        localVideo.srcObject = stream;
+                        incomingCall.answer(stream);
+                        incomingCall.on('stream', (remoteStream) => {
+                            remoteVideo.srcObject = remoteStream;
+                        });
+                    })
+                    .catch((err) => {
+                        console.error('Failed to get local stream', err);
+                    });
+            });
+
+            peer.on('connection', (conn) => {
+                conn.on('open', () => {
+                    console.log('Connection established with:', conn.peer);
+                    validPeers[conn.peer] = true;
+                    updatePeerList();
+                });
+
+                conn.on('close', () => {
+                    delete validPeers[conn.peer];
+                    updatePeerList();
+                });
+            });
+        }
+
+        // Initialisation
+        (async function init() {
+            const storedId = localStorage.getItem('chatUsername');
+            if (storedId) {
+                myIdInput.value = storedId;
+                initializePeer(storedId);
+            } else {
+                generateMyIdButton.click();
+            }
+        })();
+
     </script>
 </body>
 </html>
