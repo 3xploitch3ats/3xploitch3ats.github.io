@@ -282,9 +282,16 @@
         }
 
         function checkValidUsers() {
-            validUsers = validUsers.filter(userId => {
-                return peer.connections[userId];
+            const newValidUsers = [];
+            const connections = peer.connections;
+
+            validUsers.forEach(userId => {
+                if (connections[userId] && connections[userId].length > 0) {
+                    newValidUsers.push(userId);
+                }
             });
+
+            validUsers = newValidUsers;
             updateValidUsersComboBox();
         }
     </script>
