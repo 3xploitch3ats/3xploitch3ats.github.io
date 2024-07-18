@@ -60,12 +60,8 @@
             <button id="addPeerButton">Ajouter</button>
         </label>
         <label>
-            Caméra principale :
-            <select id="cameraSelect"></select>
-        </label>
-        <label>
-            Caméra secondaire :
-            <select id="secondCameraSelect"></select> <!-- Ajout du select pour la deuxième caméra -->
+            Sélectionner la caméra :
+            <select id="cameraSelect"></select> <!-- Combobox pour sélectionner la caméra -->
         </label>
         <label>
             Format de la vidéo :
@@ -88,7 +84,6 @@
         let call;
         let peerSelect = document.getElementById('peerSelect');
         let cameraSelect = document.getElementById('cameraSelect');
-        let secondCameraSelect = document.getElementById('secondCameraSelect'); // Référence au select pour la deuxième caméra
         let resolutionSelect = document.getElementById('resolutionSelect');
         let addPeerButton = document.getElementById('addPeerButton');
         let startVideoButton = document.getElementById('startVideoButton');
@@ -136,7 +131,7 @@
         async function getLocalStream() {
             const constraints = {
                 video: {
-                    facingMode: cameraSelect.value || secondCameraSelect.value, // Utilisation de la caméra sélectionnée
+                    facingMode: cameraSelect.value,
                     width: parseInt(resolutionSelect.value)
                 },
                 audio: true
@@ -159,21 +154,14 @@
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 cameraSelect.innerHTML = '';
-                secondCameraSelect.innerHTML = ''; // Réinitialisation du select pour la deuxième caméra
                 videoDevices.forEach(device => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
                     cameraSelect.appendChild(option);
-                    // Ajout de l'option au select pour la deuxième caméra
-                    const secondOption = document.createElement('option');
-                    secondOption.value = device.deviceId;
-                    secondOption.text = device.label || `Camera ${secondCameraSelect.options.length + 1}`;
-                    secondCameraSelect.appendChild(secondOption);
                 });
                 const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
                 cameraSelect.value = defaultCamera ? defaultCamera.deviceId : videoDevices[0].deviceId;
-                secondCameraSelect.value = videoDevices.length > 1 ? videoDevices[1].deviceId : ''; // Sélection automatique de la deuxième caméra si disponible
             } catch (err) {
                 console.error('Error listing cameras', err);
             }
