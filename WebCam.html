@@ -79,19 +79,12 @@
         const muteMyMicCheckbox = document.getElementById('muteMyMic');
         const mutePeerMicCheckbox = document.getElementById('mutePeerMic');
 
-        generateMyIdButton.addEventListener('click', () => {
-            const myId = generateRandomId();
-            myIdInput.value = myId;
-            localStorage.setItem('chatUsername', myId);
-            initializePeer(myId);
-        });
-
-        const storedId = localStorage.getItem('chatUsername');
-        if (storedId) {
-            myIdInput.value = storedId;
-            initializePeer(storedId);
+        // Fonction pour générer un ID aléatoire
+        function generateRandomId() {
+            return Math.random().toString(36).substr(2, 8);
         }
 
+        // Fonction pour initialiser PeerJS avec un ID
         function initializePeer(id) {
             peer = new Peer(id);
 
@@ -100,6 +93,7 @@
             });
 
             peer.on('call', (incomingCall) => {
+                // Répondre à l'appel avec le flux local
                 getLocalStream()
                     .then((stream) => {
                         localStream = stream;
@@ -108,7 +102,6 @@
                         incomingCall.on('stream', (stream) => {
                             remoteStream = stream;
                             remoteVideo.srcObject = stream;
-                            applyPeerMicMute();
                         });
                     })
                     .catch((err) => {
@@ -117,10 +110,7 @@
             });
         }
 
-        function generateRandomId() {
-            return Math.random().toString(36).substr(2, 8);
-        }
-
+        // Fonction pour obtenir le flux local
         async function getLocalStream() {
             const constraints = {
                 audio: true,
@@ -148,6 +138,7 @@
             }
         }
 
+        // Fonction pour appliquer le mute sur le microphone local
         function applyMicMute() {
             if (localStream) {
                 const audioTracks = localStream.getAudioTracks();
@@ -157,6 +148,7 @@
             }
         }
 
+        // Fonction pour appliquer le mute sur le microphone du pair
         function applyPeerMicMute() {
             if (remoteStream) {
                 const audioTracks = remoteStream.getAudioTracks();
@@ -166,6 +158,7 @@
             }
         }
 
+        // Gérer le clic sur le bouton d'appel
         callButton.addEventListener('click', () => {
             const peerId = peerIdInput.value.trim();
             if (!peerId) {
@@ -182,7 +175,6 @@
                     call.on('stream', (stream) => {
                         remoteStream = stream;
                         remoteVideo.srcObject = stream;
-                        applyPeerMicMute();
                     });
                 })
                 .catch((err) => {
@@ -190,6 +182,7 @@
                 });
         });
 
+        // Gérer le clic sur le bouton de raccroche
         hangupButton.addEventListener('click', () => {
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
@@ -201,6 +194,7 @@
             remoteVideo.srcObject = null;
         });
 
+        // Gérer les changements dans les cases à cocher de mute
         muteMyMicCheckbox.addEventListener('change', () => {
             applyMicMute();
         });
@@ -209,24 +203,16 @@
             applyPeerMicMute();
         });
 
+        // Initialiser l'application
         document.addEventListener('DOMContentLoaded', () => {
-            const device = detectDevice();
-            console.log('Appareil détecté : ' + device);
+            const storedId = localStorage.getItem('chatUsername');
+            if (storedId) {
+                myIdInput.value = storedId;
+                initializePeer(storedId);
+            } else {
+                generateMyIdButton.click();
+            }
         });
-
-        function detectDevice() {
-            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-            if (/windows phone/i.test(userAgent)) {
-                return "Windows Phone";
-            }
-            if (/android/i.test(userAgent)) {
-                return "Android";
-            }
-            if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-                return "iOS";
-            }
-            return "unknown";
-        }
     </script>
 </body>
 </html>
