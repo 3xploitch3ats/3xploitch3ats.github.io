@@ -163,12 +163,33 @@
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            videoDevices.forEach((device, index) => {
-                const option = document.createElement('option');
-                option.value = device.deviceId;
-                option.text = `Caméra ${index + 1}`;
-                cameraSelect.appendChild(option);
-            });
+            // iOS and Android specific handling
+            if (device === 'iOS') {
+                if (videoDevices.length > 1) {
+                    cameraSelect.innerHTML = `
+                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                    `;
+                } else {
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
+                }
+            } else if (device === 'Android') {
+                if (videoDevices.length > 1) {
+                    cameraSelect.innerHTML = `
+                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                    `;
+                } else {
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
+                }
+            } else {
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = `Caméra ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+            }
 
             return constraints;
         }
@@ -253,41 +274,39 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const device = detectDevice();
             console.log('Appareil détecté : ' + device);
-            if (device === 'iOS' || device === 'Android') {
-                await detectCameraConstraints();
-            }
+            await detectCameraConstraints();
         });
 
         cameraSelect.addEventListener('change', async () => {
             if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
+                const videoTracks = localStream.getVideoTracks();
+                videoTracks.forEach(track => track.stop());
             }
             await getLocalStream();
         });
 
-        function addUserToValidUsers(id) {
-            if (!validUsers.includes(id)) {
-                validUsers.push(id);
+        function addUserToValidUsers(userId) {
+            if (!validUsers.includes(userId)) {
+                validUsers.push(userId);
                 updateValidUsersComboBox();
             }
         }
 
         function updateValidUsersComboBox() {
             userSelect.innerHTML = '';
-            validUsers.forEach(userId => {
+            validUsers.forEach(user => {
                 const option = document.createElement('option');
-                option.value = userId;
-                option.text = userId;
+                option.value = user;
+                option.text = user;
                 userSelect.appendChild(option);
             });
         }
 
         function checkValidUsers() {
             const newValidUsers = [];
-            const connections = peer.connections;
 
             validUsers.forEach(userId => {
-                if (connections[userId] && connections[userId].length > 0) {
+                if (peer.connections[userId]) {
                     newValidUsers.push(userId);
                 }
             });
@@ -296,6 +315,7 @@
             updateValidUsersComboBox();
         }
 
+        setInterval(checkValidUsers, 5000);
     </script>
 </body>
 </html>
