@@ -50,30 +50,20 @@
         </label>
         <label>
             ID de la personne à appeler :
-            <select id="peerSelect"></select>
-            <button id="callButton">Appeler</button>
-            <button id="hangupButton">Raccrocher</button>
+            <input type="text" id="peerId">
+        </label>
+        <button id="callButton">Appeler</button>
+        <button id="hangupButton">Raccrocher</button>
+        <label>
+            <input type="checkbox" id="muteCheckbox"> Mute Mon Micro
         </label>
         <label>
-            Ajouter ID Peer :
-            <input type="text" id="peerIdInput">
-            <button id="addPeerButton">Ajouter</button>
+            <input type="checkbox" id="muteRemoteCheckbox"> Mute Le Micro du Deuxième Utilisateur
         </label>
-        <label>
+        <label id="cameraLabel">
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
         </label>
-        <label>
-            Format de la vidéo :
-            <select id="resolutionSelect">
-                <option value="640">640p</option>
-                <option value="1280">1280p</option>
-            </select>
-        </label>
-        <label>
-            <input type="checkbox" id="muteCheckbox"> Mute Micro
-        </label>
-        <div id="deviceInfo"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
@@ -81,15 +71,20 @@
         let localStream;
         let peer;
         let call;
-        let peerSelect = document.getElementById('peerSelect');
-        let cameraSelect = document.getElementById('cameraSelect');
-        let resolutionSelect = document.getElementById('resolutionSelect');
-        let addPeerButton = document.getElementById('addPeerButton');
-        let muteCheckbox = document.getElementById('muteCheckbox');
-        let myIdInput = document.getElementById('myId');
-        let deviceInfo = document.getElementById('deviceInfo');
 
-        generateMyId.addEventListener('click', () => {
+        const callButton = document.getElementById('callButton');
+        const hangupButton = document.getElementById('hangupButton');
+        const generateMyIdButton = document.getElementById('generateMyId');
+        const myIdInput = document.getElementById('myId');
+        const peerIdInput = document.getElementById('peerId');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const muteCheckbox = document.getElementById('muteCheckbox');
+        const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const cameraLabel = document.getElementById('cameraLabel');
+
+        generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
             myIdInput.value = myId;
             localStorage.setItem('chatUsername', myId);
@@ -102,27 +97,26 @@
             initializePeer(storedId);
         }
 
-        async function initializePeer(id) {
+        function initializePeer(id) {
             peer = new Peer(id);
 
             peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
             });
 
-            peer.on('call', async (incomingCall) => {
-                try {
-                    localStream = await getLocalStream();
-                    incomingCall.answer(localStream);
-                    incomingCall.on('stream', (remoteStream) => {
-                        displayRemoteVideo(remoteStream);
+            peer.on('call', (incomingCall) => {
+                getLocalStream()
+                    .then((stream) => {
+                        localStream = stream;
+                        localVideo.srcObject = stream;
+                        incomingCall.answer(stream);
+                        incomingCall.on('stream', (remoteStream) => {
+                            remoteVideo.srcObject = remoteStream;
+                        });
+                    })
+                    .catch((err) => {
+                        console.error('Failed to get local stream', err);
                     });
-                } catch (err) {
-                    console.error('Failed to get local stream', err);
-                }
-            });
-
-            peer.on('error', (err) => {
-                console.error('Peer error:', err);
             });
         }
 
@@ -131,98 +125,52 @@
         }
 
         async function getLocalStream() {
-            const constraints = {
-                video: {
-                    deviceId: { exact: cameraSelect.value },
-                    width: parseInt(resolutionSelect.value)
-                },
-                audio: true
-            };
-
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                displayLocalVideo(localStream);
-                applyMicMute();
-                await listCameras();
-                return localStream;
-            } catch (err) {
-                console.error('Failed to get local stream', err);
-                throw err;
-            }
+            const constraints = await detectCameraConstraints();
+            return navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    applyMicMute(); // Applique le mute initial selon l'état du checkbox
+                    return stream;
+                })
+                .catch((err) => {
+                    console.error('Failed to get local stream', err);
+                    throw err;
+                });
         }
 
-        async function listCameras() {
-            try {
+        async function detectCameraConstraints() {
+            const device = detectDevice();
+            let constraints = {
+                audio: true,
+                video: true
+            };
+
+            if (device === 'iOS') {
+                // Pour iOS, lister les caméras disponibles
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 cameraSelect.innerHTML = '';
-                videoDevices.forEach(device => {
+                videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
-                    option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
+                    option.text = device.label || `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
-                const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
-                cameraSelect.value = defaultCamera ? defaultCamera.deviceId : videoDevices[0].deviceId;
-            } catch (err) {
-                console.error('Error listing cameras', err);
+                cameraLabel.style.display = 'block';
+                constraints.video = {
+                    deviceId: { exact: cameraSelect.value }
+                };
+            } else {
+                // Pour les autres appareils, utilisez la caméra arrière par défaut
+                constraints.video = {
+                    facingMode: 'environment'
+                };
+                cameraLabel.style.display = 'none';
             }
+
+            return constraints;
         }
-
-        function displayLocalVideo(stream) {
-            localVideo.srcObject = stream;
-        }
-
-        function displayRemoteVideo(stream) {
-            remoteVideo.srcObject = stream;
-        }
-
-        addPeerButton.addEventListener('click', () => {
-            const peerId = peerIdInput.value.trim();
-            if (peerId) {
-                const option = document.createElement('option');
-                option.value = peerId;
-                option.text = peerId;
-                peerSelect.appendChild(option);
-                peerIdInput.value = '';
-            }
-        });
-
-        let audioTracks;
-        muteCheckbox.addEventListener('change', () => {
-            if (localStream) {
-                audioTracks = localStream.getAudioTracks();
-                if (audioTracks.length > 0) {
-                    audioTracks[0].enabled = !muteCheckbox.checked;
-                }
-            }
-        });
-
-        hangupButton.addEventListener('click', () => {
-            if (call) {
-                call.close();
-                call = null;
-                localVideo.srcObject = null;
-                remoteVideo.srcObject = null;
-            }
-        });
-
-        callButton.addEventListener('click', () => {
-            const peerId = peerSelect.value;
-            if (peerId && peerId !== myIdInput.value) {
-                const peerConnection = peer.connect(peerId);
-                peerConnection.on('open', () => {
-                    console.log('Connected to ' + peerId);
-                });
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            const device = detectDevice();
-            deviceInfo.textContent = 'Appareil détecté : ' + device;
-
-            await listCameras();
-        });
 
         function detectDevice() {
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
@@ -237,6 +185,84 @@
             }
             return "unknown";
         }
+
+        function applyMicMute() {
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    audioTracks[0].enabled = !muteCheckbox.checked;
+                }
+            }
+        }
+
+        function sendMuteSignal(mute) {
+            if (call) {
+                call.peerConnection.getSenders().forEach(sender => {
+                    if (sender.track && sender.track.kind === 'audio') {
+                        sender.track.enabled = !mute;
+                    }
+                });
+            }
+        }
+
+        callButton.addEventListener('click', () => {
+            const peerId = peerIdInput.value.trim();
+            if (!peerId) {
+                alert('Veuillez entrer l\'ID de la personne à appeler.');
+                return;
+            }
+
+            getLocalStream()
+                .then((stream) => {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    applyMicMute(); // Applique le mute initial
+                    call = peer.call(peerId, stream);
+                    call.on('stream', (remoteStream) => {
+                        remoteVideo.srcObject = remoteStream;
+                    });
+                    call.on('close', () => {
+                        remoteVideo.srcObject = null;
+                    });
+                })
+                .catch((err) => {
+                    console.error('Failed to get local stream', err);
+                });
+        });
+
+        hangupButton.addEventListener('click', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (call) {
+                call.close();
+            }
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+        });
+
+        muteCheckbox.addEventListener('change', () => {
+            applyMicMute(); // Mute ou unmute le microphone localement
+        });
+
+        muteRemoteCheckbox.addEventListener('change', () => {
+            sendMuteSignal(muteRemoteCheckbox.checked); // Envoie le signal de mute au deuxième utilisateur
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const device = detectDevice();
+            console.log('Appareil détecté : ' + device);
+            if (device === 'iOS') {
+                await detectCameraConstraints();
+            }
+        });
+
+        cameraSelect.addEventListener('change', async () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            await getLocalStream();
+        });
     </script>
 </body>
 </html>
