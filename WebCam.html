@@ -70,7 +70,6 @@
                 <option value="1280">1280p</option>
             </select>
         </label>
-        <button id="startVideoButton">Démarrer Vidéo</button>
         <label>
             <input type="checkbox" id="muteCheckbox"> Mute Micro
         </label>
@@ -86,7 +85,6 @@
         let cameraSelect = document.getElementById('cameraSelect');
         let resolutionSelect = document.getElementById('resolutionSelect');
         let addPeerButton = document.getElementById('addPeerButton');
-        let startVideoButton = document.getElementById('startVideoButton');
         let muteCheckbox = document.getElementById('muteCheckbox');
         let myIdInput = document.getElementById('myId');
         let deviceInfo = document.getElementById('deviceInfo');
@@ -164,7 +162,7 @@
                     option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
                     cameraSelect.appendChild(option);
                 });
-                const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
+                const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('back'));
                 cameraSelect.value = defaultCamera ? defaultCamera.deviceId : videoDevices[0].deviceId;
             } catch (err) {
                 console.error('Error listing cameras', err);
@@ -178,17 +176,6 @@
         function displayRemoteVideo(stream) {
             remoteVideo.srcObject = stream;
         }
-
-        startVideoButton.addEventListener('click', async () => {
-            try {
-                const stream = await getLocalStream();
-                if (call) {
-                    call.replaceStream(stream);
-                }
-            } catch (err) {
-                console.error('Failed to start video', err);
-            }
-        });
 
         addPeerButton.addEventListener('click', () => {
             const peerId = peerIdInput.value.trim();
