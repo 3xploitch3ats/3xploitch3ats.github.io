@@ -62,6 +62,9 @@
         <label>
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
+        </label>
+        <label>
+            Sélectionner une deuxième caméra :
             <select id="secondCameraSelect"></select>
         </label>
         <label>
@@ -163,7 +166,9 @@
                     option.value = device.deviceId;
                     option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
                     cameraSelect.appendChild(option);
-                    secondCameraSelect.appendChild(option.cloneNode(true));
+
+                    const secondOption = option.cloneNode(true);
+                    secondCameraSelect.appendChild(secondOption);
                 });
 
                 const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
