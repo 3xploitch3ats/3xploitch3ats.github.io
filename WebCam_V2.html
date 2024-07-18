@@ -71,7 +71,7 @@
         let localStream;
         let peer;
         let call;
-        let selectedCameraId = null; // Variable globale pour mémoriser l'ID de la caméra sélectionnée
+        let selectedCameraId = null; // Mémorisation de l'ID de la caméra sélectionnée
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -148,26 +148,21 @@
             };
 
             if (device === 'iOS') {
-                // Pour iOS, lister les caméras disponibles
+                // Pour iOS, lister toutes les caméras disponibles
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 cameraSelect.innerHTML = '';
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
+                    option.text = `Caméra ${index + 1}`; // Ajouter une option pour chaque caméra
                     cameraSelect.appendChild(option);
                 });
                 cameraLabel.style.display = 'block';
-                if (selectedCameraId) {
-                    constraints.video = {
-                        deviceId: { exact: selectedCameraId }
-                    };
-                } else {
-                    constraints.video = {
-                        deviceId: { exact: videoDevices[0].deviceId }
-                    };
-                }
+                // Utiliser la caméra précédemment sélectionnée ou la première disponible
+                constraints.video = {
+                    deviceId: { exact: selectedCameraId || videoDevices[0].deviceId }
+                };
             } else {
                 // Pour les autres appareils, utilisez la caméra arrière par défaut
                 constraints.video = {
@@ -253,55 +248,37 @@
         });
 
         muteRemoteCheckbox.addEventListener('change', () => {
-            sendMuteSignal(muteRemoteCheckbox.checked); // Envoie le signal de mute au deuxième utilisateur
+            sendMuteSignal(muteRemoteCheckbox.checked); // Mute ou unmute le microphone du distant
         });
 
         cameraSelect.addEventListener('change', async () => {
-            selectedCameraId = cameraSelect.value;
-            await getLocalStream();
+            selectedCameraId = cameraSelect.value; // Sauvegarder la sélection
+            const constraints = await detectCameraConstraints();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop()); // Arrêter les anciens tracks
+            }
+            getLocalStream(); // Reprendre le stream avec la nouvelle caméra
         });
 
-        function checkUsersValidity() {
-            const options = cameraSelect.querySelectorAll('option');
-            options.forEach(option => {
-                if (!peer.listAllPeers().includes(option.value)) {
-                    option.remove();
-                }
+        async function listUsers() {
+            const users = []; // Remplacez par vos propres données d'utilisateurs
+            const userList = document.getElementById('userList');
+            userList.innerHTML = '';
+
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.text = user.name;
+                userList.appendChild(option);
             });
         }
 
-        setInterval(checkUsersValidity, 5000);
-
-        async function initialize() {
-            await listCameras();
-            await getLocalStream();
+        function updateUsers() {
+            listUsers();
+            setInterval(listUsers, 5000); // Mise à jour toutes les 5 secondes
         }
 
-        async function listCameras() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                cameraSelect.innerHTML = '';
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-
-                // Si une caméra a déjà été sélectionnée, la maintenir comme sélectionnée
-                if (selectedCameraId) {
-                    cameraSelect.value = selectedCameraId;
-                } else {
-                    const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
-                    cameraSelect.value = defaultCamera ? defaultCamera.deviceId : videoDevices[0].deviceId;
-                }
-            } catch (err) {
-                console.error('Error listing cameras', err);
-            }
-        }
-
-        initialize();
+        updateUsers();
     </script>
 </body>
 </html>
