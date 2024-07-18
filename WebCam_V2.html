@@ -375,6 +375,20 @@
 
             updatePeerList(); // Met à jour la liste des pairs
         });
+      function handleCameraSelection() {
+            const savedCameraId = localStorage.getItem('selectedCamera');
+            if (savedCameraId) {
+                cameraSelect.value = savedCameraId;
+                getLocalStream(); // Recharge le flux avec la caméra sélectionnée
+            }
+        }
+
+        // Vérifie les utilisateurs connectés toutes les 5 secondes et met à jour le combobox
+        setInterval(() => {
+            updatePeerList();
+        }, 5000);
+        updateLikesCount(); // Mise à jour initiale des likes
+
     </script>
 </body>
 </html>
