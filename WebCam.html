@@ -120,6 +120,7 @@
                 .then(stream => {
                     localStream = stream;
                     localVideo.srcObject = stream;
+                    applyMicMute(); // Applique le mute initial selon l'état du checkbox
                     return stream;
                 })
                 .catch((err) => {
@@ -174,6 +175,15 @@
             return "unknown";
         }
 
+        function applyMicMute() {
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    audioTracks[0].enabled = !muteCheckbox.checked;
+                }
+            }
+        }
+
         callButton.addEventListener('click', () => {
             const peerId = peerIdInput.value.trim();
             if (!peerId) {
@@ -185,6 +195,7 @@
                 .then((stream) => {
                     localStream = stream;
                     localVideo.srcObject = stream;
+                    applyMicMute(); // Applique le mute initial
                     call = peer.call(peerId, stream);
                     call.on('stream', (remoteStream) => {
                         remoteVideo.srcObject = remoteStream;
@@ -207,12 +218,7 @@
         });
 
         muteCheckbox.addEventListener('change', () => {
-            if (localStream) {
-                const audioTracks = localStream.getAudioTracks();
-                if (audioTracks.length > 0) {
-                    audioTracks[0].enabled = !muteCheckbox.checked;
-                }
-            }
+            applyMicMute(); // Mute ou unmute le microphone localement
         });
 
         document.addEventListener('DOMContentLoaded', () => {
