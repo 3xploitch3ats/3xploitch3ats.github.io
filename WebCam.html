@@ -55,9 +55,9 @@
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
         <label>
-            <input type="checkbox" id="muteCheckbox"> Mute Mic
+            <input type="checkbox" id="muteCheckbox"> Mute Micro
         </label>
-        <label>
+        <label id="cameraLabel" style="display: none;">
             Sélectionner la caméra :
             <select id="cameraSelect">
                 <option value="user">Caméra Frontale</option>
@@ -81,6 +81,7 @@
         const remoteVideo = document.getElementById('remoteVideo');
         const muteCheckbox = document.getElementById('muteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
+        const cameraLabel = document.getElementById('cameraLabel');
 
         generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
@@ -144,10 +145,25 @@
                 video: true
             };
 
-            // Utilisation de la valeur sélectionnée dans le select pour facingMode
-            constraints.video = {
-                facingMode: cameraSelect.value
-            };
+            if (device === 'iOS') {
+                // Pour iOS, essayons de sélectionner explicitement la caméra frontale
+                constraints.video = {
+                    facingMode: { exact: 'user' }
+                };
+                cameraLabel.style.display = 'block'; // Afficher le label de sélection de la caméra
+            } else if (device === 'Android') {
+                // Pour Android, sélectionnons la caméra arrière par défaut
+                constraints.video = {
+                    facingMode: { exact: 'environment' }
+                };
+                cameraLabel.style.display = 'block'; // Afficher le label de sélection de la caméra
+            } else {
+                // Par défaut, utilisons la caméra arrière pour d'autres appareils
+                constraints.video = {
+                    facingMode: 'environment'
+                };
+                cameraLabel.style.display = 'none'; // Masquer le label de sélection de la caméra
+            }
 
             return constraints;
         }
