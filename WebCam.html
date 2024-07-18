@@ -122,6 +122,10 @@
                     console.error('Failed to get local stream', err);
                 }
             });
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+            });
         }
 
         function generateRandomId() {
@@ -131,7 +135,7 @@
         async function getLocalStream() {
             const constraints = {
                 video: {
-                    facingMode: cameraSelect.value,
+                    deviceId: { exact: cameraSelect.value },
                     width: parseInt(resolutionSelect.value)
                 },
                 audio: true
@@ -149,22 +153,23 @@
             }
         }
 
-async function listCameras() {
-    try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        cameraSelect.innerHTML = '';
-        videoDevices.forEach(device => {
-            const option = document.createElement('option');
-            option.value = device.deviceId;
-            option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
-            cameraSelect.appendChild(option);
-        });
-    } catch (err) {
-        console.error('Error listing cameras', err);
-    }
-}
-
+        async function listCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                cameraSelect.innerHTML = '';
+                videoDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${cameraSelect.options.length + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                const defaultCamera = videoDevices.find(device => device.label.toLowerCase().includes('front'));
+                cameraSelect.value = defaultCamera ? defaultCamera.deviceId : videoDevices[0].deviceId;
+            } catch (err) {
+                console.error('Error listing cameras', err);
+            }
+        }
 
         function displayLocalVideo(stream) {
             localVideo.srcObject = stream;
@@ -178,7 +183,7 @@ async function listCameras() {
             try {
                 const stream = await getLocalStream();
                 if (call) {
-                    call.replaceTrack(stream.getVideoTracks()[0]);
+                    call.replaceStream(stream);
                 }
             } catch (err) {
                 console.error('Failed to start video', err);
