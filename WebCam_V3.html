@@ -130,6 +130,7 @@
                     });
             });
         }
+
         function updatePeerList() {
             // Assurez-vous que cette fonction ajoute les utilisateurs connectés au combobox
             // Ceci est une simulation, à remplacer avec le vrai code pour la gestion des pairs
@@ -150,6 +151,7 @@
                 options.forEach(option => cameraSelect.appendChild(option));
             }, 5000); // Vérifiez toutes les 5 secondes
         }
+
         function generateRandomId() {
             return Math.random().toString(36).substr(2, 8);
         }
@@ -265,131 +267,40 @@
         });
 
         hangupButton.addEventListener('click', () => {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
             if (call) {
                 call.close();
+                remoteVideo.srcObject = null;
+                localStream.getTracks().forEach(track => track.stop());
             }
-            localVideo.srcObject = null;
-            remoteVideo.srcObject = null;
         });
 
         muteCheckbox.addEventListener('change', () => {
-            applyMicMute(); // Mute ou unmute le microphone localement
+            applyMicMute();
         });
 
         muteRemoteCheckbox.addEventListener('change', () => {
-            sendMuteSignal(muteRemoteCheckbox.checked); // Envoie le signal de mute au deuxième utilisateur
+            sendMuteSignal(muteRemoteCheckbox.checked);
         });
 
-        cameraSelect.addEventListener('change', async () => {
+        cameraSelect.addEventListener('change', () => {
             localStorage.setItem('selectedCamera', cameraSelect.value);
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            await getLocalStream();
+            getLocalStream();
         });
 
         likeButton.addEventListener('click', () => {
-            const peerId = peerIdInput.value.trim();
-            if (!peerId) {
-                alert('Veuillez entrer l\'ID de la personne à qui envoyer un like.');
-                return;
-            }
-
-            // Assurez-vous que l'ID peer est valide
-            if (!Object.keys(peerList).includes(peerId)) {
-                alert('ID utilisateur invalide.');
-                return;
-            }
-
-            // Envoi du like à l'utilisateur
-            if (!likedUsers[peerId]) {
-                likedUsers[peerId] = 0;
-            }
-            likedUsers[peerId] += 1;
+            const myId = myIdInput.value;
+            likedUsers[myId] = (likedUsers[myId] || 0) + 1;
             localStorage.setItem('likedUsers', JSON.stringify(likedUsers));
-            updateLikesCount();
-
-            // Ajout du like à l'utilisateur distant (si la connexion est active)
-            if (call && call.peer === peerId) {
-                call.send({ type: 'like', count: likedUsers[peerId] });
-            }
+            updateLikesDisplay();
         });
 
-        // Fonction pour mettre à jour le compteur de likes affiché
-        function updateLikesCount() {
-            const totalLikes = Object.values(likedUsers).reduce((a, b) => a + b, 0);
-            likesCount.textContent = `Total Likes reçus: ${totalLikes}`;
+        function updateLikesDisplay() {
+            const myId = myIdInput.value;
+            likesCount.textContent = `Likes reçus: ${likedUsers[myId] || 0}`;
         }
 
-        // Fonction pour gérer les messages entrants (comme les likes reçus)
-        peer.on('connection', (conn) => {
-            conn.on('data', (data) => {
-                if (data.type === 'like') {
-                    const { count } = data;
-                    alert(`Vous avez reçu un like! Total Likes: ${count}`);
-                    // Mettre à jour le compteur de likes local
-                    likedUsers[conn.peer] = count;
-                    localStorage.setItem('likedUsers', JSON.stringify(likedUsers));
-                    updateLikesCount();
-                }
-            });
-        });
-        function handlePeerConnection(peerId) {
-            // Simulez la connexion et la gestion des pairs
-            // Cette partie devrait gérer la connexion du peer et l'ajout au combobox
-            if (!peerId) return;
-
-            getLocalStream()
-                .then(stream => {
-                    localStream = stream;
-                    localVideo.srcObject = stream;
-                    applyMicMute(); // Applique le mute initial
-
-                    call = peer.call(peerId, stream);
-                    call.on('stream', remoteStream => {
-                        remoteVideo.srcObject = remoteStream;
-                    });
-                    call.on('close', () => {
-                        remoteVideo.srcObject = null;
-                    });
-                })
-                .catch(err => {
-                    console.error('Failed to get local stream', err);
-                });
-        }
-        // Lors du chargement de la page, mettez à jour les likes
-        document.addEventListener('DOMContentLoaded', () => {
-            const storedLikes = localStorage.getItem('likedUsers');
-            if (storedLikes) {
-                likedUsers = JSON.parse(storedLikes);
-                updateLikesCount();
-            }
-            const savedCameraId = localStorage.getItem('selectedCamera');
-            if (savedCameraId) {
-                cameraSelect.value = savedCameraId;
-                getLocalStream();
-            }
-
-            updatePeerList(); // Met à jour la liste des pairs
-        });
-      function handleCameraSelection() {
-            const savedCameraId = localStorage.getItem('selectedCamera');
-            if (savedCameraId) {
-                cameraSelect.value = savedCameraId;
-                getLocalStream(); // Recharge le flux avec la caméra sélectionnée
-            }
-        }
-
-        // Vérifie les utilisateurs connectés toutes les 5 secondes et met à jour le combobox
-        setInterval(() => {
-            updatePeerList();
-        }, 5000);
-        updateLikesCount(); // Mise à jour initiale des likes
+        updateLikesDisplay(); // Initial display update
 
     </script>
 </body>
 </html>
-
