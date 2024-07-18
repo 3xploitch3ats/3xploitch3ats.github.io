@@ -59,12 +59,12 @@
             <input type="text" id="peerIdInput">
             <button id="addPeerButton">Ajouter</button>
         </label>
-        <label>
+        <label id="cameraLabel">
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
         </label>
         <label id="secondCameraLabel" style="display:none;">
-            Sélectionner la deuxième caméra :
+            Sélectionner une deuxième caméra :
             <select id="secondCameraSelect"></select>
         </label>
         <label>
@@ -88,7 +88,6 @@
         let call;
         let peerSelect = document.getElementById('peerSelect');
         let cameraSelect = document.getElementById('cameraSelect');
-        let secondCameraLabel = document.getElementById('secondCameraLabel');
         let secondCameraSelect = document.getElementById('secondCameraSelect');
         let resolutionSelect = document.getElementById('resolutionSelect');
         let addPeerButton = document.getElementById('addPeerButton');
