@@ -55,9 +55,11 @@
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
         <label>
-            <input type="checkbox" id="muteCheckbox"> Mute Micro
+            <input type="checkbox" id="muteCheckbox"> Mute Mon Micro
         </label>
-        <button id="muteBothButton">Mute Both</button>
+        <label>
+            <input type="checkbox" id="muteRemoteCheckbox"> Mute Le Micro du Deuxième Utilisateur
+        </label>
         <label id="cameraLabel">
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
@@ -78,7 +80,7 @@
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
         const muteCheckbox = document.getElementById('muteCheckbox');
-        const muteBothButton = document.getElementById('muteBothButton');
+        const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
         const cameraLabel = document.getElementById('cameraLabel');
 
@@ -193,11 +195,11 @@
             }
         }
 
-        function sendMuteSignal() {
+        function sendMuteSignal(mute) {
             if (call) {
                 call.peerConnection.getSenders().forEach(sender => {
                     if (sender.track && sender.track.kind === 'audio') {
-                        sender.track.enabled = !muteCheckbox.checked;
+                        sender.track.enabled = !mute;
                     }
                 });
             }
@@ -241,13 +243,10 @@
 
         muteCheckbox.addEventListener('change', () => {
             applyMicMute(); // Mute ou unmute le microphone localement
-            sendMuteSignal(); // Envoie le signal de mute
         });
 
-        muteBothButton.addEventListener('click', () => {
-            muteCheckbox.checked = !muteCheckbox.checked;
-            applyMicMute(); // Mute ou unmute le microphone localement
-            sendMuteSignal(); // Envoie le signal de mute
+        muteRemoteCheckbox.addEventListener('change', () => {
+            sendMuteSignal(muteRemoteCheckbox.checked); // Envoie le signal de mute au deuxième utilisateur
         });
 
         document.addEventListener('DOMContentLoaded', async () => {
