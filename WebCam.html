@@ -131,7 +131,7 @@
         async function getLocalStream() {
             const constraints = {
                 video: {
-                    facingMode: cameraSelect.value,
+                    deviceId: { exact: cameraSelect.value },
                     width: parseInt(resolutionSelect.value)
                 },
                 audio: true
@@ -179,7 +179,7 @@
             try {
                 const stream = await getLocalStream();
                 if (call) {
-                    call.replaceTrack(stream.getVideoTracks()[0]);
+                    call.replaceStream(stream);
                 }
             } catch (err) {
                 console.error('Failed to start video', err);
