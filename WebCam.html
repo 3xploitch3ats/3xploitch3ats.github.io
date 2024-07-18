@@ -55,14 +55,10 @@
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
         <label>
-            <input type="checkbox" id="muteCheckbox"> Mute Mon Micro
+            <input type="checkbox" id="muteMyMic"> Mute Mon Micro
         </label>
         <label>
-            <input type="checkbox" id="muteRemoteCheckbox"> Mute Le Micro du Deuxième Utilisateur
-        </label>
-        <label id="cameraLabel">
-            Sélectionner la caméra :
-            <select id="cameraSelect"></select>
+            <input type="checkbox" id="mutePeerMic"> Mute Micro de l'autre utilisateur
         </label>
     </div>
 
@@ -71,6 +67,7 @@
         let localStream;
         let peer;
         let call;
+        let remoteStream;
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -79,10 +76,8 @@
         const peerIdInput = document.getElementById('peerId');
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
-        const muteCheckbox = document.getElementById('muteCheckbox');
-        const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
-        const cameraSelect = document.getElementById('cameraSelect');
-        const cameraLabel = document.getElementById('cameraLabel');
+        const muteMyMicCheckbox = document.getElementById('muteMyMic');
+        const mutePeerMicCheckbox = document.getElementById('mutePeerMic');
 
         generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
@@ -110,8 +105,10 @@
                         localStream = stream;
                         localVideo.srcObject = stream;
                         incomingCall.answer(stream);
-                        incomingCall.on('stream', (remoteStream) => {
-                            remoteVideo.srcObject = remoteStream;
+                        incomingCall.on('stream', (stream) => {
+                            remoteStream = stream;
+                            remoteVideo.srcObject = stream;
+                            applyPeerMicMute();
                         });
                     })
                     .catch((err) => {
@@ -124,13 +121,13 @@
             return Math.random().toString(36).substr(2, 8);
         }
 
-        async function getLocalStream() {
-            const constraints = await detectCameraConstraints();
+        function getLocalStream() {
+            const constraints = detectCameraConstraints();
             return navigator.mediaDevices.getUserMedia(constraints)
                 .then(stream => {
                     localStream = stream;
                     localVideo.srcObject = stream;
-                    applyMicMute(); // Applique le mute initial selon l'état du checkbox
+                    applyMicMute();
                     return stream;
                 })
                 .catch((err) => {
@@ -139,69 +136,30 @@
                 });
         }
 
-        async function detectCameraConstraints() {
-            const device = detectDevice();
-            let constraints = {
+        function detectCameraConstraints() {
+            return {
                 audio: true,
-                video: true
+                video: {
+                    facingMode: 'user' // Attempt to use the front camera
+                }
             };
-
-            if (device === 'iOS') {
-                // Pour iOS, lister les caméras disponibles
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                cameraSelect.innerHTML = '';
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = device.label || `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-                cameraLabel.style.display = 'block';
-                constraints.video = {
-                    deviceId: { exact: cameraSelect.value }
-                };
-            } else {
-                // Pour les autres appareils, utilisez la caméra arrière par défaut
-                constraints.video = {
-                    facingMode: 'environment'
-                };
-                cameraLabel.style.display = 'none';
-            }
-
-            return constraints;
-        }
-
-        function detectDevice() {
-            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-            if (/windows phone/i.test(userAgent)) {
-                return "Windows Phone";
-            }
-            if (/android/i.test(userAgent)) {
-                return "Android";
-            }
-            if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-                return "iOS";
-            }
-            return "unknown";
         }
 
         function applyMicMute() {
             if (localStream) {
                 const audioTracks = localStream.getAudioTracks();
                 if (audioTracks.length > 0) {
-                    audioTracks[0].enabled = !muteCheckbox.checked;
+                    audioTracks[0].enabled = !muteMyMicCheckbox.checked;
                 }
             }
         }
 
-        function sendMuteSignal(mute) {
-            if (call) {
-                call.peerConnection.getSenders().forEach(sender => {
-                    if (sender.track && sender.track.kind === 'audio') {
-                        sender.track.enabled = !mute;
-                    }
-                });
+        function applyPeerMicMute() {
+            if (remoteStream) {
+                const audioTracks = remoteStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    audioTracks[0].enabled = !mutePeerMicCheckbox.checked;
+                }
             }
         }
 
@@ -216,13 +174,12 @@
                 .then((stream) => {
                     localStream = stream;
                     localVideo.srcObject = stream;
-                    applyMicMute(); // Applique le mute initial
+                    applyMicMute();
                     call = peer.call(peerId, stream);
-                    call.on('stream', (remoteStream) => {
-                        remoteVideo.srcObject = remoteStream;
-                    });
-                    call.on('close', () => {
-                        remoteVideo.srcObject = null;
+                    call.on('stream', (stream) => {
+                        remoteStream = stream;
+                        remoteVideo.srcObject = stream;
+                        applyPeerMicMute();
                     });
                 })
                 .catch((err) => {
@@ -241,28 +198,32 @@
             remoteVideo.srcObject = null;
         });
 
-        muteCheckbox.addEventListener('change', () => {
-            applyMicMute(); // Mute ou unmute le microphone localement
+        muteMyMicCheckbox.addEventListener('change', () => {
+            applyMicMute();
         });
 
-        muteRemoteCheckbox.addEventListener('change', () => {
-            sendMuteSignal(muteRemoteCheckbox.checked); // Envoie le signal de mute au deuxième utilisateur
+        mutePeerMicCheckbox.addEventListener('change', () => {
+            applyPeerMicMute();
         });
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', () => {
             const device = detectDevice();
             console.log('Appareil détecté : ' + device);
-            if (device === 'iOS') {
-                await detectCameraConstraints();
-            }
         });
 
-        cameraSelect.addEventListener('change', async () => {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
+        function detectDevice() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            if (/windows phone/i.test(userAgent)) {
+                return "Windows Phone";
             }
-            await getLocalStream();
-        });
+            if (/android/i.test(userAgent)) {
+                return "Android";
+            }
+            if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+                return "iOS";
+            }
+            return "unknown";
+        }
     </script>
 </body>
 </html>
