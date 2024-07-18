@@ -138,22 +138,16 @@
             if (device === 'iOS') {
                 // Pour iOS, essayons de sélectionner explicitement la caméra frontale
                 constraints.video = {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
                     facingMode: { exact: 'user' }
                 };
             } else if (device === 'Android') {
                 // Pour Android, sélectionnons la caméra arrière par défaut
                 constraints.video = {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
                     facingMode: { exact: 'environment' }
                 };
             } else {
                 // Par défaut, utilisons la caméra arrière pour d'autres appareils
                 constraints.video = {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
                     facingMode: 'environment'
                 };
             }
