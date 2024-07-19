@@ -207,11 +207,11 @@
             if (device === 'iOS') {
                 if (videoDevices.length > 1) {
                     cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                        <option value="${videoDevices[0].deviceId}">Caméra avant</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra arrière</option>
                     `;
                 } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra avant</option>`;
                 }
             } else if (device === 'Android') {
                 if (videoDevices.length > 1) {
@@ -276,7 +276,6 @@
         function updateLikesCount(peerId) {
             const peer = peerConnections[peerId];
             if (peer) {
-                const likeButton = peer.querySelector('.like-button');
                 const likeCount = peer.querySelector('.likes-count');
                 likeCount.textContent = `Likes reçus: ${likedUsers[peerId] || 0}`;
             }
@@ -285,7 +284,6 @@
         function updateUnlikesCount(peerId) {
             const peer = peerConnections[peerId];
             if (peer) {
-                const unlikeButton = peer.querySelector('.unlike-button');
                 const unlikeCount = peer.querySelector('.unlikes-count');
                 unlikeCount.textContent = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
             }
