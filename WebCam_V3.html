@@ -23,7 +23,7 @@
             margin-bottom: 20px;
         }
         video {
-            max-width: 300px;
+          max-width: 300px;
             border: 1px solid #ccc;
             border-radius: 5px;
             margin: 5px;
@@ -82,6 +82,7 @@
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
         </label>
+        <label>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
@@ -156,19 +157,20 @@
                         updateLikesCount(senderId);
                     } else if (data.type === 'unlike') {
                         const senderId = conn.peer;
+            localStorage.setItem('excludedUser', senderId);
+            setTimeout(() => {
+                if (localStorage.getItem('excludedUser') === senderId) {
+                    document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                    throw new Error("L'utilisateur est exclu");
+                }
+            }, 5000);
                         if (!unlikedUsers[senderId]) {
                             unlikedUsers[senderId] = 1;
                         } else {
                             unlikedUsers[senderId]++;
                         }
                         updateUnlikesCount(senderId);
-                        localStorage.setItem('excludedUser', senderId);
-                        setTimeout(() => {
-                            if (localStorage.getItem('excludedUser') === senderId) {
-                                document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
-                                throw new Error("L'utilisateur est exclu");
-                            }
-                        }, 5000);
+
                     }
                 });
             });
@@ -204,7 +206,16 @@
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            if (device === 'iOS' || device === 'Android') {
+            if (device === 'iOS') {
+                if (videoDevices.length > 1) {
+                    cameraSelect.innerHTML = `
+                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                    `;
+                } else {
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
+                }
+            } else if (device === 'Android') {
                 if (videoDevices.length > 1) {
                     cameraSelect.innerHTML = `
                         <option value="${videoDevices[0].deviceId}">Caméra 1</option>
@@ -233,6 +244,9 @@
 
         function detectDevice() {
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            if (/windows phone/i.test(userAgent)) {
+                return "Windows Phone";
+            }
             if (/android/i.test(userAgent)) {
                 return "Android";
             }
@@ -271,9 +285,14 @@
             getLocalStream()
                 .then((stream) => {
                     localStream = stream;
-                    const call = peer.call(peerId, stream);
+                    localVideo.srcObject = stream;
+                    applyMicMute();
+                    call = peer.call(peerId, stream);
                     call.on('stream', (remoteStream) => {
                         addRemoteVideo(peerId, remoteStream);
+                    });
+                    call.on('close', () => {
+                        removeRemoteVideo(peerId);
                     });
                 })
                 .catch((err) => {
@@ -282,54 +301,133 @@
         });
 
         hangupButton.addEventListener('click', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
             if (call) {
                 call.close();
-                call = null;
+            }
+            localVideo.srcObject = null;
+            videoContainer.querySelectorAll('.video-wrapper').forEach(wrapper => wrapper.remove());
+        });
+
+        muteCheckbox.addEventListener('change', () => {
+            applyMicMute();
+        });
+
+        muteRemoteCheckbox.addEventListener('change', () => {
+            sendMuteSignal(muteRemoteCheckbox.checked);
+        });
+
+        cameraSelect.addEventListener('change', async () => {
+            localStorage.setItem('selectedCameraId', cameraSelect.value);
+            if (localStream) {
+                const videoTracks = localStream.getVideoTracks();
+                videoTracks.forEach(track => track.stop());
+                const stream = await getLocalStream();
+                if (call) {
+                    call.peerConnection.getSenders().forEach(sender => {
+                        if (sender.track && sender.track.kind === 'video') {
+                            sender.replaceTrack(stream.getVideoTracks()[0]);
+                        }
+                    });
+                }
             }
         });
 
+        peerId.addEventListener('input', () => {
+            const command = peerId.value.trim();
+            const unlikeButtons = document.querySelectorAll('.unlike-button');
+            unlikeButtons.forEach(button => {
+                if (command === '!unlike') {
+                    button.style.display = 'block';
+                } else {
+                    button.style.display = 'none';
+                }
+            });
+        });
+
         function addRemoteVideo(peerId, stream) {
-            let videoWrapper = document.getElementById(peerId + '-wrapper');
-            if (!videoWrapper) {
-                videoWrapper = document.createElement('div');
-                videoWrapper.id = peerId + '-wrapper';
+            if (!document.getElementById(peerId + '-wrapper')) {
+                const videoWrapper = document.createElement('div');
                 videoWrapper.className = 'video-wrapper';
+                videoWrapper.id = peerId + '-wrapper';
+
+                const videoElement = document.createElement('video');
+                videoElement.id = peerId + 'Video';
+                videoElement.autoplay = true;
+                videoElement.playsinline = true;
+                videoElement.srcObject = stream;
+                videoWrapper.appendChild(videoElement);
+
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'controls';
+
+                const likeButton = document.createElement('button');
+                likeButton.className = 'like-button';
+                likeButton.innerText = '❤️';
+                likeButton.addEventListener('click', () => sendLike(peerId));
+
+                const unlikeButton = document.createElement('button');
+                unlikeButton.className = 'unlike-button';
+                unlikeButton.innerText = '⚡';
+                unlikeButton.style.display = 'none';
+                unlikeButton.addEventListener('click', () => sendUnlike(peerId));
+
+                const likesCount = document.createElement('p');
+                likesCount.className = 'likes-count';
+                likesCount.innerText = 'Likes reçus: 0';
+
+                const unlikesCount = document.createElement('p');
+                unlikesCount.className = 'unlikes-count';
+                unlikesCount.innerText = 'Unlikes reçus: 0';
+                unlikesCount.style.display = 'none';
+
+                controlsDiv.appendChild(likeButton);
+                controlsDiv.appendChild(unlikeButton);
+                controlsDiv.appendChild(likesCount);
+                controlsDiv.appendChild(unlikesCount);
+
+                videoWrapper.appendChild(controlsDiv);
                 videoContainer.appendChild(videoWrapper);
             }
+        }
 
-            let videoElement = videoWrapper.querySelector('video');
-            if (!videoElement) {
-                videoElement = document.createElement('video');
-                videoElement.autoplay = true;
-                videoElement.playsInline = true;
-                videoElement.id = peerId;
-                videoWrapper.appendChild(videoElement);
+        function removeRemoteVideo(peerId) {
+            const videoWrapper = document.getElementById(peerId + '-wrapper');
+            if (videoWrapper) {
+                videoWrapper.remove();
             }
-            videoElement.srcObject = stream;
+        }
 
-            let controls = videoWrapper.querySelector('.controls');
-            if (!controls) {
-                controls = document.createElement('div');
-                controls.className = 'controls';
-                videoWrapper.appendChild(controls);
+        function updateLikesCount(peerId) {
+            const videoWrapper = document.getElementById(peerId + '-wrapper');
+            if (videoWrapper) {
+                const likesCount = videoWrapper.querySelector('.likes-count');
+                if (likesCount) {
+                    likesCount.innerText = `Likes reçus: ${likedUsers[peerId] || 0}`;
+                }
             }
+        }
 
-            const likeButton = document.createElement('button');
-            likeButton.textContent = '❤️';
-            likeButton.className = 'like-button';
-            likeButton.addEventListener('click', () => {
-                sendLike(peerId);
-            });
-
-            const unlikeButton = document.createElement('button');
-            unlikeButton.textContent = '⚡';
-            unlikeButton.className = 'unlike-button';
-            unlikeButton.addEventListener('click', () => {
-                sendUnlike(peerId);
-            });
-
-            controls.appendChild(likeButton);
-            controls.appendChild(unlikeButton);
+        function updateUnlikesCount(peerId) {
+            const videoWrapper = document.getElementById(peerId + '-wrapper');
+            if (videoWrapper) {
+                const unlikesCount = videoWrapper.querySelector('.unlikes-count');
+                if (unlikesCount) {
+                    unlikesCount.innerText = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
+                    if (unlikedUsers[peerId] > 0) {
+                        unlikesCount.style.display = 'block';
+                    }
+                }
+            localStorage.setItem('excludedUser', senderId);
+            setTimeout(() => {
+                if (localStorage.getItem('excludedUser') === senderId) {
+                    document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                    throw new Error("L'utilisateur est exclu");
+                }
+            }, 5000);
+            }
         }
 
         function sendLike(peerId) {
@@ -343,21 +441,69 @@
             const conn = peer.connect(peerId);
             conn.on('open', () => {
                 conn.send({ type: 'unlike' });
+                setTimeout(() => {
+                    removeRemoteVideo(peerId);
+                    if (call && call.peer === peerId) {
+                        call.close();
+                    }
+                }, 5000);
             });
         }
 
-        muteCheckbox.addEventListener('change', () => {
-            applyMicMute();
-        });
+        updateCameraSelect();
 
-        muteRemoteCheckbox.addEventListener('change', () => {
-            sendMuteSignal(muteRemoteCheckbox.checked);
-        });
+(async function initialize() {
+            await updateCameraSelect();
+            const storedCameraId = localStorage.getItem('selectedCameraId');
+            if (storedCameraId) {
+                cameraSelect.value = storedCameraId;
+            }
+        })();
 
-        cameraSelect.addEventListener('change', () => {
-            localStorage.setItem('selectedCameraId', cameraSelect.value);
-            getLocalStream();
+        function handleLike(senderId) {
+            if (!likedUsers[senderId]) {
+                likedUsers[senderId] = 1;
+            } else {
+                likedUsers[senderId]++;
+            }
+            updateLikeCounts(senderId);
+        }
+
+        function handleUnlike(senderId) {
+            if (!unlikedUsers[senderId]) {
+                unlikedUsers[senderId] = 1;
+            } else {
+                unlikedUsers[senderId]++;
+            }
+            updateLikeCounts(senderId);
+            localStorage.setItem('excludedUser', senderId);
+            setTimeout(() => {
+                if (localStorage.getItem('excludedUser') === senderId) {
+                    document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                    throw new Error("L'utilisateur est exclu");
+                }
+            }, 5000);
+        }
+
+        function updateLikeCounts(peerId) {
+            const videoWrapper = document.getElementById(`videoWrapper-${peerId}`);
+            if (videoWrapper) {
+                const likeCount = likedUsers[peerId] || 0;
+                const unlikeCount = unlikedUsers[peerId] || 0;
+                videoWrapper.querySelector('.like-count').textContent = `Likes: ${likeCount}`;
+                videoWrapper.querySelector('.unlike-count').textContent = `Unlikes: ${unlikeCount}`;
+            }
+        }
+
+    setInterval(() => {
+        if (localStorage.getItem('excludedUser')) {
+            document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+            throw new Error("L'utilisateur est exclu");
+        }
+        Object.keys(peerConnections).forEach(peerId => {
+            updateLikeCounts(peerId);
         });
+    }, 5000);
     </script>
 </body>
 </html>
