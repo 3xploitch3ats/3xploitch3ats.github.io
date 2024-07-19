@@ -263,32 +263,25 @@
                     localVideo.srcObject = stream;
                     applyMicMute();
                     call = peer.call(peerId, stream);
-
                     call.on('stream', (remoteStream) => {
                         remoteVideo.srcObject = remoteStream;
                     });
-
                     call.on('close', () => {
                         remoteVideo.srcObject = null;
                     });
-
-                    call.on('error', (err) => {
-                        console.error('Call error:', err);
-                    });
-
-                    updateValidUsers(peerId);
                 })
                 .catch((err) => {
-                    console.error('Failed to get local stream:', err);
+                    console.error('Failed to get local stream', err);
                 });
         });
 
         hangupButton.addEventListener('click', () => {
             if (call) {
                 call.close();
-                remoteVideo.srcObject = null;
-                call = null;
             }
+            localStream?.getTracks().forEach(track => track.stop());
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
         });
 
         muteCheckbox.addEventListener('change', () => {
@@ -301,72 +294,44 @@
 
         switchCameraButton.addEventListener('click', async () => {
             const constraints = await detectCameraConstraints();
-            const currentStream = localVideo.srcObject;
-            if (currentStream) {
-                const videoTrack = currentStream.getVideoTracks()[0];
-                videoTrack.stop();
-            }
-            localStream = await navigator.mediaDevices.getUserMedia(constraints);
-            localVideo.srcObject = localStream;
-            localStorage.setItem('selectedCameraId', cameraSelect.value);
+            localStream?.getTracks().forEach(track => track.stop());
+            getLocalStream();
         });
 
-        likeButton.addEventListener('click', () => {
-            const conn = peer.connections[peerIdInput.value];
-            if (conn) {
-                conn.send({ type: 'like' });
-                if (!likedUsers[myIdInput.value]) {
-                    likedUsers[myIdInput.value] = 0;
-                }
-                likedUsers[myIdInput.value]++;
-                updateLikesCount();
-            }
-        });
-
-        function updateLikesCount() {
-            const totalLikes = Object.values(likedUsers).reduce((sum, likes) => sum + likes, 0);
-            likesCount.textContent = `Likes reçus: ${totalLikes}`;
-            localStorage.setItem('likes', JSON.stringify(likedUsers));
-        }
-
-        function updateValidUsers(peerId) {
-            validUsers.push(peerId);
+        function addUserToValidUsers(userId) {
+            validUsers.push(userId);
             const option = document.createElement('option');
-            option.value = peerId;
-            option.textContent = peerId;
+            option.value = userId;
+            option.textContent = userId;
             userSelect.appendChild(option);
         }
 
         function checkValidUsers() {
+            userSelect.innerHTML = '';
             validUsers.forEach(userId => {
-                if (!peer.connections[userId]) {
-                    userSelect.querySelector(`option[value="${userId}"]`).remove();
-                    validUsers = validUsers.filter(id => id !== userId);
-                }
+                const option = document.createElement('option');
+                option.value = userId;
+                option.textContent = userId;
+                userSelect.appendChild(option);
             });
         }
 
         function updateLikesCount() {
-            const savedLikes = JSON.parse(localStorage.getItem('likes')) || {};
-            const totalLikes = Object.values(savedLikes).reduce((sum, likes) => sum + likes, 0);
+            const totalLikes = Object.values(likedUsers).reduce((acc, val) => acc + val, 0);
             likesCount.textContent = `Likes reçus: ${totalLikes}`;
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedLikes = JSON.parse(localStorage.getItem('likes')) || {};
-            likedUsers = savedLikes;
-            updateLikesCount();
+        likeButton.addEventListener('click', () => {
+            if (call) {
+                const data = {
+                    type: 'like',
+                    content: '❤️',
+                    senderId: myIdInput.value
+                };
+                call.peerConnection.send(data);
+            }
         });
 
-        navigator.mediaDevices.enumerateDevices().then(devices => {
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            videoDevices.forEach((device, index) => {
-                const option = document.createElement('option');
-                option.value = device.deviceId;
-                option.text = `Caméra ${index + 1}`;
-                cameraSelect.appendChild(option);
-            });
-        });
     </script>
 </body>
 </html>
