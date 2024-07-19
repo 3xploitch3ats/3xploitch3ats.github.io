@@ -157,18 +157,16 @@
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            // iOS and Android specific handling
             if (device === 'iOS') {
                 if (videoDevices.length > 1) {
                     cameraSelect.innerHTML = `
                         <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                        <option value="${videoDevices[1].deviceId}" selected>Caméra 2</option>
                     `;
                 } else {
                     cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
                 }
             } else if (device === 'Android') {
-                // Use the camera 1 if camera 2 doesn't work
                 if (videoDevices.length > 1) {
                     cameraSelect.innerHTML = `
                         <option value="${videoDevices[0].deviceId}">Caméra 1</option>
@@ -186,7 +184,6 @@
                 });
             }
 
-            // Set the camera selection from localStorage
             const savedCameraId = localStorage.getItem('selectedCameraId');
             if (savedCameraId) {
                 cameraSelect.value = savedCameraId;
@@ -272,7 +269,6 @@
             sendMuteSignal(muteRemoteCheckbox.checked);
         });
 
-        // Handle camera switch button click
         cameraSelect.addEventListener('change', async () => {
             if (localStream) {
                 const videoTracks = localStream.getVideoTracks();
@@ -281,60 +277,31 @@
             await getLocalStream();
         });
 
-        // Save the selected camera ID in localStorage
         cameraSelect.addEventListener('change', () => {
             localStorage.setItem('selectedCameraId', cameraSelect.value);
         });
 
-        // Like button functionality
         likeButton.addEventListener('click', () => {
-            const peerId = peerIdInput.value.trim();
-            if (!peerId) {
-                alert('Veuillez entrer l\'ID de la personne à appeler pour envoyer un like.');
-                return;
-            }
-            if (peer.connections[peerId]) {
-                const conn = peer.connections[peerId][0];
-                if (conn) {
-                    conn.send({ type: 'like' });
-                }
-            }
+            const likes = JSON.parse(localStorage.getItem('likes') || '[]');
+            likes.push({ id: peerIdInput.value, timestamp: new Date().toISOString() });
+            localStorage.setItem('likes', JSON.stringify(likes));
         });
 
-        // Handle incoming messages
-        peer.on('connection', (conn) => {
-            conn.on('data', (data) => {
-                if (data.type === 'like') {
-                    alert('Vous avez reçu un like!');
-                }
-            });
-        });
-
-        function addUserToValidUsers(userId) {
-            if (!validUsers.includes(userId)) {
-                validUsers.push(userId);
-                updateValidUsersComboBox();
-            }
-        }
-
-        function updateValidUsersComboBox() {
-            // This function is now not used, as ComboBox has been removed
+        function addUserToValidUsers(id) {
+            validUsers.push(id);
         }
 
         function checkValidUsers() {
-            const newValidUsers = [];
-
-            validUsers.forEach(userId => {
-                if (peer.connections[userId]) {
-                    newValidUsers.push(userId);
-                }
-            });
-
-            validUsers = newValidUsers;
-            // This function is now not used, as ComboBox has been removed
+            if (peer) {
+                peer.listAllPeers((peers) => {
+                    peers.forEach(peerId => {
+                        if (!validUsers.includes(peerId)) {
+                            addUserToValidUsers(peerId);
+                        }
+                    });
+                });
+            }
         }
-
-        setInterval(checkValidUsers, 5000);
     </script>
 </body>
 </html>
