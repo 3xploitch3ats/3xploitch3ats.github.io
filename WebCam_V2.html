@@ -72,7 +72,6 @@
         let localStream;
         let peer;
         let call;
-        let validUsers = [];
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -106,7 +105,6 @@
 
             peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
-                addUserToValidUsers(id);
             });
 
             peer.on('call', (incomingCall) => {
@@ -123,8 +121,6 @@
                         console.error('Failed to get local stream', err);
                     });
             });
-
-            setInterval(checkValidUsers, 5000);
         }
 
         function generateRandomId() {
@@ -161,7 +157,7 @@
                 if (videoDevices.length > 1) {
                     cameraSelect.innerHTML = `
                         <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}" selected>Caméra 2</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
                     `;
                 } else {
                     cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
@@ -170,7 +166,7 @@
                 if (videoDevices.length > 1) {
                     cameraSelect.innerHTML = `
                         <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}" selected>Caméra 2</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
                     `;
                 } else {
                     cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
@@ -286,22 +282,6 @@
             likes.push({ id: peerIdInput.value, timestamp: new Date().toISOString() });
             localStorage.setItem('likes', JSON.stringify(likes));
         });
-
-        function addUserToValidUsers(id) {
-            validUsers.push(id);
-        }
-
-        function checkValidUsers() {
-            if (peer) {
-                peer.listAllPeers((peers) => {
-                    peers.forEach(peerId => {
-                        if (!validUsers.includes(peerId)) {
-                            addUserToValidUsers(peerId);
-                        }
-                    });
-                });
-            }
-        }
     </script>
 </body>
 </html>
