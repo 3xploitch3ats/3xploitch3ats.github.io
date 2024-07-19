@@ -123,6 +123,7 @@
                         });
                         lastCallerId = incomingCall.peer;
                         peerIdInput.value = lastCallerId;
+                                    callButton.click();
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
