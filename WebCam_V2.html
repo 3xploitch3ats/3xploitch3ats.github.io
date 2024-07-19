@@ -63,11 +63,6 @@
         <label id="cameraLabel">
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
-            <button id="switchCameraButton">Changer de Caméra</button>
-        </label>
-        <label>
-            Sélectionner un utilisateur :
-            <select id="userSelect"></select>
         </label>
         <button id="likeButton">❤️</button>
         <p id="likesCount">Likes reçus: 0</p>
@@ -80,6 +75,7 @@
         let call;
         let validUsers = [];
         let likedUsers = {};
+        let lastCallerId = '';
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -91,8 +87,6 @@
         const muteCheckbox = document.getElementById('muteCheckbox');
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
-        const userSelect = document.getElementById('userSelect');
-        const switchCameraButton = document.getElementById('switchCameraButton');
         const likeButton = document.getElementById('likeButton');
         const likesCount = document.getElementById('likesCount');
 
@@ -110,13 +104,13 @@
         } else {
             generateMyIdButton.click();
         }
+let callButtonClicked = false; // Variable pour contrôler l'exécution
 
         function initializePeer(id) {
             peer = new Peer(id);
 
             peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
-                addUserToValidUsers(id);
             });
 
             peer.on('call', (incomingCall) => {
@@ -128,6 +122,13 @@
                         incomingCall.on('stream', (remoteStream) => {
                             remoteVideo.srcObject = remoteStream;
                         });
+                        lastCallerId = incomingCall.peer;
+                        peerIdInput.value = lastCallerId;
+                        if (!callButtonClicked)
+                        {
+                                    callButton.click();
+                            callButtonClicked = true;
+                        }
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
@@ -147,8 +148,6 @@
                     }
                 });
             });
-
-            setInterval(checkValidUsers, 5000);
         }
 
         function generateRandomId() {
@@ -284,6 +283,7 @@
             }
             localVideo.srcObject = null;
             remoteVideo.srcObject = null;
+                     callButtonClicked = false;
         });
 
         muteCheckbox.addEventListener('change', () => {
@@ -292,14 +292,6 @@
 
         muteRemoteCheckbox.addEventListener('change', () => {
             sendMuteSignal(muteRemoteCheckbox.checked);
-        });
-
-        switchCameraButton.addEventListener('click', async () => {
-            if (localStream) {
-                const videoTracks = localStream.getVideoTracks();
-                videoTracks.forEach(track => track.stop());
-            }
-            await getLocalStream();
         });
 
         cameraSelect.addEventListener('change', async () => {
@@ -320,42 +312,11 @@
             }
         });
 
-        function addUserToValidUsers(userId) {
-            if (!validUsers.includes(userId)) {
-                validUsers.push(userId);
-                updateValidUsersComboBox();
-            }
-        }
-
-        function updateValidUsersComboBox() {
-            userSelect.innerHTML = '';
-            validUsers.forEach(user => {
-                const option = document.createElement('option');
-                option.value = user;
-                option.text = user;
-                userSelect.appendChild(option);
-            });
-        }
-
-        function checkValidUsers() {
-            const newValidUsers = [];
-
-            validUsers.forEach(userId => {
-                if (peer.connections[userId]) {
-                    newValidUsers.push(userId);
-                }
-            });
-
-            validUsers = newValidUsers;
-            updateValidUsersComboBox();
-        }
-
         function updateLikesCount() {
             const totalLikes = Object.values(likedUsers).reduce((acc, count) => acc + count, 0);
             likesCount.textContent = `Likes reçus: ${totalLikes}`;
         }
 
-        setInterval(checkValidUsers, 5000);
     </script>
 </body>
 </html>
