@@ -409,10 +409,13 @@
 
         updateCameraSelect();
 
-        const storedCameraId = localStorage.getItem('selectedCameraId');
-        if (storedCameraId) {
-            cameraSelect.value = storedCameraId;
-        }
+(async function initialize() {
+            await updateCameraSelect();
+            const storedCameraId = localStorage.getItem('selectedCameraId');
+            if (storedCameraId) {
+                cameraSelect.value = storedCameraId;
+            }
+        })();
 
         function handleLike(senderId) {
             if (!likedUsers[senderId]) {
