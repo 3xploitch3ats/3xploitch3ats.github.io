@@ -64,10 +64,6 @@
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
         </label>
-        <label id="lastCalledLabel">
-            ID Sélectionné :
-            <input type="text" id="lastCalledId" readonly>
-        </label>
         <button id="likeButton">❤️</button>
         <p id="likesCount">Likes reçus: 0</p>
     </div>
@@ -90,7 +86,6 @@
         const muteCheckbox = document.getElementById('muteCheckbox');
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
-        const lastCalledIdInput = document.getElementById('lastCalledId');
         const likeButton = document.getElementById('likeButton');
         const likesCount = document.getElementById('likesCount');
 
@@ -126,7 +121,6 @@
                         incomingCall.on('stream', (remoteStream) => {
                             remoteVideo.srcObject = remoteStream;
                         });
-                        lastCalledIdInput.value = incomingCall.peer;
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
@@ -180,31 +174,13 @@
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            if (device === 'iOS') {
-                if (videoDevices.length > 1) {
-                    cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
-                    `;
-                } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
-                }
-            } else if (device === 'Android') {
-                if (videoDevices.length > 1) {
-                    cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
-                    `;
-                } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
-                }
+            if (videoDevices.length > 1) {
+                cameraSelect.innerHTML = `
+                    <option value="${videoDevices[0].deviceId}">Caméra 1</option>
+                    <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                `;
             } else {
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
+                cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
             }
 
             // Restore the previously selected camera
@@ -268,8 +244,10 @@
                     call.on('close', () => {
                         remoteVideo.srcObject = null;
                     });
-                    lastCalledIdInput.value = peerId; // Set the last called ID
-                    saveLastCalledId(peerId); // Save to localStorage
+
+                    // Save the ID of the peer we called
+                    lastCalledIdInput.value = peerId;
+                    saveLastCalledId(peerId);
                 })
                 .catch((err) => {
                     console.error('Failed to get local stream', err);
@@ -277,11 +255,14 @@
         });
 
         hangupButton.addEventListener('click', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
             if (call) {
                 call.close();
-                remoteVideo.srcObject = null;
-                call = null;
             }
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
         });
 
         muteCheckbox.addEventListener('change', () => {
@@ -289,28 +270,16 @@
         });
 
         muteRemoteCheckbox.addEventListener('change', () => {
-            if (call) {
-                sendMuteSignal(muteRemoteCheckbox.checked);
-            }
+            sendMuteSignal(muteRemoteCheckbox.checked);
         });
 
-        cameraSelect.addEventListener('change', () => {
+        cameraSelect.addEventListener('change', async () => {
             localStorage.setItem('selectedCameraId', cameraSelect.value);
-            getLocalStream();
-        });
-
-        likeButton.addEventListener('click', () => {
-            if (call) {
-                call.peerConnection.getSenders().forEach(sender => {
-                    if (sender.track && sender.track.kind === 'audio') {
-                        sender.track.enabled = true;
-                    }
-                });
-                const conn = peer.connect(call.peer);
-                conn.on('open', () => {
-                    conn.send({ type: 'like' });
-                });
+            if (localStream) {
+                const videoTracks = localStream.getVideoTracks();
+                videoTracks.forEach(track => track.stop());
             }
+            await getLocalStream();
         });
 
         function saveLastCalledId(id) {
@@ -318,18 +287,24 @@
         }
 
         function updateLikesCount() {
-            const count = Object.values(likedUsers).reduce((sum, likes) => sum + likes, 0);
-            likesCount.textContent = `Likes reçus: ${count}`;
+            const likeCount = Object.values(likedUsers).reduce((a, b) => a + b, 0);
+            likesCount.textContent = `Likes reçus: ${likeCount}`;
         }
 
         function checkValidUsers() {
-            // Check valid users and update ComboBox (if needed)
+            peer.listAllPeers(peers => {
+                peers.forEach(p => {
+                    if (!validUsers.includes(p)) {
+                        addUserToValidUsers(p);
+                    }
+                });
+            });
         }
 
         function addUserToValidUsers(id) {
             if (!validUsers.includes(id)) {
                 validUsers.push(id);
-                // Update ComboBox with new user ID if required
+                // Update UI or other logic as needed
             }
         }
     </script>
