@@ -75,7 +75,6 @@
         let peer;
         let calls = [];
         let peerConnections = {};
-        let connectedPeers = new Set();
         let likedUsers = {};
         let lastCallerId = '';
 
@@ -107,6 +106,8 @@
             generateMyIdButton.click();
         }
 
+        let callButtonClicked = false;
+
         function initializePeer(id) {
             peer = new Peer(id);
 
@@ -123,10 +124,12 @@
                         incomingCall.on('stream', (remoteStream) => {
                             addRemoteVideo(incomingCall.peer, remoteStream);
                         });
-                        connectedPeers.add(incomingCall.peer);
                         lastCallerId = incomingCall.peer;
-                        updatePeerIdsInput();
-                        callAllPeers();
+                        peerIdsInput.value += `,${lastCallerId}`;
+                        if (!callButtonClicked) {
+                            callButton.click();
+                            callButtonClicked = true;
+                        }
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
@@ -237,26 +240,6 @@
             });
         }
 
-        function callAllPeers() {
-            const peerIds = Array.from(connectedPeers);
-            peerIds.forEach(peerId => {
-                if (!peerConnections[peerId]) {
-                    const call = peer.call(peerId, localStream);
-                    calls.push(call);
-                    peerConnections[peerId] = call;
-
-                    call.on('stream', (remoteStream) => {
-                        addRemoteVideo(peerId, remoteStream);
-                    });
-
-                    call.on('close', () => {
-                        removeRemoteVideo(peerId);
-                        delete peerConnections[peerId];
-                    });
-                }
-            });
-        }
-
         callButton.addEventListener('click', () => {
             const peerIds = peerIdsInput.value.split(',').map(id => id.trim()).filter(id => id);
             if (!peerIds.length) {
@@ -268,6 +251,8 @@
                 .then((stream) => {
                     localStream = stream;
                     localVideo.srcObject = stream;
+                    applyMicMute();
+
                     peerIds.forEach(peerId => {
                         if (!peerConnections[peerId]) {
                             const call = peer.call(peerId, stream);
@@ -283,10 +268,7 @@
                                 delete peerConnections[peerId];
                             });
                         }
-                        connectedPeers.add(peerId);
                     });
-                    updatePeerIdsInput();
-                    callAllPeers();
                 })
                 .catch((err) => {
                     console.error('Failed to get local stream', err);
@@ -301,7 +283,6 @@
             peerConnections = {};
             const remoteVideos = document.querySelectorAll('video[id^="remoteVideo_"]');
             remoteVideos.forEach(video => video.remove());
-            connectedPeers.clear();
         });
 
         muteCheckbox.addEventListener('change', applyMicMute);
@@ -347,10 +328,6 @@
         function updateLikesCount() {
             const totalLikes = Object.values(likedUsers).reduce((sum, count) => sum + count, 0);
             likesCount.textContent = `Likes reçus: ${totalLikes}`;
-        }
-
-        function updatePeerIdsInput() {
-            peerIdsInput.value = Array.from(connectedPeers).join(', ');
         }
 
         setInterval(() => {
