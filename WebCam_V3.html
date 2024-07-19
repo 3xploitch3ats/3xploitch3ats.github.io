@@ -195,45 +195,28 @@
 
         async function updateCameraSelect() {
             const device = detectDevice();
-            let constraints = {
-                audio: true,
-                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
-            };
-
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            if (device === 'iOS') {
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-            } else if (device === 'Android') {
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-            } else {
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-            }
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = `Caméra ${index + 1}`;
+                cameraSelect.appendChild(option);
+            });
 
-            // Restore the previously selected camera
             const savedCameraId = localStorage.getItem('selectedCameraId');
-            if (savedCameraId) {
+            if (savedCameraId && videoDevices.some(d => d.deviceId === savedCameraId)) {
                 cameraSelect.value = savedCameraId;
+            } else {
+                cameraSelect.value = videoDevices[0]?.deviceId || '';
             }
 
-            return constraints;
+            return {
+                audio: true,
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+            };
         }
 
         function detectDevice() {
