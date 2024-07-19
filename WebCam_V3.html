@@ -195,11 +195,6 @@
 
         async function updateCameraSelect() {
             const device = detectDevice();
-            let constraints = {
-                audio: true,
-                video: { deviceId: selectedCameraId ? { exact: selectedCameraId } : undefined }
-            };
-
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
@@ -242,7 +237,10 @@
                 selectedCameraId = cameraSelect.value;
             });
 
-            return constraints;
+            return {
+                audio: true,
+                video: { deviceId: selectedCameraId ? { exact: selectedCameraId } : undefined }
+            };
         }
 
         function detectDevice() {
