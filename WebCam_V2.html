@@ -112,7 +112,6 @@
 
             peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
-                notifyConnectedPeers();
             });
 
             peer.on('call', (incomingCall) => {
@@ -144,13 +143,6 @@
                             likedUsers[senderId]++;
                         }
                         updateLikesCount();
-                    } else if (data.type === 'peer-update') {
-                        data.peers.forEach(peerId => {
-                            if (peerId !== id) {
-                                connectedPeers.add(peerId);
-                                callPeer(peerId);
-                            }
-                        });
                     }
                 });
             });
@@ -246,52 +238,54 @@
         }
 
         function callAllPeers() {
-            connectedPeers.forEach(peerId => {
+            const peerIds = Array.from(connectedPeers);
+            peerIds.forEach(peerId => {
                 if (!peerConnections[peerId]) {
-                    callPeer(peerId);
+                    const call = peer.call(peerId, localStream);
+                    calls.push(call);
+                    peerConnections[peerId] = call;
+
+                    call.on('stream', (remoteStream) => {
+                        addRemoteVideo(peerId, remoteStream);
+                    });
+
+                    call.on('close', () => {
+                        removeRemoteVideo(peerId);
+                        delete peerConnections[peerId];
+                    });
                 }
-            });
-        }
-
-        function callPeer(peerId) {
-            const call = peer.call(peerId, localStream);
-            calls.push(call);
-            peerConnections[peerId] = call;
-
-            call.on('stream', (remoteStream) => {
-                addRemoteVideo(peerId, remoteStream);
-            });
-
-            call.on('close', () => {
-                removeRemoteVideo(peerId);
-                connectedPeers.delete(peerId);
-                delete peerConnections[peerId];
-                updatePeerIdsInput();
-            });
-
-            call.on('error', (err) => {
-                console.error('Call error:', err);
-                removeRemoteVideo(peerId);
-                connectedPeers.delete(peerId);
-                delete peerConnections[peerId];
-                updatePeerIdsInput();
             });
         }
 
         callButton.addEventListener('click', () => {
             const peerIds = peerIdsInput.value.split(',').map(id => id.trim()).filter(id => id);
+            if (!peerIds.length) {
+                alert('Veuillez entrer les IDs des autres utilisateurs à appeler.');
+                return;
+            }
+
             getLocalStream()
                 .then((stream) => {
                     localStream = stream;
                     localVideo.srcObject = stream;
                     peerIds.forEach(peerId => {
                         if (!peerConnections[peerId]) {
-                            callPeer(peerId);
+                            const call = peer.call(peerId, stream);
+                            calls.push(call);
+                            peerConnections[peerId] = call;
+
+                            call.on('stream', (remoteStream) => {
+                                addRemoteVideo(peerId, remoteStream);
+                            });
+
+                            call.on('close', () => {
+                                removeRemoteVideo(peerId);
+                                delete peerConnections[peerId];
+                            });
                         }
                         connectedPeers.add(peerId);
                     });
                     updatePeerIdsInput();
-                    notifyConnectedPeers();
                     callAllPeers();
                 })
                 .catch((err) => {
@@ -357,16 +351,6 @@
 
         function updatePeerIdsInput() {
             peerIdsInput.value = Array.from(connectedPeers).join(', ');
-        }
-
-        function notifyConnectedPeers() {
-            const data = { type: 'peer-update', peers: Array.from(connectedPeers) };
-            connectedPeers.forEach(peerId => {
-                const conn = peer.connect(peerId);
-                conn.on('open', () => {
-                    conn.send(data);
-                });
-            });
         }
 
         setInterval(() => {
