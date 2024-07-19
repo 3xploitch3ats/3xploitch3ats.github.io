@@ -23,7 +23,7 @@
             margin-bottom: 20px;
         }
         video {
-            max-width: 300px;
+          max-width: 300px;
             border: 1px solid #ccc;
             border-radius: 5px;
             margin: 5px;
@@ -204,20 +204,34 @@
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            if (videoDevices.length > 1) {
+            if (device === 'iOS') {
+                if (videoDevices.length > 1) {
+                    cameraSelect.innerHTML = `
+                        <option value="${videoDevices[0].deviceId}">Caméra avant</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra arrière</option>
+                    `;
+                } else {
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra</option>`;
+                }
+            } else if (device === 'Android') {
+                if (videoDevices.length > 1) {
+                    cameraSelect.innerHTML = `
+                        <option value="${videoDevices[0].deviceId}">Caméra avant</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra arrière</option>
+                    `;
+                } else {
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra</option>`;
+                }
+            } else {
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.text = `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
-            } else if (videoDevices.length === 1) {
-                const option = document.createElement('option');
-                option.value = videoDevices[0].deviceId;
-                option.text = `Caméra 1`;
-                cameraSelect.appendChild(option);
             }
 
+            // Restore the previously selected camera
             const savedCameraId = localStorage.getItem('selectedCameraId');
             if (savedCameraId) {
                 cameraSelect.value = savedCameraId;
@@ -252,43 +266,94 @@
         function sendMuteSignal(mute) {
             if (call) {
                 call.peerConnection.getSenders().forEach(sender => {
-                    if (sender.track && sender.track.kind === 'audio') {
+                    if (sender.track.kind === 'audio') {
                         sender.track.enabled = !mute;
                     }
                 });
             }
         }
 
-        callButton.addEventListener('click', () => {
-            const peerId = peerIdInput.value.trim();
-            if (!peerId) {
-                alert('Veuillez entrer l\'ID de la personne à appeler.');
-                return;
-            }
+        async function addRemoteVideo(peerId, stream) {
+            if (peerConnections[peerId]) return;
 
-            getLocalStream()
-                .then((stream) => {
-                    localStream = stream;
-                    localVideo.srcObject = stream;
-                    applyMicMute();
+            peerConnections[peerId] = document.createElement('div');
+            peerConnections[peerId].classList.add('video-wrapper');
+            
+            const remoteVideo = document.createElement('video');
+            remoteVideo.autoplay = true;
+            remoteVideo.playsInline = true;
+            remoteVideo.srcObject = stream;
+            
+            const remoteControls = document.createElement('div');
+            remoteControls.classList.add('controls');
+            
+            const likeButton = document.createElement('button');
+            likeButton.classList.add('like-button');
+            likeButton.textContent = '❤️';
+            likeButton.addEventListener('click', () => {
+                sendLike(peerId);
+            });
+            
+            const unlikeButton = document.createElement('button');
+            unlikeButton.classList.add('unlike-button');
+            unlikeButton.textContent = '⚡';
+            unlikeButton.addEventListener('click', () => {
+                sendUnlike(peerId);
+            });
+            
+            remoteControls.appendChild(likeButton);
+            remoteControls.appendChild(unlikeButton);
+            
+            peerConnections[peerId].appendChild(remoteVideo);
+            peerConnections[peerId].appendChild(remoteControls);
+            
+            videoContainer.appendChild(peerConnections[peerId]);
+        }
+
+        function sendLike(peerId) {
+            const conn = peer.connections[peerId][0];
+            conn.send({ type: 'like' });
+            updateLikesCount(peerId);
+        }
+
+        function sendUnlike(peerId) {
+            const conn = peer.connections[peerId][0];
+            conn.send({ type: 'unlike' });
+            updateUnlikesCount(peerId);
+        }
+
+        function updateLikesCount(peerId) {
+            const likeCount = likedUsers[peerId] || 0;
+            document.querySelector(`#peer-${peerId} .likes-count`).textContent = `Likes reçus: ${likeCount}`;
+        }
+
+        function updateUnlikesCount(peerId) {
+            const unlikeCount = unlikedUsers[peerId] || 0;
+            document.querySelector(`#peer-${peerId} .unlikes-count`).textContent = `Unlikes reçus: ${unlikeCount}`;
+        }
+
+        callButton.addEventListener('click', () => {
+            const peerId = peerIdInput.value;
+            if (peerId) {
+                getLocalStream().then(stream => {
                     call = peer.call(peerId, stream);
-                    call.on('stream', (remoteStream) => {
+                    call.on('stream', remoteStream => {
                         addRemoteVideo(peerId, remoteStream);
                     });
-                    call.on('close', () => {
-                        removeRemoteVideo(peerId);
-                    });
-                })
-                .catch((err) => {
-                    console.error('Failed to get local stream', err);
+                    lastCallerId = peerId;
                 });
+            }
         });
 
         hangupButton.addEventListener('click', () => {
             if (call) {
                 call.close();
-                removeRemoteVideo(call.peer);
+                call = null;
             }
+            Object.values(peerConnections).forEach(connection => {
+                connection.remove();
+            });
+            peerConnections = {};
         });
 
         muteCheckbox.addEventListener('change', () => {
@@ -299,84 +364,10 @@
             sendMuteSignal(muteRemoteCheckbox.checked);
         });
 
-        function addRemoteVideo(peerId, stream) {
-            let video = document.getElementById('video-' + peerId);
-            if (!video) {
-                video = document.createElement('video');
-                video.id = 'video-' + peerId;
-                video.autoplay = true;
-                video.playsinline = true;
-                videoContainer.appendChild(video);
-
-                const controls = document.createElement('div');
-                controls.className = 'controls';
-                const likeButton = document.createElement('button');
-                likeButton.innerText = '❤️';
-                likeButton.className = 'like-button';
-                controls.appendChild(likeButton);
-
-                const unlikeButton = document.createElement('button');
-                unlikeButton.innerText = '⚡';
-                unlikeButton.className = 'unlike-button';
-                controls.appendChild(unlikeButton);
-
-                const likeCount = document.createElement('p');
-                likeCount.className = 'likes-count';
-                likeCount.innerText = 'Likes reçus: 0';
-                controls.appendChild(likeCount);
-
-                const unlikeCount = document.createElement('p');
-                unlikeCount.className = 'unlikes-count';
-                unlikeCount.innerText = 'Unlikes reçus: 0';
-                controls.appendChild(unlikeCount);
-
-                video.parentElement.appendChild(controls);
-
-                likeButton.addEventListener('click', () => {
-                    sendLike(peerId);
-                });
-
-                unlikeButton.addEventListener('click', () => {
-                    sendUnlike(peerId);
-                });
-            }
-            video.srcObject = stream;
-        }
-
-        function removeRemoteVideo(peerId) {
-            const video = document.getElementById('video-' + peerId);
-            if (video) {
-                video.parentElement.remove();
-            }
-        }
-
-        function sendLike(peerId) {
-            const conn = peer.connections[peerId] && peer.connections[peerId][0];
-            if (conn) {
-                conn.send({ type: 'like' });
-            }
-        }
-
-        function sendUnlike(peerId) {
-            const conn = peer.connections[peerId] && peer.connections[peerId][0];
-            if (conn) {
-                conn.send({ type: 'unlike' });
-            }
-        }
-
-        function updateLikesCount(peerId) {
-            const likeCount = document.querySelector(`#video-${peerId} .likes-count`);
-            if (likeCount) {
-                likeCount.innerText = `Likes reçus: ${likedUsers[peerId] || 0}`;
-            }
-        }
-
-        function updateUnlikesCount(peerId) {
-            const unlikeCount = document.querySelector(`#video-${peerId} .unlikes-count`);
-            if (unlikeCount) {
-                unlikeCount.innerText = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
-            }
-        }
+        cameraSelect.addEventListener('change', () => {
+            localStorage.setItem('selectedCameraId', cameraSelect.value);
+            getLocalStream();
+        });
     </script>
 </body>
 </html>
