@@ -50,8 +50,8 @@
             <button id="generateMyId">Générer ID</button>
         </label>
         <label>
-            ID des autres utilisateurs (séparés par des virgules) :
-            <input type="text" id="peerIds">
+            ID de la personne à appeler :
+            <input type="text" id="peerId">
         </label>
         <button id="callButton">Appeler</button>
         <button id="hangupButton">Raccrocher</button>
@@ -59,7 +59,7 @@
             <input type="checkbox" id="muteCheckbox"> Mute Mon Micro
         </label>
         <label>
-            <input type="checkbox" id="muteRemoteCheckbox"> Mute Le Micro des Autres Utilisateurs
+            <input type="checkbox" id="muteRemoteCheckbox"> Mute Le Micro du Deuxième Utilisateur
         </label>
         <label id="cameraLabel">
             Sélectionner la caméra :
@@ -73,8 +73,8 @@
     <script>
         let localStream;
         let peer;
-        let calls = [];
-        let peerConnections = {};
+        let call;
+        let validUsers = [];
         let likedUsers = {};
         let lastCallerId = '';
 
@@ -82,7 +82,7 @@
         const hangupButton = document.getElementById('hangupButton');
         const generateMyIdButton = document.getElementById('generateMyId');
         const myIdInput = document.getElementById('myId');
-        const peerIdsInput = document.getElementById('peerIds');
+        const peerIdInput = document.getElementById('peerId');
         const localVideo = document.getElementById('localVideo');
         const videoContainer = document.getElementById('video-container');
         const muteCheckbox = document.getElementById('muteCheckbox');
@@ -125,7 +125,7 @@
                             addRemoteVideo(incomingCall.peer, remoteStream);
                         });
                         lastCallerId = incomingCall.peer;
-                        peerIdsInput.value += `,${lastCallerId}`;
+                        peerIdInput.value = lastCallerId;
                         if (!callButtonClicked) {
                             callButton.click();
                             callButtonClicked = true;
@@ -231,19 +231,19 @@
         }
 
         function sendMuteSignal(mute) {
-            calls.forEach(call => {
+            if (call) {
                 call.peerConnection.getSenders().forEach(sender => {
                     if (sender.track && sender.track.kind === 'audio') {
                         sender.track.enabled = !mute;
                     }
                 });
-            });
+            }
         }
 
         callButton.addEventListener('click', () => {
-            const peerIds = peerIdsInput.value.split(',').map(id => id.trim()).filter(id => id);
-            if (!peerIds.length) {
-                alert('Veuillez entrer les IDs des autres utilisateurs à appeler.');
+            const peerId = peerIdInput.value.trim();
+            if (!peerId) {
+                alert('Veuillez entrer l\'ID de la personne à appeler.');
                 return;
             }
 
@@ -252,22 +252,12 @@
                     localStream = stream;
                     localVideo.srcObject = stream;
                     applyMicMute();
-
-                    peerIds.forEach(peerId => {
-                        if (!peerConnections[peerId]) {
-                            const call = peer.call(peerId, stream);
-                            calls.push(call);
-                            peerConnections[peerId] = call;
-
-                            call.on('stream', (remoteStream) => {
-                                addRemoteVideo(peerId, remoteStream);
-                            });
-
-                            call.on('close', () => {
-                                removeRemoteVideo(peerId);
-                                delete peerConnections[peerId];
-                            });
-                        }
+                    call = peer.call(peerId, stream);
+                    call.on('stream', (remoteStream) => {
+                        addRemoteVideo(peerId, remoteStream);
+                    });
+                    call.on('close', () => {
+                        removeRemoteVideo(peerId);
                     });
                 })
                 .catch((err) => {
@@ -276,16 +266,23 @@
         });
 
         hangupButton.addEventListener('click', () => {
-            calls.forEach(call => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (call) {
                 call.close();
+            }
+            localVideo.srcObject = null;
+            videoContainer.querySelectorAll('video:not(#localVideo)').forEach(video => {
+                video.srcObject = null;
+                video.remove();
             });
-            calls = [];
-            peerConnections = {};
-            const remoteVideos = document.querySelectorAll('video[id^="remoteVideo_"]');
-            remoteVideos.forEach(video => video.remove());
+            callButtonClicked = false;
         });
 
-        muteCheckbox.addEventListener('change', applyMicMute);
+        muteCheckbox.addEventListener('change', () => {
+            applyMicMute();
+        });
 
         muteRemoteCheckbox.addEventListener('change', () => {
             sendMuteSignal(muteRemoteCheckbox.checked);
@@ -297,12 +294,12 @@
         });
 
         likeButton.addEventListener('click', () => {
-            Object.values(peerConnections).forEach(call => {
+            if (call) {
                 const conn = peer.connect(call.peer);
                 conn.on('open', () => {
                     conn.send({ type: 'like' });
                 });
-            });
+            }
         });
 
         function addRemoteVideo(peerId, stream) {
@@ -331,12 +328,8 @@
         }
 
         setInterval(() => {
-            if (calls.length) {
-                calls.forEach(call => {
-                    if (!call.peerConnection || call.peerConnection.iceConnectionState === 'closed') {
-                        hangupButton.click();
-                    }
-                });
+            if (call && !call.peerConnection || call.peerConnection.iceConnectionState === 'closed') {
+                hangupButton.click();
             }
         }, 5000);
     </script>
