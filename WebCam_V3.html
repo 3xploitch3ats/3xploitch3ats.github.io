@@ -63,9 +63,6 @@
         <label id="cameraLabel">
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
-
-        </label>
-        <label>
         </label>
         <button id="likeButton">❤️</button>
         <p id="likesCount">Likes reçus: 0</p>
@@ -78,6 +75,7 @@
         let call;
         let validUsers = [];
         let likedUsers = {};
+        let lastCallerId = '';
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -123,6 +121,8 @@
                         incomingCall.on('stream', (remoteStream) => {
                             remoteVideo.srcObject = remoteStream;
                         });
+                        lastCallerId = incomingCall.peer;
+                        peerIdInput.value = lastCallerId;
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
@@ -142,8 +142,6 @@
                     }
                 });
             });
-
-
         }
 
         function generateRandomId() {
@@ -271,11 +269,14 @@
         });
 
         hangupButton.addEventListener('click', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
             if (call) {
                 call.close();
-                remoteVideo.srcObject = null;
-                call = null;
             }
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
         });
 
         muteCheckbox.addEventListener('change', () => {
@@ -286,23 +287,28 @@
             sendMuteSignal(muteRemoteCheckbox.checked);
         });
 
+        cameraSelect.addEventListener('change', async () => {
+            localStorage.setItem('selectedCameraId', cameraSelect.value);
+            if (localStream) {
+                const videoTracks = localStream.getVideoTracks();
+                videoTracks.forEach(track => track.stop());
+            }
+            await getLocalStream();
+        });
+
         likeButton.addEventListener('click', () => {
-            const peerId = peerIdInput.value.trim();
-            if (peerId) {
-                const conn = peer.connect(peerId);
+            if (call) {
+                const conn = peer.connect(call.peer);
                 conn.on('open', () => {
                     conn.send({ type: 'like' });
                 });
             }
         });
 
-
-
         function updateLikesCount() {
-            let totalLikes = Object.values(likedUsers).reduce((a, b) => a + b, 0);
+            const totalLikes = Object.values(likedUsers).reduce((acc, count) => acc + count, 0);
             likesCount.textContent = `Likes reçus: ${totalLikes}`;
         }
-
 
     </script>
 </body>
