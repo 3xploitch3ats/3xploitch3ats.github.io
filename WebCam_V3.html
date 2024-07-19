@@ -63,11 +63,9 @@
         <label id="cameraLabel">
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
-            <button id="switchCameraButton">Changer de Caméra</button>
+
         </label>
         <label>
-            Sélectionner un utilisateur :
-            <select id="userSelect"></select>
         </label>
         <button id="likeButton">❤️</button>
         <p id="likesCount">Likes reçus: 0</p>
@@ -91,8 +89,6 @@
         const muteCheckbox = document.getElementById('muteCheckbox');
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
-        const userSelect = document.getElementById('userSelect');
-        const switchCameraButton = document.getElementById('switchCameraButton');
         const likeButton = document.getElementById('likeButton');
         const likesCount = document.getElementById('likesCount');
 
@@ -116,7 +112,6 @@
 
             peer.on('open', () => {
                 console.log('My peer ID is: ' + id);
-                addUserToValidUsers(id);
             });
 
             peer.on('call', (incomingCall) => {
@@ -148,7 +143,7 @@
                 });
             });
 
-            setInterval(checkValidUsers, 5000);
+
         }
 
         function generateRandomId() {
@@ -267,8 +262,6 @@
                         remoteVideo.srcObject = remoteStream;
                     });
                     call.on('close', () => {
-                        localStream.getTracks().forEach(track => track.stop());
-                        localVideo.srcObject = null;
                         remoteVideo.srcObject = null;
                     });
                 })
@@ -280,13 +273,8 @@
         hangupButton.addEventListener('click', () => {
             if (call) {
                 call.close();
-                call = null;
-            }
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-                localVideo.srcObject = null;
                 remoteVideo.srcObject = null;
+                call = null;
             }
         });
 
@@ -298,50 +286,24 @@
             sendMuteSignal(muteRemoteCheckbox.checked);
         });
 
-        switchCameraButton.addEventListener('click', () => {
-            localStorage.setItem('selectedCameraId', cameraSelect.value);
-            getLocalStream();
-        });
-
         likeButton.addEventListener('click', () => {
-            const userId = myIdInput.value;
-            const conn = peer.connections[Object.keys(peer.connections)[0]][0];
-            if (conn) {
-                conn.send({ type: 'like' });
-                if (!likedUsers[userId]) {
-                    likedUsers[userId] = 1;
-                } else {
-                    likedUsers[userId]++;
-                }
-                updateLikesCount();
+            const peerId = peerIdInput.value.trim();
+            if (peerId) {
+                const conn = peer.connect(peerId);
+                conn.on('open', () => {
+                    conn.send({ type: 'like' });
+                });
             }
         });
+
+
 
         function updateLikesCount() {
-            const count = Object.values(likedUsers).reduce((acc, val) => acc + val, 0);
-            likesCount.textContent = `Likes reçus: ${count}`;
+            let totalLikes = Object.values(likedUsers).reduce((a, b) => a + b, 0);
+            likesCount.textContent = `Likes reçus: ${totalLikes}`;
         }
 
-        function addUserToValidUsers(userId) {
-            if (!validUsers.includes(userId)) {
-                validUsers.push(userId);
-                updateUserSelect();
-            }
-        }
 
-        function updateUserSelect() {
-            userSelect.innerHTML = '';
-            validUsers.forEach(userId => {
-                const option = document.createElement('option');
-                option.value = userId;
-                option.text = userId;
-                userSelect.appendChild(option);
-            });
-        }
-
-        function checkValidUsers() {
-            // Implement user validation check if needed
-        }
     </script>
 </body>
 </html>
