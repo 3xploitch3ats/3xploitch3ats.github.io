@@ -64,6 +64,10 @@
             Sélectionner la caméra :
             <select id="cameraSelect"></select>
         </label>
+        <label id="lastCalledLabel">
+            ID Sélectionné :
+            <input type="text" id="lastCalledId" readonly>
+        </label>
         <button id="likeButton">❤️</button>
         <p id="likesCount">Likes reçus: 0</p>
     </div>
@@ -75,7 +79,6 @@
         let call;
         let validUsers = [];
         let likedUsers = {};
-        let lastCallerId = '';
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
@@ -87,6 +90,7 @@
         const muteCheckbox = document.getElementById('muteCheckbox');
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
+        const lastCalledIdInput = document.getElementById('lastCalledId');
         const likeButton = document.getElementById('likeButton');
         const likesCount = document.getElementById('likesCount');
 
@@ -122,8 +126,7 @@
                         incomingCall.on('stream', (remoteStream) => {
                             remoteVideo.srcObject = remoteStream;
                         });
-                        lastCallerId = incomingCall.peer;
-                        peerIdInput.value = lastCallerId;
+                        lastCalledIdInput.value = incomingCall.peer;
                     })
                     .catch((err) => {
                         console.error('Failed to get local stream', err);
@@ -177,7 +180,16 @@
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            if (device === 'iOS' || device === 'Android') {
+            if (device === 'iOS') {
+                if (videoDevices.length > 1) {
+                    cameraSelect.innerHTML = `
+                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                    `;
+                } else {
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
+                }
+            } else if (device === 'Android') {
                 if (videoDevices.length > 1) {
                     cameraSelect.innerHTML = `
                         <option value="${videoDevices[0].deviceId}">Caméra 1</option>
@@ -256,8 +268,8 @@
                     call.on('close', () => {
                         remoteVideo.srcObject = null;
                     });
-                    lastCallerId = peerId;
-                    peerIdInput.value = lastCallerId;
+                    lastCalledIdInput.value = peerId; // Set the last called ID
+                    saveLastCalledId(peerId); // Save to localStorage
                 })
                 .catch((err) => {
                     console.error('Failed to get local stream', err);
@@ -265,14 +277,11 @@
         });
 
         hangupButton.addEventListener('click', () => {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
             if (call) {
                 call.close();
+                remoteVideo.srcObject = null;
+                call = null;
             }
-            localVideo.srcObject = null;
-            remoteVideo.srcObject = null;
         });
 
         muteCheckbox.addEventListener('change', () => {
@@ -285,42 +294,42 @@
             }
         });
 
+        cameraSelect.addEventListener('change', () => {
+            localStorage.setItem('selectedCameraId', cameraSelect.value);
+            getLocalStream();
+        });
+
         likeButton.addEventListener('click', () => {
-            if (peer) {
-                const conn = peer.connections[Object.keys(peer.connections)[0]][0];
-                if (conn) {
+            if (call) {
+                call.peerConnection.getSenders().forEach(sender => {
+                    if (sender.track && sender.track.kind === 'audio') {
+                        sender.track.enabled = true;
+                    }
+                });
+                const conn = peer.connect(call.peer);
+                conn.on('open', () => {
                     conn.send({ type: 'like' });
-                    likedUsers[peerIdInput.value] = (likedUsers[peerIdInput.value] || 0) + 1;
-                    updateLikesCount();
-                }
+                });
             }
         });
 
+        function saveLastCalledId(id) {
+            localStorage.setItem('lastCalledId', id);
+        }
+
         function updateLikesCount() {
-            const totalLikes = Object.values(likedUsers).reduce((a, b) => a + b, 0);
-            likesCount.textContent = `Likes reçus: ${totalLikes}`;
+            const count = Object.values(likedUsers).reduce((sum, likes) => sum + likes, 0);
+            likesCount.textContent = `Likes reçus: ${count}`;
         }
 
         function checkValidUsers() {
-            // Check valid users' status every 5 seconds
-            // Add valid users to the list if they are available
-            // This part needs your implementation based on how you manage the user list
+            // Check valid users and update ComboBox (if needed)
         }
 
         function addUserToValidUsers(id) {
-            // Add user ID to the valid users list
             if (!validUsers.includes(id)) {
                 validUsers.push(id);
-                // Your code to update the UI with new valid users
-            }
-        }
-
-        function applyMicMute() {
-            if (localStream) {
-                const audioTracks = localStream.getAudioTracks();
-                if (audioTracks.length > 0) {
-                    audioTracks[0].enabled = !muteCheckbox.checked;
-                }
+                // Update ComboBox with new user ID if required
             }
         }
     </script>
