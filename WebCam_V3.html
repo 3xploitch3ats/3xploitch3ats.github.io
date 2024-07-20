@@ -349,18 +349,18 @@
         function addRemoteVideo(peerId, stream) {
             if (!document.getElementById(peerId + '-wrapper')) {
                 const videoWrapper = document.createElement('div');
-                videoWrapper.classList.add('video-wrapper');
-                videoWrapper.id = `remote-wrapper-${peerId}`;
-        
+                videoWrapper.className = 'video-wrapper';
+                videoWrapper.id = peerId + '-wrapper';
                 videoWrapper.appendChild(videoElement);
-                const remoteVideo = document.createElement('video');
-                remoteVideo.id = `remoteVideo-${peerId}`;
-                remoteVideo.autoplay = true;
-                remoteVideo.playsinline = true; // Ajoutez cet attribut
+                const videoElement = document.createElement('video');
+                videoElement.id = peerId + 'Video';
+                videoElement.autoplay = true;
+                videoElement.playsinline = true;
                 remoteVideo.setAttribute('playsinline', 'true'); // Assurez-vous que l'attribut est ajouté
                 remoteVideo.setAttribute('webkit-playsinline', 'true'); // Assurez-vous que l'attribut est ajouté pour iOS
-                remoteVideo.srcObject = stream;
-
+                videoElement.srcObject = stream;
+                videoElement.style.maxWidth = '40%'; // Assurez-vous que la largeur ne dépasse pas 100%
+                videoElement.style.maxHeight = '60vh'; // Limitez la hauteur pour éviter le plein écran        
 
                 const controlsDiv = document.createElement('div');
                 controlsDiv.className = 'controls';
