@@ -206,12 +206,10 @@
             // Clear previous options
             cameraSelect.innerHTML = '';
 
-            if (videoDevices.length > 1) {
+            if (videoDevices.length > 0) {
                 cameraSelect.innerHTML = videoDevices.map((device, index) => 
                     `<option value="${device.deviceId}">Caméra ${index + 1}</option>`
                 ).join('');
-            } else if (videoDevices.length > 0) {
-                cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra</option>`;
             }
 
             // Set default camera
