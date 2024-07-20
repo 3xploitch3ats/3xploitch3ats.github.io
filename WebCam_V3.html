@@ -24,11 +24,11 @@
         }
         
         video {
-            max-width: 40%;
-            height: auto;
-            object-fit: contain;
+            width: 400px; /* Largeur fixe pour les vidéos */
+            height: 300px; /* Hauteur fixe pour les vidéos */
             border: 1px solid #ccc;
             border-radius: 5px;
+            object-fit: cover; /* Assure que les vidéos remplissent le conteneur sans déformation */
         }
         .controls {
             display: flex;
