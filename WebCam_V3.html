@@ -92,7 +92,7 @@
     <script>
         let localStream;
         let peer;
-        let call;
+        let currentCall;
         let likedUsers = {};
         let unlikedUsers = {};
         let lastCallerId = '';
@@ -293,8 +293,8 @@
         });
 
         hangupButton.addEventListener('click', () => {
-            if (call) {
-                call.close();
+            if (currentCall) {
+                currentCall.close();
             }
             document.getElementById('video-container').innerHTML = '';
         });
