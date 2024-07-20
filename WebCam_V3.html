@@ -222,7 +222,7 @@
             }
 
             // iPhone specific camera handling
-            if (isIPhone && videoDevices.length > 1) {
+            if (isIPhone) {
                 return {
                     audio: true,
                     video: { deviceId: { exact: cameraSelect.value } }
