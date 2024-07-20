@@ -24,6 +24,7 @@
         }
         video {
             max-width: 40%;
+    	    height: auto;
             border: 1px solid #ccc;
             border-radius: 5px;
             margin: 5px;
@@ -196,8 +197,7 @@
         }
 
         async function updateCameraSelect() {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-
+            const device = detectDevice();
             let constraints = {
                 audio: true,
                 video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
