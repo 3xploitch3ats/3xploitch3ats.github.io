@@ -60,7 +60,7 @@
                 <p class="unlikes-count" style="display: none;">Unlikes reçus: 0</p>
             </div>
         </div>
-        <video id="remoteVideo" autoplay playsinline></video>
+        <div id="remote-videos"></div>
     </div>
     <div id="main-controls">
         <label>
@@ -104,13 +104,12 @@
         const myIdInput = document.getElementById('myId');
         const peerIdInput = document.getElementById('peerId');
         const localVideo = document.getElementById('localVideo');
-        const remoteVideo = document.getElementById('remoteVideo');
         const muteCheckbox = document.getElementById('muteCheckbox');
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
         const likeButton = document.getElementById('likeButton');
         const likesCount = document.getElementById('likesCount');
-        const unlikedUsersCount = document.querySelector('.unlikes-count');
+        const remoteVideosContainer = document.getElementById('remote-videos');
 
         generateMyIdButton.addEventListener('click', () => {
             const myId = generateRandomId();
@@ -209,35 +208,16 @@
 
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            
+
             // Clear previous options
             cameraSelect.innerHTML = '';
 
-            if (device === 'iOS') {
-                if (videoDevices.length > 1) {
-                    cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra avant</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra arrière</option>
-                    `;
-                } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra</option>`;
-                }
-            } else if (device === 'Android') {
-                if (videoDevices.length > 1) {
-                    cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
-                    `;
-                } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
-                }
-            } else {
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
+            if (videoDevices.length > 1) {
+                cameraSelect.innerHTML = videoDevices.map((device, index) => 
+                    `<option value="${device.deviceId}">Caméra ${index + 1}</option>`
+                ).join('');
+            } else if (videoDevices.length > 0) {
+                cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra</option>`;
             }
 
             // Set default camera
@@ -252,8 +232,10 @@
         }
 
         function addRemoteVideo(peerId, stream) {
-            if (peerConnections[peerId]) {
-                peerConnections[peerId].close();
+            // Remove existing remote video if it already exists
+            const existingWrapper = document.getElementById(`remote-${peerId}`);
+            if (existingWrapper) {
+                existingWrapper.remove();
             }
 
             const videoWrapper = document.createElement('div');
@@ -281,10 +263,17 @@
 
             videoWrapper.appendChild(videoElement);
             videoWrapper.appendChild(controls);
-            document.getElementById('video-container').appendChild(videoWrapper);
+            remoteVideosContainer.appendChild(videoWrapper);
 
             peerConnections[peerId] = new RTCPeerConnection();
             peerConnections[peerId].addStream(stream);
+        }
+
+        function applyMicMute() {
+            const audioTracks = localStream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                audioTracks[0].enabled = !muteCheckbox.checked;
+            }
         }
 
         callButton.addEventListener('click', () => {
@@ -315,7 +304,7 @@
 
         muteCheckbox.addEventListener('change', applyMicMute);
         muteRemoteCheckbox.addEventListener('change', () => {
-            const audioTracks = remoteVideo.srcObject?.getAudioTracks();
+            const audioTracks = remoteVideosContainer.querySelector('video')?.srcObject?.getAudioTracks();
             if (audioTracks) {
                 audioTracks.forEach(track => track.enabled = !muteRemoteCheckbox.checked);
             }
