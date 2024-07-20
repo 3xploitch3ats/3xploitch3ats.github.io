@@ -200,12 +200,6 @@
         }
 
         async function detectCameraConstraints() {
-            const device = detectDevice();
-            let constraints = {
-                audio: true,
-                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
-            };
-
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
@@ -228,7 +222,10 @@
                 cameraSelect.value = videoDevices[0].deviceId;
             }
 
-            return constraints;
+            return {
+                audio: true,
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+            };
         }
 
         function addRemoteVideo(peerId, stream) {
