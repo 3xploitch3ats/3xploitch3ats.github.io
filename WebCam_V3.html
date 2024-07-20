@@ -23,7 +23,7 @@
             margin-bottom: 20px;
         }
         video {
-          max-width: 300px;
+            max-width: 300px;
             border: 1px solid #ccc;
             border-radius: 5px;
             margin: 5px;
@@ -78,11 +78,10 @@
         <label>
             <input type="checkbox" id="muteRemoteCheckbox"> Mute Le Micro du Deuxième Utilisateur
         </label>
-        <label id="cameraLabel">
-            Sélectionner la caméra :
+        <label>
+            Caméra :
             <select id="cameraSelect"></select>
         </label>
-        <label>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
@@ -94,16 +93,16 @@
         let unlikedUsers = {};
         let lastCallerId = '';
         let peerConnections = {};
+        let cameraSelect = document.getElementById('cameraSelect');
+        let localVideo = document.getElementById('localVideo');
 
         const callButton = document.getElementById('callButton');
         const hangupButton = document.getElementById('hangupButton');
         const generateMyIdButton = document.getElementById('generateMyId');
         const myIdInput = document.getElementById('myId');
         const peerIdInput = document.getElementById('peerId');
-        const localVideo = document.getElementById('localVideo');
         const muteCheckbox = document.getElementById('muteCheckbox');
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
-        const cameraSelect = document.getElementById('cameraSelect');
         const videoContainer = document.getElementById('video-container');
 
         generateMyIdButton.addEventListener('click', () => {
@@ -157,6 +156,13 @@
                         updateLikesCount(senderId);
                     } else if (data.type === 'unlike') {
                         const senderId = conn.peer;
+                        if (!unlikedUsers[senderId]) {
+                            unlikedUsers[senderId] = 1;
+                        } else {
+                            unlikedUsers[senderId]++;
+                        }
+                        updateUnlikesCount(senderId);
+                        // Exclusion logic
                         localStorage.setItem('excludedUser', senderId);
                         setTimeout(() => {
                             if (localStorage.getItem('excludedUser') === senderId) {
@@ -164,16 +170,12 @@
                                 throw new Error("L'utilisateur est exclu");
                             }
                         }, 5000);
-                        if (!unlikedUsers[senderId]) {
-                            unlikedUsers[senderId] = 1;
-                        } else {
-                            unlikedUsers[senderId]++;
-                        }
-                        updateUnlikesCount(senderId);
-
                     }
                 });
             });
+
+            // Update camera options
+            updateCameraOptions();
         }
 
         function generateRandomId() {
@@ -181,7 +183,10 @@
         }
 
         async function getLocalStream() {
-            const constraints = await updateCameraSelect();
+            const constraints = {
+                audio: true,
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+            };
             return navigator.mediaDevices.getUserMedia(constraints)
                 .then(stream => {
                     localStream = stream;
@@ -193,67 +198,6 @@
                     console.error('Failed to get local stream', err);
                     throw err;
                 });
-        }
-
-        async function updateCameraSelect() {
-            const device = detectDevice();
-            let constraints = {
-                audio: true,
-                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
-            };
-
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            cameraSelect.innerHTML = '';
-
-            if (device === 'iOS') {
-                if (videoDevices.length > 1) {
-                    cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
-                    `;
-                } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
-                }
-            } else if (device === 'Android') {
-                if (videoDevices.length > 1) {
-                    cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
-                    `;
-                } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
-                }
-            } else {
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-            }
-
-            // Restore the previously selected camera
-            const savedCameraId = localStorage.getItem('selectedCameraId');
-            if (savedCameraId) {
-                cameraSelect.value = savedCameraId;
-            }
-
-            return constraints;
-        }
-
-        function detectDevice() {
-            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-            if (/windows phone/i.test(userAgent)) {
-                return "Windows Phone";
-            }
-            if (/android/i.test(userAgent)) {
-                return "Android";
-            }
-            if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-                return "iOS";
-            }
-            return "unknown";
         }
 
         function applyMicMute() {
@@ -275,96 +219,40 @@
             }
         }
 
-        function addRemoteVideo(peerId, stream) {
-            const videoWrapper = document.createElement('div');
-            videoWrapper.className = 'video-wrapper';
-            videoWrapper.id = peerId;
-
-            const video = document.createElement('video');
-            video.autoplay = true;
-            video.playsInline = true;
-            video.srcObject = stream;
-
-            const likeButton = document.createElement('button');
-            likeButton.textContent = '❤️';
-            likeButton.addEventListener('click', () => sendLike(peerId));
-
-            const unlikeButton = document.createElement('button');
-            unlikeButton.textContent = '⚡';
-            unlikeButton.addEventListener('click', () => sendUnlike(peerId));
-
-            const likeCount = document.createElement('p');
-            likeCount.className = 'likes-count';
-            likeCount.textContent = 'Likes reçus: 0';
-
-            const unlikeCount = document.createElement('p');
-            unlikeCount.className = 'unlikes-count';
-            unlikeCount.textContent = 'Unlikes reçus: 0';
-
-            videoWrapper.appendChild(video);
-            videoWrapper.appendChild(likeButton);
-            videoWrapper.appendChild(likeCount);
-            videoWrapper.appendChild(unlikeButton);
-            videoWrapper.appendChild(unlikeCount);
-
-            videoContainer.appendChild(videoWrapper);
-            peerConnections[peerId] = stream;
-        }
-
-        function updateLikesCount(peerId) {
-            const videoWrapper = document.getElementById(peerId);
-            if (videoWrapper) {
-                const likeCount = videoWrapper.querySelector('.likes-count');
-                likeCount.textContent = `Likes reçus: ${likedUsers[peerId] || 0}`;
-            }
-        }
-
-        function updateUnlikesCount(peerId) {
-            const videoWrapper = document.getElementById(peerId);
-            if (videoWrapper) {
-                const unlikeCount = videoWrapper.querySelector('.unlikes-count');
-                unlikeCount.textContent = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
-            }
-        }
-
-        function sendLike(peerId) {
-            const conn = peer.connect(peerId);
-            conn.on('open', () => {
-                conn.send({ type: 'like' });
-            });
-        }
-
-        function sendUnlike(peerId) {
-            const conn = peer.connect(peerId);
-            conn.on('open', () => {
-                conn.send({ type: 'unlike' });
-            });
-        }
-
         callButton.addEventListener('click', () => {
-            if (peerIdInput.value) {
-                getLocalStream()
-                    .then(stream => {
-                        const call = peer.call(peerIdInput.value, stream);
-                        call.on('stream', remoteStream => {
-                            addRemoteVideo(peerIdInput.value, remoteStream);
-                        });
-                        lastCallerId = peerIdInput.value;
-                        peerIdInput.value = lastCallerId;
-                    })
-                    .catch(err => {
-                        console.error('Failed to get local stream', err);
-                    });
+            const peerId = peerIdInput.value.trim();
+            if (!peerId) {
+                alert('Veuillez entrer l\'ID de la personne à appeler.');
+                return;
             }
+
+            getLocalStream()
+                .then((stream) => {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    applyMicMute();
+                    call = peer.call(peerId, stream);
+                    call.on('stream', (remoteStream) => {
+                        addRemoteVideo(peerId, remoteStream);
+                    });
+                    call.on('close', () => {
+                        removeRemoteVideo(peerId);
+                    });
+                })
+                .catch((err) => {
+                    console.error('Failed to get local stream', err);
+                });
         });
 
         hangupButton.addEventListener('click', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
             if (call) {
                 call.close();
             }
-            localStream.getTracks().forEach(track => track.stop());
             localVideo.srcObject = null;
-            videoContainer.innerHTML = '';
+            videoContainer.querySelectorAll('.video-wrapper').forEach(wrapper => wrapper.remove());
         });
 
         muteCheckbox.addEventListener('change', () => {
@@ -372,26 +260,122 @@
         });
 
         muteRemoteCheckbox.addEventListener('change', () => {
-            const mute = muteRemoteCheckbox.checked;
-            sendMuteSignal(mute);
+            sendMuteSignal(muteRemoteCheckbox.checked);
         });
 
-        cameraSelect.addEventListener('change', () => {
-            localStorage.setItem('selectedCameraId', cameraSelect.value);
-            getLocalStream();
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const textBox = document.querySelector('#peerId');
-                if (textBox) {
-                    if (textBox.value.startsWith('!unlike')) {
-                        sendUnlike(textBox.value.split(' ')[1]);
-                        textBox.value = '';
+        function updateCameraOptions() {
+            navigator.mediaDevices.enumerateDevices()
+                .then(devices => {
+                    cameraSelect.innerHTML = '';
+                    devices.filter(device => device.kind === 'videoinput').forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.text = device.label || `Camera ${cameraSelect.length + 1}`;
+                        cameraSelect.appendChild(option);
+                    });
+                    if (cameraSelect.options.length > 0) {
+                        cameraSelect.selectedIndex = 0;
                     }
-                }
+                })
+                .catch(error => {
+                    console.error('Error listing devices:', error);
+                });
+        }
+
+        function addRemoteVideo(peerId, stream) {
+            if (!document.getElementById(peerId)) {
+                const wrapper = document.createElement('div');
+                wrapper.classList.add('video-wrapper');
+                wrapper.id = peerId;
+
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.playsInline = true;
+                video.srcObject = stream;
+
+                const controls = document.createElement('div');
+                controls.classList.add('controls');
+
+                const likeButton = document.createElement('button');
+                likeButton.innerText = '❤️';
+                likeButton.addEventListener('click', () => {
+                    sendLike(peerId);
+                });
+
+                const unlikeButton = document.createElement('button');
+                unlikeButton.innerText = '⚡';
+                unlikeButton.style.display = 'none';
+                unlikeButton.addEventListener('click', () => {
+                    sendUnlike(peerId);
+                });
+
+                const likesCount = document.createElement('p');
+                likesCount.classList.add('likes-count');
+                likesCount.innerText = `Likes reçus: ${likedUsers[peerId] || 0}`;
+
+                const unlikesCount = document.createElement('p');
+                unlikesCount.classList.add('unlikes-count');
+                unlikesCount.innerText = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
+                unlikesCount.style.display = 'none';
+
+                controls.appendChild(likeButton);
+                controls.appendChild(unlikeButton);
+                controls.appendChild(likesCount);
+                controls.appendChild(unlikesCount);
+
+                wrapper.appendChild(video);
+                wrapper.appendChild(controls);
+                videoContainer.appendChild(wrapper);
+
+                peerConnections[peerId] = { video, controls, likeButton, unlikeButton, likesCount, unlikesCount };
             }
-        });
+        }
+
+        function removeRemoteVideo(peerId) {
+            const videoWrapper = document.getElementById(peerId);
+            if (videoWrapper) {
+                videoWrapper.remove();
+                delete peerConnections[peerId];
+            }
+        }
+
+        function sendLike(peerId) {
+            const conn = peer.connect(peerId);
+            conn.on('open', () => {
+                conn.send({ type: 'like' });
+                likedUsers[peerId] = (likedUsers[peerId] || 0) + 1;
+                updateLikesCount(peerId);
+            });
+        }
+
+        function sendUnlike(peerId) {
+            const conn = peer.connect(peerId);
+            conn.on('open', () => {
+                conn.send({ type: 'unlike' });
+                unlikedUsers[peerId] = (unlikedUsers[peerId] || 0) + 1;
+                updateUnlikesCount(peerId);
+                localStorage.setItem('excludedUser', peerId);
+                setTimeout(() => {
+                    if (localStorage.getItem('excludedUser') === peerId) {
+                        document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                        throw new Error("L'utilisateur est exclu");
+                    }
+                }, 5000);
+            });
+        }
+
+        function updateLikesCount(peerId) {
+            if (peerConnections[peerId]) {
+                peerConnections[peerId].likesCount.innerText = `Likes reçus: ${likedUsers[peerId] || 0}`;
+            }
+        }
+
+        function updateUnlikesCount(peerId) {
+            if (peerConnections[peerId]) {
+                peerConnections[peerId].unlikesCount.innerText = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
+                peerConnections[peerId].unlikeButton.style.display = 'block';
+            }
+        }
     </script>
 </body>
 </html>
