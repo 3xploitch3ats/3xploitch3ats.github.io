@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -19,12 +20,12 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: space-around;
-            width: 80%;
+            width: 80%; /* Ajustez en fonction de la largeur souhaitée */
             margin-bottom: 20px;
         }
         
         video {
-            width: 40%;
+            max-width: 40%;
             height: auto;
             object-fit: contain;
             border: 1px solid #ccc;
@@ -200,6 +201,11 @@
 
         async function updateCameraSelect() {
             const device = detectDevice();
+            let constraints = {
+                audio: true,
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+            };
+
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
@@ -222,16 +228,13 @@
                 } else {
                     cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
                 }
-            }
-            else if (videoDevices.length > 0) {
+            } else {
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.text = `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
-            } else {
-                cameraSelect.innerHTML = '<option value="">Aucune caméra détectée</option>';
             }
 
             // Restore the previously selected camera
@@ -240,10 +243,7 @@
                 cameraSelect.value = savedCameraId;
             }
 
-            return {
-                audio: true,
-                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
-            };
+            return constraints;
         }
 
         function detectDevice() {
