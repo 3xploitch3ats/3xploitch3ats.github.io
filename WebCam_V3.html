@@ -26,6 +26,7 @@
         video {
             max-width: 40%;
             height: auto;
+            object-fit: contain;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
@@ -365,6 +366,9 @@
                 videoElement.autoplay = true;
                 videoElement.playsinline = true;
                 videoElement.srcObject = stream;
+                videoElement.style.maxWidth = '100%'; // Assurez-vous que la largeur ne dépasse pas 100%
+                videoElement.style.maxHeight = '60vh'; // Limitez la hauteur pour éviter le plein écran
+
                 videoWrapper.appendChild(videoElement);
 
                 const controlsDiv = document.createElement('div');
