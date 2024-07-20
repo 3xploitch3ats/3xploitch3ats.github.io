@@ -55,7 +55,7 @@
     <div id="video-container">
         <div class="video-wrapper" id="local-wrapper">
             <video id="localVideo" autoplay playsinline muted></video>
-            <div class="controls">     
+            <div class="controls">
                 <button class="unlike-button" style="display: none;">⚡</button>
                 <p class="unlikes-count" style="display: none;">Unlikes reçus: 0</p>
             </div>
@@ -209,16 +209,18 @@
 
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            // Clear previous options
             cameraSelect.innerHTML = '';
 
             if (device === 'iOS') {
                 if (videoDevices.length > 1) {
                     cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                        <option value="${videoDevices[0].deviceId}">Caméra avant</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra arrière</option>
                     `;
                 } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra</option>`;
                 }
             } else if (device === 'Android') {
                 if (videoDevices.length > 1) {
@@ -238,30 +240,15 @@
                 });
             }
 
-            const savedCameraId = localStorage.getItem('selectedCameraId');
-            if (savedCameraId) {
-                cameraSelect.value = savedCameraId;
+            // Set default camera
+            const storedCameraId = localStorage.getItem('selectedCameraId');
+            if (storedCameraId && videoDevices.some(dev => dev.deviceId === storedCameraId)) {
+                cameraSelect.value = storedCameraId;
+            } else if (videoDevices.length > 0) {
+                cameraSelect.value = videoDevices[0].deviceId;
             }
 
             return constraints;
-        }
-
-        function detectDevice() {
-            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-            if (/android/i.test(userAgent)) {
-                return 'Android';
-            }
-            if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-                return 'iOS';
-            }
-            return 'Other';
-        }
-
-        function applyMicMute() {
-            const audioTrack = localStream.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !muteCheckbox.checked;
-            }
         }
 
         function addRemoteVideo(peerId, stream) {
@@ -370,4 +357,3 @@
     </script>
 </body>
 </html>
-
