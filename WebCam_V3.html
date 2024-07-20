@@ -25,6 +25,7 @@
         
         video {
             max-width: 40%;
+            height: auto;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
@@ -323,12 +324,22 @@
         function saveSelectedCamera() {
             localStorage.setItem('selectedCameraId', cameraSelect.value);
         }
-
+        async function changeCamera() {
+            const constraints = await updateCameraSelect();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop()); // Arrêter le stream actuel
+            }
+            const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+            localStream = newStream;
+            localVideo.srcObject = newStream;
+            applyMicMute();
+        }
         cameraSelect.addEventListener('change', () => {
             saveSelectedCamera();
             getLocalStream().then(stream => {
                 localVideo.srcObject = stream;
             });
+             changeCamera();
         });
 
         peerId.addEventListener('input', () => {
