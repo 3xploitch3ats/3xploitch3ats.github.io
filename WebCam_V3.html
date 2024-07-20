@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -19,7 +20,7 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: space-around;
-            width: 80%;
+            width: 80%; /* Ajustez en fonction de la largeur souhaitée */
             margin-bottom: 20px;
         }
         
@@ -200,11 +201,6 @@
 
         async function updateCameraSelect() {
             const device = detectDevice();
-            let constraints = {
-                audio: true,
-                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
-            };
-
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
@@ -227,13 +223,15 @@
                 } else {
                     cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
                 }
-            } else {
+            } else if (videoDevices.length > 0) {
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.text = `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
+            } else {
+                cameraSelect.innerHTML = '<option value="">Aucune caméra détectée</option>';
             }
 
             // Restore the previously selected camera
@@ -242,7 +240,10 @@
                 cameraSelect.value = savedCameraId;
             }
 
-            return constraints;
+            return {
+                audio: true,
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+            };
         }
 
         function detectDevice() {
