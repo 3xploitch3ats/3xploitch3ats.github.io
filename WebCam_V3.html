@@ -202,6 +202,7 @@
         async function detectCameraConstraints() {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            const isIPhone = /iPhone/.test(navigator.userAgent);
 
             // Clear previous options
             cameraSelect.innerHTML = '';
@@ -220,6 +221,15 @@
                 cameraSelect.value = videoDevices[0].deviceId;
             }
 
+            // iPhone specific camera handling
+            if (isIPhone && videoDevices.length > 1) {
+                return {
+                    audio: true,
+                    video: { deviceId: { exact: cameraSelect.value } }
+                };
+            }
+
+            // Default camera handling
             return {
                 audio: true,
                 video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
@@ -246,14 +256,23 @@
             controls.classList.add('controls');
             const unlikeButton = document.createElement('button');
             unlikeButton.classList.add('unlike-button');
-            unlikeButton.textContent = '⚡';
+            unlikeButton.innerHTML = '⚡';
             unlikeButton.style.display = 'none';
-            controls.appendChild(unlikeButton);
+            unlikeButton.addEventListener('click', () => {
+                peer.connections[peerId][0].send({ type: 'unlike' });
+                unlikedUsers[peerId] = (unlikedUsers[peerId] || 0) + 1;
+                updateUnlikesCount();
+                setTimeout(() => {
+                    document.getElementById(`remote-${peerId}`).remove();
+                }, 5000);
+            });
 
             const unlikeCount = document.createElement('p');
             unlikeCount.classList.add('unlikes-count');
             unlikeCount.style.display = 'none';
             unlikeCount.textContent = 'Unlikes reçus: 0';
+
+            controls.appendChild(unlikeButton);
             controls.appendChild(unlikeCount);
 
             videoWrapper.appendChild(videoElement);
