@@ -282,16 +282,11 @@
             localStorage.setItem('selectedCameraId', cameraSelect.value);
             if (localStream) {
                 const videoTracks = localStream.getVideoTracks();
-                videoTracks.forEach(track => track.stop());
-                const stream = await getLocalStream();
-                if (call) {
-                    call.peerConnection.getSenders().forEach(sender => {
-                        if (sender.track && sender.track.kind === 'video') {
-                            call.peerConnection.removeTrack(sender);
-                        }
-                    });
-                    call.peerConnection.addTrack(stream.getVideoTracks()[0], stream);
-                }
+                videoTracks.forEach(track => localStream.removeTrack(track));
+                const constraints = await updateCameraSelect();
+                const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                localStream.addTrack(newStream.getVideoTracks()[0]);
+                localVideo.srcObject = localStream;
             }
         });
 
