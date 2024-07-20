@@ -19,7 +19,7 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: space-around;
-            width: 80%;
+            width: 80%; /* Ajustez en fonction de la largeur souhaitée */
             margin-bottom: 20px;
         }
         
@@ -366,6 +366,9 @@
                 videoElement.autoplay = true;
                 videoElement.playsinline = true;
                 videoElement.srcObject = stream;
+                videoElement.style.maxWidth = '100%'; // Assurez-vous que la largeur ne dépasse pas 100%
+                videoElement.style.maxHeight = '60vh'; // Limitez la hauteur pour éviter le plein écran
+
                 videoWrapper.appendChild(videoElement);
 
                 const controlsDiv = document.createElement('div');
