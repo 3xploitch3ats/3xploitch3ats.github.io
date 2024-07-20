@@ -200,11 +200,6 @@
 
         async function updateCameraSelect() {
             const device = detectDevice();
-            let constraints = {
-                audio: true,
-                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
-            };
-
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
@@ -227,13 +222,15 @@
                 } else {
                     cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
                 }
-            } else {
+            } else if (videoDevices.length > 0) {
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.text = `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
+            } else {
+                cameraSelect.innerHTML = '<option value="">Aucune caméra détectée</option>';
             }
 
             // Restore the previously selected camera
@@ -242,7 +239,10 @@
                 cameraSelect.value = savedCameraId;
             }
 
-            return constraints;
+            return {
+                audio: true,
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+            };
         }
 
         function detectDevice() {
