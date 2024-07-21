@@ -26,8 +26,9 @@
         video {
             width: 40%; /* Ajustez la largeur selon vos besoins */
             height: auto; /* Utilisez 'auto' pour conserver le ratio aspect */
-            max-width: 100%; /* Limite la largeur maximale à 100% de son conteneur */
-            max-height: 60vh; /* Limite la hauteur maximale à 60% de la hauteur de la fenêtre */
+            max-width: 40%;
+            max-height: 20vh;
+            object-fit: contain;
             border: 1px solid #ccc;
             border-radius: 5px;
             margin: 5px;
@@ -362,14 +363,15 @@
                 const videoWrapper = document.createElement('div');
                 videoWrapper.className = 'video-wrapper';
                 videoWrapper.id = peerId + '-wrapper';
-                videoWrapper.appendChild(videoElement);
+                
                 const videoElement = document.createElement('video');
                 videoElement.id = peerId + 'Video';
                 videoElement.autoplay = true;
                 videoElement.playsinline = true;
                 videoElement.srcObject = stream;
-     
 
+                videoWrapper.appendChild(videoElement);
+                
                 const controlsDiv = document.createElement('div');
                 controlsDiv.className = 'controls';
 
