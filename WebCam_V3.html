@@ -25,7 +25,7 @@
             overflow: hidden;
         }
         video {            
-            object-fit: contain;
+            object-fit: cover;
             width: 100%;
             height: 100%;
             border: none;
@@ -51,6 +51,7 @@
             flex-wrap: wrap;
             justify-content: center;
             width: 100%;
+            max-width: 320px;
             margin-bottom: 20px;
         }
         #controls {
@@ -360,21 +361,20 @@
         });
 
         function addRemoteVideo(peerId, stream) {
+            if (!document.getElementById(peerId + '-wrapper')) {
+                const videoWrapper = document.createElement('div');
+                videoWrapper.className = 'video-wrapper';
+                videoWrapper.id = peerId + '-wrapper';
+                
+                const videoElement = document.createElement('video');
+                videoElement.id = peerId + 'Video';
+                videoElement.autoplay = true;
+                videoElement.srcObject = stream;
 
-            if (!peerConnections[peerId]) {
-                const remoteWrapper = document.createElement('div');
-                remoteWrapper.className = 'video-wrapper';
-                remoteWrapper.id = `remote-wrapper-${peerId}`;
-                videoContainer.appendChild(remoteWrapper);
-
-                const remoteVideo = document.createElement('video');
-                remoteVideo.autoplay = true;
-                remoteVideo.playsInline = true;
-                remoteWrapper.appendChild(remoteVideo);
-
-                const controls = document.createElement('div');
-                controls.className = 'controls';
-                remoteWrapper.appendChild(controls);
+                videoWrapper.appendChild(videoElement);
+                
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'controls';
 
                 const likeButton = document.createElement('button');
                 likeButton.className = 'like-button';
@@ -396,13 +396,13 @@
                 unlikesCount.innerText = 'Unlikes reçus: 0';
                 unlikesCount.style.display = 'none';
 
-                controls.appendChild(likeButton);
-                controls.appendChild(unlikeButton);
-                controls.appendChild(likesCount);
-                controls.appendChild(unlikesCount);
+                controlsDiv.appendChild(likeButton);
+                controlsDiv.appendChild(unlikeButton);
+                controlsDiv.appendChild(likesCount);
+                controlsDiv.appendChild(unlikesCount);
 
-                controls.appendChild(controlsDiv);
-                controls.appendChild(videoWrapper);            }
+                videoWrapper.appendChild(controlsDiv);
+                videoContainer.appendChild(videoWrapper);            }
         }
 
         function removeRemoteVideo(peerId) {
