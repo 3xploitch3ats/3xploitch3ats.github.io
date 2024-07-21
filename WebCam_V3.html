@@ -18,26 +18,17 @@
         #video-container {
             display: flex;
             flex-wrap: wrap;
-            justify-content: space-around;
-            width: 80%; /* Ajustez en fonction de la largeur souhaitée */
+            justify-content: center;
+            width: 80%;
             margin-bottom: 20px;
         }
-        .video-wrapper {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden; /* Empêche le dépassement de contenu */
-        }
         video {
-            width: 100%;
-            height: 100%;
             max-width: 40%;
-            max-height: 60vh;
-            object-fit: contain;
             border: 1px solid #ccc;
             border-radius: 5px;
+            margin: 5px;
         }
-        .controls {
+        #controls {
             display: flex;
             align-items: center;
             flex-direction: column;
@@ -211,15 +202,24 @@
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            if (videoDevices.length > 0) {
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = `Caméra ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-            } else {
-                cameraSelect.innerHTML = '<option value="">Aucune caméra détectée</option>';
+            if (device === 'iOS') {
+                if (videoDevices.length > 1) {
+                    cameraSelect.innerHTML = `
+                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                    `;
+                } else {
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
+                }
+            } else if (device === 'Android') {
+                if (videoDevices.length > 1) {
+                    cameraSelect.innerHTML = `
+                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
+                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
+                    `;
+                } else {
+                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
+                }
             }
 
             // Restore the previously selected camera
@@ -349,19 +349,13 @@
                 const videoWrapper = document.createElement('div');
                 videoWrapper.className = 'video-wrapper';
                 videoWrapper.id = peerId + '-wrapper';
-
+                videoWrapper.appendChild(videoElement);
                 const videoElement = document.createElement('video');
                 videoElement.id = peerId + 'Video';
                 videoElement.autoplay = true;
                 videoElement.playsinline = true;
                 videoElement.srcObject = stream;
-                videoElement.style.width = 'auto'; // Ajuste la largeur automatiquement en fonction du contenu
-                videoElement.style.height = 'auto'; // Ajuste la hauteur automatiquement en fonction du contenu
-                videoElement.style.maxWidth = '40%'; // Limite la largeur maximale
-                videoElement.style.maxHeight = '60vh'; // Limite la hauteur maximale
-                videoElement.style.objectFit = 'contain'; // Assure que la vidéo reste dans les limites du conteneur
      
-                videoWrapper.appendChild(videoElement);
 
                 const controlsDiv = document.createElement('div');
                 controlsDiv.className = 'controls';
@@ -423,13 +417,13 @@
                         unlikesCount.style.display = 'block';
                     }
                 }
-            localStorage.setItem('excludedUser', senderId);
-            setTimeout(() => {
-                if (localStorage.getItem('excludedUser') === senderId) {
-                    document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
-                    throw new Error("L'utilisateur est exclu");
-                }
-            }, 5000);
+                localStorage.setItem('excludedUser', senderId);
+                setTimeout(() => {
+                    if (localStorage.getItem('excludedUser') === senderId) {
+                        document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                        throw new Error("L'utilisateur est exclu");
+                    }
+                }, 5000);
             }
         }
 
@@ -498,15 +492,15 @@
             }
         }
 
-    setInterval(() => {
-        if (localStorage.getItem('excludedUser')) {
-            document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
-            throw new Error("L'utilisateur est exclu");
-        }
-        Object.keys(peerConnections).forEach(peerId => {
-            updateLikeCounts(peerId);
-        });
-    }, 5000);
+        setInterval(() => {
+            if (localStorage.getItem('excludedUser')) {
+                document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                throw new Error("L'utilisateur est exclu");
+            }
+            Object.keys(peerConnections).forEach(peerId => {
+                updateLikeCounts(peerId);
+            });
+        }, 5000);
         window.addEventListener('beforeunload', () => {
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
