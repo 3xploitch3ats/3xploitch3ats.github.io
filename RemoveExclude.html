@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Réinitialiser Exclusion</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Réinitialiser Exclusion</h1>
+    <button id="removeExclusion">Supprimer Exclusion</button>
+    <p id="statusMessage"></p>
+
+    <script>
+        document.getElementById('removeExclusion').addEventListener('click', () => {
+            // Supprimer l'utilisateur exclu de localStorage
+            localStorage.removeItem('excludedUser');
+
+            // Réinitialiser la page pour permettre une nouvelle connexion
+            document.getElementById('statusMessage').textContent = 'Exclusion supprimée. Veuillez vous reconnecter.';
+            setTimeout(() => {
+                window.location.href = 'index.html'; // Remplacez par l'URL de votre page principale
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
