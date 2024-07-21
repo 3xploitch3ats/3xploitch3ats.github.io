@@ -18,8 +18,8 @@
         .video-wrapper {
             position: relative;
             display: inline-block;
-            width: 100px;
-            height: 100px;
+            width: 320px;
+            height: 240px;
             margin: 5px;
             border: 1px solid #ccc;
             border-radius: 5px;
@@ -28,7 +28,7 @@
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: cover;
             max-width: 100%;
             max-height: 60vh;
             border: 1px solid #ccc;
@@ -391,7 +391,6 @@
                 const videoElement = document.createElement('video');
                 videoElement.id = peerId + 'Video';
                 videoElement.autoplay = true;
-                videoElement.playsinline = true;
                 videoElement.srcObject = stream;
 
                 videoWrapper.appendChild(videoElement);
