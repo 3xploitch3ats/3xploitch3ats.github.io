@@ -15,46 +15,22 @@
             margin: 0;
             background-color: #f0f0f0;
         }
-        .video-wrapper {
-            position: relative;
-            width: 320px;
-            height: 240px;
-            margin: 5px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-        video {            
-            object-fit: cover;
-            width: 320px;
-            height: 240px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin: 5px;
-        }
-        .controls {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            text-align: center;
-        }
-        .like-button, .unlike-button {
-            background: transparent;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-        }
         #video-container {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
-            width: 100%;
+            justify-content: space-around;
+            width: 80%;
             margin-bottom: 20px;
         }
-        #controls {
+        
+        video {
+            width: 40%;
+            height: auto;
+            object-fit: contain;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .controls {
             display: flex;
             align-items: center;
             flex-direction: column;
@@ -184,13 +160,13 @@
                         updateLikesCount(senderId);
                     } else if (data.type === 'unlike') {
                         const senderId = conn.peer;
-                        localStorage.setItem('excludedUser', senderId);
-                        setTimeout(() => {
-                            if (localStorage.getItem('excludedUser') === senderId) {
-                                document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
-                                throw new Error("L'utilisateur est exclu");
-                            }
-                        }, 5000);
+            localStorage.setItem('excludedUser', senderId);
+            setTimeout(() => {
+                if (localStorage.getItem('excludedUser') === senderId) {
+                    document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                    throw new Error("L'utilisateur est exclu");
+                }
+            }, 5000);
                         if (!unlikedUsers[senderId]) {
                             unlikedUsers[senderId] = 1;
                         } else {
@@ -224,6 +200,11 @@
 
         async function updateCameraSelect() {
             const device = detectDevice();
+            let constraints = {
+                audio: true,
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+            };
+
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
@@ -257,16 +238,14 @@
             } else {
                 cameraSelect.innerHTML = '<option value="">Aucune caméra détectée</option>';
             }
+
             // Restore the previously selected camera
             const savedCameraId = localStorage.getItem('selectedCameraId');
             if (savedCameraId) {
                 cameraSelect.value = savedCameraId;
             }
 
-            return {
-                audio: true,
-                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
-            };
+            return constraints;
         }
 
         function detectDevice() {
@@ -384,14 +363,14 @@
                 const videoWrapper = document.createElement('div');
                 videoWrapper.className = 'video-wrapper';
                 videoWrapper.id = peerId + '-wrapper';
-                
+
                 const videoElement = document.createElement('video');
                 videoElement.id = peerId + 'Video';
                 videoElement.autoplay = true;
+                videoElement.playsinline = true;
                 videoElement.srcObject = stream;
-
                 videoWrapper.appendChild(videoElement);
-                
+
                 const controlsDiv = document.createElement('div');
                 controlsDiv.className = 'controls';
 
@@ -421,7 +400,8 @@
                 controlsDiv.appendChild(unlikesCount);
 
                 videoWrapper.appendChild(controlsDiv);
-                videoContainer.appendChild(videoWrapper);            }
+                videoContainer.appendChild(videoWrapper);
+            }
         }
 
         function removeRemoteVideo(peerId) {
@@ -451,13 +431,13 @@
                         unlikesCount.style.display = 'block';
                     }
                 }
-                localStorage.setItem('excludedUser', senderId);
-                setTimeout(() => {
-                    if (localStorage.getItem('excludedUser') === senderId) {
-                        document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
-                        throw new Error("L'utilisateur est exclu");
-                    }
-                }, 5000);
+            localStorage.setItem('excludedUser', senderId);
+            setTimeout(() => {
+                if (localStorage.getItem('excludedUser') === senderId) {
+                    document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                    throw new Error("L'utilisateur est exclu");
+                }
+            }, 5000);
             }
         }
 
@@ -526,15 +506,15 @@
             }
         }
 
-        setInterval(() => {
-            if (localStorage.getItem('excludedUser')) {
-                document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
-                throw new Error("L'utilisateur est exclu");
-            }
-            Object.keys(peerConnections).forEach(peerId => {
-                updateLikeCounts(peerId);
-            });
-        }, 5000);
+    setInterval(() => {
+        if (localStorage.getItem('excludedUser')) {
+            document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+            throw new Error("L'utilisateur est exclu");
+        }
+        Object.keys(peerConnections).forEach(peerId => {
+            updateLikeCounts(peerId);
+        });
+    }, 5000);
         window.addEventListener('beforeunload', () => {
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
