@@ -225,26 +225,6 @@
             const videoDevices = devices.filter(device => device.kind === 'videoinput');
             cameraSelect.innerHTML = '';
 
-            if (device === 'iOS') {
-                if (videoDevices.length > 1) {
-                    cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
-                    `;
-                } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
-                }
-            } else if (device === 'Android') {
-                if (videoDevices.length > 1) {
-                    cameraSelect.innerHTML = `
-                        <option value="${videoDevices[0].deviceId}">Caméra 1</option>
-                        <option value="${videoDevices[1].deviceId}">Caméra 2</option>
-                    `;
-                } else {
-                    cameraSelect.innerHTML = `<option value="${videoDevices[0].deviceId}">Caméra 1</option>`;
-                }
-            }
-
             if (videoDevices.length > 0) {
                 videoDevices.forEach((device, index) => {
                     const option = document.createElement('option');
@@ -252,14 +232,14 @@
                     option.text = `Caméra ${index + 1}`;
                     cameraSelect.appendChild(option);
                 });
+
+                // Restore the previously selected camera
+                const savedCameraId = localStorage.getItem('selectedCameraId');
+                if (savedCameraId) {
+                    cameraSelect.value = savedCameraId;
+                }
             } else {
                 cameraSelect.innerHTML = '<option value="">Aucune caméra détectée</option>';
-            }
-
-            // Restore the previously selected camera
-            const savedCameraId = localStorage.getItem('selectedCameraId');
-            if (savedCameraId) {
-                cameraSelect.value = savedCameraId;
             }
 
             return {
@@ -323,6 +303,9 @@
                 unlikeButton.addEventListener('click', () => {
                     sendUnlike(peerId);
                 });
+
+                updateLikesCount(peerId);
+                updateUnlikesCount(peerId);
             }
         }
 
@@ -330,6 +313,8 @@
             const conn = peer.connections[peerId];
             if (conn && conn[0]) {
                 conn[0].send({ type: 'like' });
+            } else {
+                console.error('Connection not found for peerId: ' + peerId);
             }
         }
 
@@ -337,6 +322,8 @@
             const conn = peer.connections[peerId];
             if (conn && conn[0]) {
                 conn[0].send({ type: 'unlike' });
+            } else {
+                console.error('Connection not found for peerId: ' + peerId);
             }
         }
 
