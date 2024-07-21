@@ -5,85 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC Chat</title>
     <style>
-body {
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    margin: 0;
-    background-color: #f0f0f0;
-}
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
 
-#video-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-bottom: 20px;
-}
+        #video-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
 
-.video-wrapper {
-    position: relative;
-    margin: 5px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    overflow: hidden;
-}
+        .video-wrapper {
+            position: relative;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            width: 320px; /* Taille fixe pour éviter le plein écran */
+            height: 240px; /* Taille fixe pour éviter le plein écran */
+        }
 
-video {
-    object-fit: contain;
-    width: 100%;
-    height: 100%;
-    border: none;
-    margin: 0;
-}
+        video {
+            object-fit: contain;
+            width: 100%;
+            height: 100%;
+            border: none;
+            margin: 0;
+        }
 
-.controls {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    color: white;
-    text-align: center;
-}
+        .controls {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            text-align: center;
+        }
 
-.controls button {
-    background: transparent;
-    border: none;
-    color: white;
-    font-size: 20px;
-    cursor: pointer;
-    margin: 5px;
-}
+        .controls button {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
 
-.controls p {
-    margin: 0;
-    color: white;
-}
+        .controls p {
+            margin: 0;
+            color: white;
+        }
 
-#main-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 800px; /* Adjusted width for better fit on larger screens */
-}
+        #main-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px; /* Ajuster la largeur pour un meilleur ajustement sur les grands écrans */
+        }
 
-#main-controls label, #main-controls button {
-    margin-bottom: 10px;
-}
+        #main-controls label, #main-controls button {
+            margin-bottom: 10px;
+        }
 
-input[type="text"] {
-    padding: 5px;
-    font-size: 16px;
-}
+        input[type="text"] {
+            padding: 5px;
+            font-size: 16px;
+        }
 
-button {
-    padding: 10px;
-    font-size: 16px;
-    cursor: pointer;
-}
+        button {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
