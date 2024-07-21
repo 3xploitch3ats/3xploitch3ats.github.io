@@ -20,14 +20,14 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            width: 80%;
+            width: 100%;
             margin-bottom: 20px;
         }
         video {
-            width: 40%;
-            height: 60vh;
-            max-width: 40%;
-            max-height: 60vh;
+            width: 40%; /* Ajustez la largeur selon vos besoins */
+            height: auto; /* Utilisez 'auto' pour conserver le ratio aspect */
+            max-width: 100%; /* Limite la largeur maximale à 100% de son conteneur */
+            max-height: 60vh; /* Limite la hauteur maximale à 60% de la hauteur de la fenêtre */
             border: 1px solid #ccc;
             border-radius: 5px;
             margin: 5px;
@@ -36,7 +36,7 @@
             display: flex;
             align-items: center;
             flex-direction: column;
-            width: 80%;
+            width: 100%;
         }
         .controls button {
             margin-bottom: 5px;
@@ -48,7 +48,7 @@
             display: flex;
             align-items: center;
             flex-direction: column;
-            width: 80%;
+            width: 100%;
         }
         #main-controls label, #main-controls button {
             margin-bottom: 10px;
