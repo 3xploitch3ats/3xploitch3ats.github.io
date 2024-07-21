@@ -306,7 +306,37 @@
         muteRemoteCheckbox.addEventListener('change', () => {
             sendMuteSignal(muteRemoteCheckbox.checked);
         });
-
+        function saveSelectedCamera() {
+            localStorage.setItem('selectedCameraId', cameraSelect.value);
+        }
+        async function changeCamera() {
+            const constraints = await updateCameraSelect();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop()); // Arrêter le stream actuel
+            }
+            const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+            localStream = newStream;
+            localVideo.srcObject = newStream;
+            applyMicMute();
+        }
+        cameraSelect.addEventListener('change', () => {
+            saveSelectedCamera();
+            getLocalStream().then(stream => {
+                localVideo.srcObject = stream;
+            });
+             changeCamera();
+        });
+        peerId.addEventListener('input', () => {
+            const command = peerId.value.trim();
+            const unlikeButtons = document.querySelectorAll('.unlike-button');
+            unlikeButtons.forEach(button => {
+                if (command === '!unlike') {
+                    button.style.display = 'block';
+                } else {
+                    button.style.display = 'none';
+                }
+            });
+        });
         function addRemoteVideo(peerId, remoteStream) {
             const existingWrapper = document.getElementById(peerId + '-wrapper');
             if (existingWrapper) {
@@ -368,32 +398,52 @@
         }
 
         function sendLike(peerId) {
-            const conn = peer.connections[peerId]?.[0];
-            if (conn) {
+            const conn = peer.connect(peerId);
+            conn.on('open', () => {
                 conn.send({ type: 'like' });
-            }
+            });
         }
 
         function sendUnlike(peerId) {
-            const conn = peer.connections[peerId]?.[0];
-            if (conn) {
+            const conn = peer.connect(peerId);
+            conn.on('open', () => {
                 conn.send({ type: 'unlike' });
-            }
+                setTimeout(() => {
+                    removeRemoteVideo(peerId);
+                    if (call && call.peer === peerId) {
+                        call.close();
+                    }
+                }, 5000);
+            });
         }
 
         function updateLikesCount(peerId) {
             const videoWrapper = document.getElementById(peerId + '-wrapper');
             if (videoWrapper) {
-                const likesCountElem = videoWrapper.querySelector('.likes-count');
-                likesCountElem.textContent = `Likes reçus: ${likedUsers[peerId] || 0}`;
+                const likesCount = videoWrapper.querySelector('.likes-count');
+                if (likesCount) {
+                    likesCount.innerText = `Likes reçus: ${likedUsers[peerId] || 0}`;
+                }
             }
         }
 
         function updateUnlikesCount(peerId) {
             const videoWrapper = document.getElementById(peerId + '-wrapper');
             if (videoWrapper) {
-                const unlikesCountElem = videoWrapper.querySelector('.unlikes-count');
-                unlikesCountElem.textContent = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
+                const unlikesCount = videoWrapper.querySelector('.unlikes-count');
+                if (unlikesCount) {
+                    unlikesCount.innerText = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
+                    if (unlikedUsers[peerId] > 0) {
+                        unlikesCount.style.display = 'block';
+                    }
+                }
+                localStorage.setItem('excludedUser', senderId);
+                setTimeout(() => {
+                    if (localStorage.getItem('excludedUser') === senderId) {
+                        document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                        throw new Error("L'utilisateur est exclu");
+                    }
+                }, 5000);
             }
         }
 
