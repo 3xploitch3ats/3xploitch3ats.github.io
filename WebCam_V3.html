@@ -24,8 +24,8 @@
         }
         video {
             width: 100%;
-            height: 100%;
-            object-fit: cover;
+            height: auto;
+            object-fit: contain;
             max-width: 100%; /* Limite la largeur maximale à 100% de son conteneur */
             max-height: 60vh; /* Limite la hauteur maximale à 60% de la hauteur de la fenêtre */
             border: 1px solid #ccc;
@@ -52,7 +52,7 @@
             flex-wrap: wrap;
             justify-content: center;
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 20px 0;
         }
         #controls {
             display: flex;
@@ -422,8 +422,7 @@
                 controlsDiv.appendChild(unlikesCount);
 
                 videoWrapper.appendChild(controlsDiv);
-                videoContainer.appendChild(videoWrapper);
-                 document.getElementById('video-container').appendChild(videoWrapper);
+                document.getElementById('video-container').appendChild(videoWrapper);
             }
         }
 
