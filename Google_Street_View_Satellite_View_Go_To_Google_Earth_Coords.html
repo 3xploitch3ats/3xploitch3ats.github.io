@@ -37,7 +37,6 @@
 <body>
     <div id="controls">
         <input type="text" id="searchBox" placeholder="Search location or coordinates">
-        <button id="setCoordinatesButton">Set Coordinates</button>
         <button id="returnToStreetViewButton">Return to Street View</button>
         <button id="openGoogleEarthButton">Open Google Earth</button>
         <button id="returnToSatelliteViewButton">Return to Satellite View</button>
@@ -52,7 +51,19 @@
     <div id="mapContainer">
         <iframe id="mapIframe" src=""></iframe>
     </div>
-
+  <br>
+        <button id="setCoordinatesButton">Set Coordinates 1</button>
+  <br>
+        <button id="setCoordinatesButton2">Set Coordinates 2</button>
+  <br>
+        <button id="setCoordinatesButton3">Set Coordinates 3</button>
+  <br>
+        <button id="setCoordinatesButton4">Set Coordinates 4</button>
+  <br>
+        <button id="setCoordinatesButton5">Set Coordinates 5</button>
+  <br>
+        <button id="setCoordinatesButton6">Set Coordinates 6</button>
+  <br>
     <script>
         const defaultLatitude = 48.8566;
         const defaultLongitude = 2.3522;
@@ -60,6 +71,23 @@
 
         document.getElementById('setCoordinatesButton').addEventListener('click', () => {
             document.getElementById('searchBox').value = "37°48'17\"N 122°22'16\"W";
+        });
+        document.getElementById('setCoordinatesButton2').addEventListener('click', () => {
+            document.getElementById('searchBox').value = "37°47'08\"N 122°23'30\"W";
+        });
+
+        document.getElementById('setCoordinatesButton3').addEventListener('click', () => {
+            document.getElementById('searchBox').value = "37°47'06\"N 122°23'35\"W";
+        });
+        document.getElementById('setCoordinatesButton4').addEventListener('click', () => {
+            document.getElementById('searchBox').value = "37°47'09\"N 122°23'43\"W";
+        });
+        document.getElementById('setCoordinatesButton5').addEventListener('click', () => {
+            document.getElementById('searchBox').value = "37°47'15\"N 122°23'44\"W";
+        });
+
+        document.getElementById('setCoordinatesButton6').addEventListener('click', () => {
+            document.getElementById('searchBox').value = "37°48'11\"N 122°23'09\"W";
         });
 
         document.getElementById('returnToStreetViewButton').addEventListener('click', () => {
@@ -74,12 +102,18 @@
         });
 
         document.getElementById('openGoogleEarthButton').addEventListener('click', () => {
+            const input = document.getElementById('searchBox').value;
             const useIframe = document.getElementById('useIframe').checked;
-            const url = "https://earth.google.com/web/search/37%c2%b048%2717%22N+122%c2%b022%2716%22W/@37.80345981,-122.37093184,-0.83088432a,2209.58804014d,35y,0.00017294h,0t,0r/data=ClwaMhIsGb6uFSMB50JAIa9rxUjAl17AKhgzN8KwNDgnMTciTiAxMjLCsDIyJzE2IlcYAiABIiYKJAn5JkjOmeVCQBHczn6A9-RCQBnz4oGyWphewCH3jZ3F95hewDIpCicKJQohMUg0VVBfUnYyUkU2X3F2dG5sR2J5VDRaRHlKUVJLX1E2IAE6AwoBMA";
-            if (useIframe) {
-                document.getElementById('mapIframe').src = url;
+            if (isCoordinate(input)) {
+                const { lat, lng } = parseCoordinate(input);
+                const url = `https://earth.google.com/web/@${lat},${lng},3000a,35y,0h,0t,0r`;
+                if (useIframe) {
+                    document.getElementById('mapIframe').src = url;
+                } else {
+                    window.open(url, '_blank', 'width=800,height=600');
+                }
             } else {
-                window.open(url, '_blank', 'width=800,height=600');
+                alert("Please enter valid coordinates in the format 37°48'17\"N 122°22'16\"W");
             }
         });
 
@@ -198,9 +232,10 @@
             return { lat: latitude, lng: longitude };
         }
 
-        function updateLatLngLabels(lat, lng) {
-            document.getElementById('latitudeLabel').textContent = 'Latitude: ' + lat.toFixed(5);
-            document.getElementById('longitudeLabel').textContent = 'Longitude: ' + lng.toFixed(5);
+        function updateLatLngLabels(lat, lng, alt) {
+            document.getElementById('latitudeLabel').textContent = `Latitude: ${lat.toFixed(6)}`;
+            document.getElementById('longitudeLabel').textContent = `Longitude: ${lng.toFixed(6)}`;
+            document.getElementById('altitudeLabel').textContent = `Altitude: ${alt.toFixed(2)}`;
         }
     </script>
 </body>
