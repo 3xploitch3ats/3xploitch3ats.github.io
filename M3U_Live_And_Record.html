@@ -58,65 +58,6 @@
         let hls;
         let isRecording = false;
 
-       function loadM3uList() {
-            const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
-            const select = document.getElementById('m3uList');
-            select.innerHTML = '';
-            m3uList.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.url;
-                option.text = item.name;
-                select.appendChild(option);
-            });
-        }
-
-        function addM3uUrl() {
-            const newM3uName = document.getElementById('newM3uName').value;
-            const m3uUrl = document.getElementById('m3uUrl').value;
-            if (newM3uName && m3uUrl) {
-                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
-                m3uList.push({name: newM3uName, url: m3uUrl});
-                localStorage.setItem('m3uList', JSON.stringify(m3uList));
-                loadM3uList();
-                document.getElementById('newM3uName').value = '';
-                document.getElementById('m3uUrl').value = '';
-            }
-        }
-
-        function removeM3uUrl() {
-            const select = document.getElementById('m3uList');
-            const selectedIndex = select.selectedIndex;
-            if (selectedIndex >= 0) {
-                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
-                m3uList.splice(selectedIndex, 1);
-                localStorage.setItem('m3uList', JSON.stringify(m3uList));
-                loadM3uList();
-            }
-            saveCheckboxStates();
-        }
-        function saveCheckboxStates() {
-            const select = document.getElementById('m3uList');
-            const selectedIndex = select.selectedIndex;
-            if (selectedIndex >= 0) {
-                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
-                //m3uList[selectedIndex].recordCheckbox = document.getElementById('recordCheckbox').checked;
-                //m3uList[selectedIndex].playerCheckbox = document.getElementById('playerCheckbox').checked;
-                localStorage.setItem('m3uList', JSON.stringify(m3uList));
-            }
-        }
-        function loadM3uDetails() {
-            const select = document.getElementById('m3uList');
-            const selectedIndex = select.selectedIndex;
-            if (selectedIndex >= 0) {
-                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
-                const selectedItem = m3uList[selectedIndex];
-                document.getElementById('newM3uName').value = selectedItem.name;
-                document.getElementById('m3uUrl').value = selectedItem.url;
-                //document.getElementById('recordCheckbox').checked = selectedItem.recordCheckbox || false;
-                //document.getElementById('playerCheckbox').checked = selectedItem.playerCheckbox || false;
-            }
-        }
-
         // Load saved settings from localStorage
         document.getElementById('recordCheckbox').checked = JSON.parse(localStorage.getItem('recordCheckbox')) || false;
         document.getElementById('playerCheckbox').checked = JSON.parse(localStorage.getItem('playerCheckbox')) || false;
@@ -281,6 +222,65 @@
                 event.returnValue = '';
             }
         });
+function loadM3uList() {
+            const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+            const select = document.getElementById('m3uList');
+            select.innerHTML = '';
+            m3uList.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.url;
+                option.text = item.name;
+                select.appendChild(option);
+            });
+        }
+
+        function addM3uUrl() {
+            const newM3uName = document.getElementById('newM3uName').value;
+            const m3uUrl = document.getElementById('m3uUrl').value;
+            if (newM3uName && m3uUrl) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                m3uList.push({name: newM3uName, url: m3uUrl});
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+                loadM3uList();
+                document.getElementById('newM3uName').value = '';
+                document.getElementById('m3uUrl').value = '';
+            }
+        }
+
+        function removeM3uUrl() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                m3uList.splice(selectedIndex, 1);
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+                loadM3uList();
+            }
+            saveCheckboxStates();
+        }
+        function saveCheckboxStates() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                //m3uList[selectedIndex].recordCheckbox = document.getElementById('recordCheckbox').checked;
+                //m3uList[selectedIndex].playerCheckbox = document.getElementById('playerCheckbox').checked;
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+            }
+        }
+        function loadM3uDetails() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                const selectedItem = m3uList[selectedIndex];
+                document.getElementById('newM3uName').value = selectedItem.name;
+                document.getElementById('m3uUrl').value = selectedItem.url;
+                //document.getElementById('recordCheckbox').checked = selectedItem.recordCheckbox || false;
+                //document.getElementById('playerCheckbox').checked = selectedItem.playerCheckbox || false;
+            }
+        }
+
         // Load M3U list on page load
         window.onload = function() {
             loadM3uList();
