@@ -24,14 +24,17 @@
         let mediaRecorder;
         let recordedChunks = [];
         let video = document.getElementById('video');
+        let hls;
 
         async function startRecording() {
             const m3uUrl = document.getElementById('m3uUrl').value;
             const outputName = document.getElementById('outputName').value;
             document.getElementById('status').innerText = 'Chargement du flux...';
 
+            recordedChunks = []; // Reset recorded chunks for new recording
+
             if (Hls.isSupported()) {
-                const hls = new Hls();
+                hls = new Hls();
                 hls.loadSource(m3uUrl);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, function () {
@@ -82,13 +85,16 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
                 video.pause();
+                if (hls) {
+                    hls.destroy();
+                }
                 document.getElementById('status').innerText = 'Enregistrement arrêté.';
             }
         }
 
         window.addEventListener('beforeunload', () => {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                stopRecording();
+                mediaRecorder.stop();
             }
         });
     </script>
