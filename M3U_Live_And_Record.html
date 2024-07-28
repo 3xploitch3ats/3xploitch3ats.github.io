@@ -34,6 +34,9 @@
             recordedChunks = []; // Reset recorded chunks for new recording
 
             if (Hls.isSupported()) {
+                if (hls) {
+                    hls.destroy();
+                }
                 hls = new Hls();
                 hls.loadSource(m3uUrl);
                 hls.attachMedia(video);
@@ -53,16 +56,19 @@
                     };
 
                     mediaRecorder.onstop = function() {
-                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.style.display = 'none';
-                        a.href = url;
-                        a.download = outputName + '.mp4';
-                        document.body.appendChild(a);
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                        document.getElementById('status').innerText = 'Enregistrement terminé.';
+                        if (recordedChunks.length) {
+                            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = url;
+                            a.download = outputName + '.mp4';
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            document.getElementById('status').innerText = 'Enregistrement terminé.';
+                        }
                     };
 
                     mediaRecorder.start();
@@ -92,9 +98,10 @@
             }
         }
 
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener('beforeunload', (event) => {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
+                event.returnValue = 'Enregistrement en cours. Êtes-vous sûr de vouloir quitter ?'; // Prompt user before leaving
             }
         });
     </script>
