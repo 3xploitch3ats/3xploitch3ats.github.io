@@ -281,7 +281,10 @@
                 event.returnValue = '';
             }
         });
-      loadM3uList(); // Load M3U list on page load
+        // Load M3U list on page load
+        window.onload = function() {
+            loadM3uList();
+        };
     </script>
 </body>
 </html>
