@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Street View Satellite view Go To Google Earth Coords</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #controls {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .label {
+            margin-left: 10px;
+        }
+        #mapContainer {
+            margin-top: 20px;
+            width: 800px;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <input type="text" id="searchBox" placeholder="Search location or coordinates">
+        <button id="setCoordinatesButton">Set Coordinates</button>
+        <button id="returnToStreetViewButton">Return to Street View</button>
+        <button id="openGoogleEarthButton">Open Google Earth</button>
+        <button id="returnToSatelliteViewButton">Return to Satellite View</button>
+        <button id="playVideoButton">Play Video</button>
+        <span class="label" id="latitudeLabel">Latitude: </span>
+        <span class="label" id="longitudeLabel">Longitude: </span>
+        <span class="label" id="altitudeLabel">Altitude: </span>
+        <label>
+            Use iframe: <input type="checkbox" id="useIframe">
+        </label>
+    </div>
+    <div id="mapContainer">
+        <iframe id="mapIframe" src=""></iframe>
+    </div>
+
+    <script>
+        const defaultLatitude = 48.8566;
+        const defaultLongitude = 2.3522;
+        let mapWindow;
+
+        document.getElementById('setCoordinatesButton').addEventListener('click', () => {
+            document.getElementById('searchBox').value = "37°48'17\"N 122°22'16\"W";
+        });
+
+        document.getElementById('returnToStreetViewButton').addEventListener('click', () => {
+            const input = document.getElementById('searchBox').value;
+            const useIframe = document.getElementById('useIframe').checked;
+            if (isCoordinate(input)) {
+                const { lat, lng } = parseCoordinate(input);
+                updateOrOpenStreetView(lat, lng, useIframe);
+            } else {
+                openStreetViewWithAddress(encodeURIComponent(input), useIframe);
+            }
+        });
+
+        document.getElementById('openGoogleEarthButton').addEventListener('click', () => {
+            const useIframe = document.getElementById('useIframe').checked;
+            const url = "https://earth.google.com/web/search/37%c2%b048%2717%22N+122%c2%b022%2716%22W/@37.80345981,-122.37093184,-0.83088432a,2209.58804014d,35y,0.00017294h,0t,0r/data=ClwaMhIsGb6uFSMB50JAIa9rxUjAl17AKhgzN8KwNDgnMTciTiAxMjLCsDIyJzE2IlcYAiABIiYKJAn5JkjOmeVCQBHczn6A9-RCQBnz4oGyWphewCH3jZ3F95hewDIpCicKJQohMUg0VVBfUnYyUkU2X3F2dG5sR2J5VDRaRHlKUVJLX1E2IAE6AwoBMA";
+            if (useIframe) {
+                document.getElementById('mapIframe').src = url;
+            } else {
+                window.open(url, '_blank', 'width=800,height=600');
+            }
+        });
+
+        document.getElementById('returnToSatelliteViewButton').addEventListener('click', () => {
+            const input = document.getElementById('searchBox').value;
+            const useIframe = document.getElementById('useIframe').checked;
+            if (isCoordinate(input)) {
+                const { lat, lng } = parseCoordinate(input);
+                updateOrOpenMap(lat, lng, useIframe);
+            } else {
+                openMapWithAddress(encodeURIComponent(input), useIframe);
+            }
+        });
+
+        document.getElementById('playVideoButton').addEventListener('click', () => {
+            const useIframe = document.getElementById('useIframe').checked;
+            const url = "https://www.youtube.com/embed/LuDN2bCIyus";
+            if (useIframe) {
+                document.getElementById('mapIframe').src = url;
+            } else {
+                window.open(url, '_blank', 'width=800,height=600');
+            }
+        });
+
+        document.getElementById('searchBox').addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                const input = document.getElementById('searchBox').value;
+                const useIframe = document.getElementById('useIframe').checked;
+                if (isCoordinate(input)) {
+                    const { lat, lng } = parseCoordinate(input);
+                    updateOrOpenMap(lat, lng, useIframe);
+                } else {
+                    openMapWithAddress(encodeURIComponent(input), useIframe);
+                }
+            }
+        });
+
+        function updateOrOpenStreetView(lat, lng, useIframe) {
+            const url = `https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}&cbp=11,0,0,0,0`;
+            if (useIframe) {
+                document.getElementById('mapIframe').src = url;
+            } else {
+                if (mapWindow && !mapWindow.closed) {
+                    mapWindow.location.href = url;
+                } else {
+                    mapWindow = window.open(url, '_blank', 'width=800,height=600');
+                }
+            }
+        }
+
+        function openStreetViewWithAddress(address, useIframe) {
+            const url = `https://www.google.com/maps?q=${address}&layer=c`;
+            if (useIframe) {
+                document.getElementById('mapIframe').src = url;
+            } else {
+                if (mapWindow && !mapWindow.closed) {
+                    mapWindow.location.href = url;
+                } else {
+                    mapWindow = window.open(url, '_blank', 'width=800,height=600');
+                }
+            }
+        }
+
+        function updateOrOpenMap(lat, lng, useIframe) {
+            const url = `https://www.google.com/maps?q=${lat},${lng}&t=k&z=13&ie=UTF8&iwloc=&output=embed`;
+            if (useIframe) {
+                document.getElementById('mapIframe').src = url;
+            } else {
+                if (mapWindow && !mapWindow.closed) {
+                    mapWindow.location.href = url;
+                } else {
+                    mapWindow = window.open(url, '_blank', 'width=800,height=600');
+                }
+            }
+        }
+
+        function openMapWithAddress(address, useIframe) {
+            const url = `https://www.google.com/maps?q=${address}&t=k&z=13&ie=UTF8&iwloc=&output=embed`;
+            if (useIframe) {
+                document.getElementById('mapIframe').src = url;
+            } else {
+                if (mapWindow && !mapWindow.closed) {
+                    mapWindow.location.href = url;
+                } else {
+                    mapWindow = window.open(url, '_blank', 'width=800,height=600');
+                }
+            }
+        }
+
+        function isCoordinate(input) {
+            const coordinatePattern = /^(\d{1,2})°(\d{1,2})'(\d{1,2}(?:\.\d+)?)"(N|S)\s+(\d{1,3})°(\d{1,2})'(\d{1,2}(?:\.\d+)?)"(E|W)$/;
+            return coordinatePattern.test(input);
+        }
+
+        function parseCoordinate(input) {
+            const coordinatePattern = /^(\d{1,2})°(\d{1,2})'(\d{1,2}(?:\.\d+)?)"(N|S)\s+(\d{1,3})°(\d{1,2})'(\d{1,2}(?:\.\d+)?)"(E|W)$/;
+            const match = input.match(coordinatePattern);
+
+            if (!match) return null;
+
+            const latDeg = parseFloat(match[1]);
+            const latMin = parseFloat(match[2]);
+            const latSec = parseFloat(match[3]);
+            const latHem = match[4];
+            const lngDeg = parseFloat(match[5]);
+            const lngMin = parseFloat(match[6]);
+            const lngSec = parseFloat(match[7]);
+            const lngHem = match[8];
+
+            let latitude = latDeg + latMin / 60 + latSec / 3600;
+            if (latHem === 'S') latitude = -latitude;
+
+            let longitude = lngDeg + lngMin / 60 + lngSec / 3600;
+            if (lngHem === 'W') longitude = -longitude;
+
+            return { lat: latitude, lng: longitude };
+        }
+
+        function updateLatLngLabels(lat, lng) {
+            document.getElementById('latitudeLabel').textContent = 'Latitude: ' + lat.toFixed(5);
+            document.getElementById('longitudeLabel').textContent = 'Longitude: ' + lng.toFixed(5);
+        }
+    </script>
+</body>
+</html>
