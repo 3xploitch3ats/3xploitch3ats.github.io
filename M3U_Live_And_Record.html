@@ -15,12 +15,22 @@
 <body>
     <h1>Enregistrer M3U en direct</h1>
     <form id="recordForm">
+        <label for="m3uList">Sélectionner un flux M3U:</label>
+        <select id="m3uList" onchange="loadM3uDetails()"></select>
+        <br>
+        <label for="newM3uName">Nom du nouveau flux M3U:</label>
+        <input type="text" id="newM3uName" name="newM3uName">
+        <br>
+
         <label for="m3uUrl">URL M3U:</label>
         <input type="text" id="m3uUrl" name="m3uUrl" required>
         <br>
         <label for="outputName">Nom du fichier de sortie:</label>
         <input type="text" id="outputName" name="outputName" required>
         <br>
+        <button type="button" onclick="addM3uUrl()">Ajouter</button>
+        <button type="button" onclick="removeM3uUrl()">Supprimer</button>
+	<br>
         <label for="recordCheckbox">Enregistrer:</label>
         <input type="checkbox" id="recordCheckbox" name="recordCheckbox">
         <br>
@@ -47,6 +57,65 @@
         let video = document.getElementById('video');
         let hls;
         let isRecording = false;
+
+       function loadM3uList() {
+            const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+            const select = document.getElementById('m3uList');
+            select.innerHTML = '';
+            m3uList.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.url;
+                option.text = item.name;
+                select.appendChild(option);
+            });
+        }
+
+        function addM3uUrl() {
+            const newM3uName = document.getElementById('newM3uName').value;
+            const m3uUrl = document.getElementById('m3uUrl').value;
+            if (newM3uName && m3uUrl) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                m3uList.push({name: newM3uName, url: m3uUrl});
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+                loadM3uList();
+                document.getElementById('newM3uName').value = '';
+                document.getElementById('m3uUrl').value = '';
+            }
+        }
+
+        function removeM3uUrl() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                m3uList.splice(selectedIndex, 1);
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+                loadM3uList();
+            }
+            saveCheckboxStates();
+        }
+        function saveCheckboxStates() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                //m3uList[selectedIndex].recordCheckbox = document.getElementById('recordCheckbox').checked;
+                //m3uList[selectedIndex].playerCheckbox = document.getElementById('playerCheckbox').checked;
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+            }
+        }
+        function loadM3uDetails() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                const selectedItem = m3uList[selectedIndex];
+                document.getElementById('newM3uName').value = selectedItem.name;
+                document.getElementById('m3uUrl').value = selectedItem.url;
+                //document.getElementById('recordCheckbox').checked = selectedItem.recordCheckbox || false;
+                //document.getElementById('playerCheckbox').checked = selectedItem.playerCheckbox || false;
+            }
+        }
 
         // Load saved settings from localStorage
         document.getElementById('recordCheckbox').checked = JSON.parse(localStorage.getItem('recordCheckbox')) || false;
@@ -83,11 +152,25 @@
         // Save checkbox states to localStorage
         document.getElementById('recordCheckbox').addEventListener('change', function() {
             localStorage.setItem('recordCheckbox', this.checked);
+	    saveCheckboxStates(); 
         });
+
         document.getElementById('playerCheckbox').addEventListener('change', function() {
-            localStorage.setItem('playerCheckbox', this.checked);
+          saveCheckboxStates();            
+	    localStorage.setItem('playerCheckbox', this.checked);
             video.style.display = this.checked ? 'block' : 'none';
         });
+
+        function saveCheckboxStates() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                //m3uList[selectedIndex].recordCheckbox = document.getElementById('recordCheckbox').checked;
+                //m3uList[selectedIndex].playerCheckbox = document.getElementById('playerCheckbox').checked;
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+            }
+        }
 
         // Initialize playerCheckbox display setting
         if (document.getElementById('playerCheckbox').checked) {
@@ -95,9 +178,18 @@
         }
 
         function start() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex < 0) {
+                document.getElementById('status').innerText = 'Veuillez sélectionner un flux M3U.';
+                return;
+            }
+            const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+            const selectedItem = m3uList[selectedIndex];
             const m3uUrl = document.getElementById('m3uUrl').value;
             const recordCheckbox = document.getElementById('recordCheckbox').checked;
             const playerCheckbox = document.getElementById('playerCheckbox').checked;
+            const outputName = document.getElementById('outputName').value;
 
             document.getElementById('status').innerText = 'Chargement du flux...';
             recordedChunks = []; // Reset recorded chunks for new recording
@@ -189,6 +281,7 @@
                 event.returnValue = '';
             }
         });
+      loadM3uList(); // Load M3U list on page load
     </script>
 </body>
 </html>
