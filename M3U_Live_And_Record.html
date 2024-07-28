@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enregistrer M3U en direct</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+    <h1>Enregistrer M3U en direct</h1>
+    <form id="recordForm">
+        <label for="m3uUrl">URL M3U:</label>
+        <input type="text" id="m3uUrl" name="m3uUrl" required>
+        <br>
+        <label for="outputName">Nom du fichier de sortie:</label>
+        <input type="text" id="outputName" name="outputName" required>
+        <br>
+        <button type="button" onclick="startRecording()">Enregistrer</button>
+        <button type="button" onclick="stopRecording()">Stop</button>
+    </form>
+    <p id="status"></p>
+    <video id="video" controls></video>
+    <script>
+        let mediaRecorder;
+        let recordedChunks = [];
+        let video = document.getElementById('video');
+
+        async function startRecording() {
+            const m3uUrl = document.getElementById('m3uUrl').value;
+            const outputName = document.getElementById('outputName').value;
+            document.getElementById('status').innerText = 'Chargement du flux...';
+
+            if (Hls.isSupported()) {
+                const hls = new Hls();
+                hls.loadSource(m3uUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    document.getElementById('status').innerText = 'Lecture du flux...';
+                    video.play();
+                });
+
+                video.addEventListener('canplay', () => {
+                    const stream = video.captureStream();
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+
+                    mediaRecorder.ondataavailable = function(event) {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = function() {
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = outputName + '.mp4';
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.getElementById('status').innerText = 'Enregistrement terminé.';
+                    };
+
+                    mediaRecorder.start();
+                    document.getElementById('status').innerText = 'Enregistrement en cours...';
+                });
+
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = m3uUrl;
+                video.addEventListener('loadedmetadata', function() {
+                    document.getElementById('status').innerText = 'Lecture du flux...';
+                    video.play();
+                });
+                document.getElementById('status').innerText = 'HLS non supporté dans ce navigateur.';
+            } else {
+                document.getElementById('status').innerText = 'HLS non supporté dans ce navigateur.';
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                video.pause();
+                document.getElementById('status').innerText = 'Enregistrement arrêté.';
+            }
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+            }
+        });
+    </script>
+</body>
+</html>
