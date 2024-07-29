@@ -217,47 +217,35 @@
             select.innerHTML = '';
             m3uList.forEach(item => {
                 const option = document.createElement('option');
-option.value = item.url;
-option.text = item.name;
-select.appendChild(option);
-});
-}
-
-    function loadM3uDetails() {
-        const select = document.getElementById('m3uList');
-        const selectedIndex = select.selectedIndex;
-        if (selectedIndex >= 0) {
-            const selectedUrl = select.options[selectedIndex].value;
-            document.getElementById('m3uUrl').value = selectedUrl;
+                option.value = item.url;
+                option.textContent = item.name;
+                select.appendChild(option);
+            });
         }
-    }
 
-    function addM3uUrl() {
-        const url = document.getElementById('m3uUrl').value;
-        const name = document.getElementById('newM3uName').value;
-        if (url && name) {
-            const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
-            if (!m3uList.some(item => item.url === url)) {
-                m3uList.push({ url, name });
-                localStorage.setItem('m3uList', JSON.stringify(m3uList));
-                loadM3uList();
+        function loadM3uDetails() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                const m3uUrl = m3uList[selectedIndex].url;
+                document.getElementById('m3uUrl').value = m3uUrl;
             }
         }
-    }
 
-    function removeM3uUrl() {
-        const select = document.getElementById('m3uList');
-        const selectedIndex = select.selectedIndex;
-        if (selectedIndex >= 0) {
+        function addM3uUrl() {
+            const m3uUrl = document.getElementById('m3uUrl').value;
+            const newM3uName = document.getElementById('newM3uName').value;
             const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
-            m3uList.splice(selectedIndex, 1);
-            localStorage.setItem('m3uList', JSON.stringify(m3uList));
-            loadM3uList();
+            if (m3uUrl && newM3uName) {
+                m3uList.push({ name: newM3uName, url: m3uUrl });
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+                loadM3uList();
+                document.getElementById('newM3uName').value = '';
+                document.getElementById('m3uUrl').value = '';
+            }
         }
-    }
 
-    // Initialize M3U list
-    loadM3uList();
 </script>
 </body>
 </html>
