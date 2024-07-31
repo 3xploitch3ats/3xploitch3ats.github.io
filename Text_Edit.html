@@ -28,6 +28,7 @@
             width: 100%;
             height: 150px;
             margin-top: 10px;
+            box-sizing: border-box;
         }
     </style>
 </head>
@@ -64,12 +65,14 @@
 
         function saveContent() {
             const doc = getDocument();
-            document.getElementById('description').value = doc.body.innerHTML;
+            const content = doc.body.innerHTML;
+            document.getElementById('description').value = content;
         }
 
         function loadContent() {
             const doc = getDocument();
-            doc.body.innerHTML = document.getElementById('description').value;
+            const content = document.getElementById('description').value;
+            doc.body.innerHTML = content;
         }
 
         function generateDescription() {
@@ -139,7 +142,7 @@
 
         // Mise à jour automatique de la description lorsque l'utilisateur édite le contenu
         doc.addEventListener('input', function() {
-            document.getElementById('description').value = doc.body.innerHTML;
+            saveContent(); // Mise à jour de la description à chaque modification
         });
 
         // Activer la sélection de texte
