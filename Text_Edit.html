@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éditeur de texte</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        #toolbar {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+        #toolbar button {
+            margin-right: 5px;
+        }
+        #editor {
+            width: 100%;
+            height: 300px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        #description {
+            width: 100%;
+            height: 150px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <button onclick="formatText('bold')">Gras</button>
+        <button onclick="formatText('italic')">Italique</button>
+        <button onclick="alignText('left')">Aligner à gauche</button>
+        <button onclick="alignText('center')">Centrer</button>
+        <button onclick="alignText('right')">Aligner à droite</button>
+        <button onclick="saveContent()">Sauvegarder</button>
+        <button onclick="loadContent()">Charger</button>
+        <button onclick="generateDescription()">Générer Description</button>
+    </div>
+    <iframe id="editor" srcdoc="<html><body contenteditable='true' style='margin: 0; padding: 10px;'></body></html>"></iframe>
+    <textarea id="description" placeholder="Description des styles appliqués ici..."></textarea>
+
+    <script>
+        function getDocument() {
+            return document.getElementById('editor').contentDocument ||
+                   document.getElementById('editor').contentWindow.document;
+        }
+
+        function formatText(command) {
+            const doc = getDocument();
+            doc.execCommand(command, false, null);
+        }
+
+        function alignText(alignment) {
+            const doc = getDocument();
+            doc.execCommand('justify' + alignment, false, null);
+        }
+
+        function saveContent() {
+            const doc = getDocument();
+            document.getElementById('description').value = doc.body.innerHTML;
+        }
+
+        function loadContent() {
+            const doc = getDocument();
+            doc.body.innerHTML = document.getElementById('description').value;
+        }
+
+        function generateDescription() {
+            const doc = getDocument();
+            const description = [];
+            const elements = doc.body.querySelectorAll('*');
+
+            elements.forEach(element => {
+                const tag = element.tagName.toLowerCase();
+                let styles = [];
+
+                if (element.style.fontWeight === 'bold') styles.push('gras');
+                if (element.style.fontStyle === 'italic') styles.push('italique');
+                if (element.style.textAlign) styles.push('aligné à ' + element.style.textAlign);
+
+                if (styles.length > 0) {
+                    description.push(`<${tag}> ${styles.join(', ')} </${tag}>`);
+                }
+            });
+
+            document.getElementById('description').value = description.join('\n');
+        }
+
+        function enableSelection() {
+            const doc = getDocument();
+            doc.body.addEventListener('mouseup', function() {
+                const selection = doc.getSelection().toString();
+                if (selection) {
+                    console.log('Texte sélectionné:', selection);
+                }
+            });
+        }
+
+        // Initialisation de l'éditeur
+        const doc = getDocument();
+        doc.designMode = 'on';
+
+        // Mise à jour automatique de la description lorsque l'utilisateur édite le contenu
+        doc.addEventListener('input', function() {
+            document.getElementById('description').value = doc.body.innerHTML;
+        });
+
+        // Activer la sélection de texte
+        enableSelection();
+    </script>
+</body>
+</html>
