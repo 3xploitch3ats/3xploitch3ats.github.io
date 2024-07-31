@@ -41,6 +41,7 @@
         <button onclick="saveContent()">Sauvegarder</button>
         <button onclick="loadContent()">Charger</button>
         <button onclick="generateDescription()">Générer Description</button>
+        <button onclick="applyDescription()">Appliquer Description</button>
     </div>
     <iframe id="editor" srcdoc="<html><body contenteditable='true' style='margin: 0; padding: 10px;'></body></html>"></iframe>
     <textarea id="description" placeholder="Description des styles appliqués ici..."></textarea>
@@ -90,6 +91,36 @@
             });
 
             document.getElementById('description').value = description.join('\n');
+        }
+
+        function applyDescription() {
+            const doc = getDocument();
+            const descriptionText = document.getElementById('description').value;
+            const lines = descriptionText.split('\n');
+
+            // Clear existing content
+            doc.body.innerHTML = '';
+
+            lines.forEach(line => {
+                if (line.trim() === '') return;
+
+                // Parse the description line
+                const matches = line.match(/<(.*?)> (.*?) <\/\1>/);
+                if (matches) {
+                    const tag = matches[1];
+                    const styles = matches[2].split(', ');
+
+                    // Create a new element
+                    const element = doc.createElement(tag);
+                    if (styles.includes('gras')) element.style.fontWeight = 'bold';
+                    if (styles.includes('italique')) element.style.fontStyle = 'italic';
+                    const alignStyle = styles.find(style => style.startsWith('aligné à '));
+                    if (alignStyle) element.style.textAlign = alignStyle.replace('aligné à ', '');
+
+                    // Append the new element to the body
+                    doc.body.appendChild(element);
+                }
+            });
         }
 
         function enableSelection() {
