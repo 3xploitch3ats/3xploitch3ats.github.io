@@ -47,26 +47,26 @@ def create_generator():
     else:
         tube.data.materials[0] = glass_material
 
-    # Créer le ressort collé au disque
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.3, depth=1, location=(0, 0, 0.05))
+    # Créer le ressort collé au disque, juste au-dessus sans le traverser
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.3, depth=0.6, location=(0, 0, 0.1))
     spring = bpy.context.object
     spring.name = "Spring"
     spring.modifiers.new(name='Screw', type='SCREW')
     spring.modifiers['Screw'].angle = math.pi * 4
-    spring.modifiers['Screw'].screw_offset = 1
+    spring.modifiers['Screw'].screw_offset = 1.0
 
     # Créer l'aimant à l'intérieur du tube, centré sur le ressort
     bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=0.4, depth=0.8, location=(0, 0, 1.5))
     magnet = bpy.context.object
     magnet.name = "Magnet"
 
-    # Créer la corde d'ancrage sous l'aimant et traversant le ressort
-    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.05, depth=2.5, location=(0, 0, -1))
+    # Créer la corde d'ancrage traversant le ressort et touchant l'aimant et l'ancre
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.05, depth=7.0, location=(0, 0, -2.0))  # Longueur augmentée
     anchor_rope = bpy.context.object
     anchor_rope.name = "AnchorRope"
 
     # Créer l'ancre au bout de la corde
-    bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.2, radius2=0, depth=0.5, location=(0, 0, -2.5))
+    bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.2, radius2=0, depth=0.5, location=(0, 0, -5.5))  # Position ajustée pour toucher le câble
     anchor = bpy.context.object
     anchor.name = "Anchor"
 
@@ -78,10 +78,10 @@ def create_generator():
 
     # Ajouter les étiquettes
     add_text("Tube", location=(0, 0, 4.2), size=0.3)
-    add_text("Spring", location=(0, 0, 0.05), size=0.3)
+    add_text("Spring", location=(0, 0, 0.1), size=0.3)
     add_text("Magnet", location=(0, 0, 1.5), size=0.3)
-    add_text("Anchor Rope", location=(0.2, 0, -0.5), size=0.3)
-    add_text("Anchor", location=(0, 0, -2.5), size=0.3)
+    add_text("Anchor Rope", location=(0.2, 0, -2.0), size=0.3)
+    add_text("Anchor", location=(0, 0, -7.0), size=0.3)
     for i in range(5):
         add_text(f"Wire Copper {i+1}", location=(0.8, 0, 2.5 - i * 0.5), size=0.2)
 
