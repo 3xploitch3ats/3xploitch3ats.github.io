@@ -33,90 +33,53 @@
 
         const serverUrl = 'https://thunderproxy.glitch.me'; // Remplacez ceci par l'URL de votre serveur
 
-        async function getUserKey() {
+        async function fetchWithProxy(endpoint, method = 'POST', body = {}) {
             try {
-                const response = await fetch(`${serverUrl}/api/pastebin/api/api_login.php`, {
-                    method: 'POST',
+                const response = await fetch(`${serverUrl}${endpoint}`, {
+                    method,
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        api_dev_key: apiDevKey,
-                        api_user_name: username,
-                        api_user_password: password,
-                    }),
+                    body: new URLSearchParams({ ...body, api_dev_key: apiDevKey, api_user_name: username, api_user_password: password }),
                 });
 
-                const userKey = await response.text();
-                if (!response.ok || userKey.startsWith('Bad API request')) {
-                    throw new Error('Failed to authenticate: ' + userKey);
-                }
-
-                return userKey;
+                const data = await response.text();
+                if (!response.ok) throw new Error(data);
+                return data;
             } catch (error) {
                 document.getElementById('response').textContent = 'Error: ' + error.message;
-                throw error;
+                console.error('Fetch error:', error);
             }
         }
 
         async function createPaste() {
-            try {
-                const userKey = await getUserKey();
-                const title = document.getElementById('title').value;
-                const content = document.getElementById('content').value;
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
 
-                const data = await fetch(`${serverUrl}/api/pastebin/api/api_post.php`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        api_dev_key: apiDevKey,
-                        api_user_key: userKey,
-                        api_option: 'paste',
-                        api_paste_code: content,
-                        api_paste_name: title,
-                        api_paste_expire_date: 'N',
-                        api_paste_format: 'text',
-                    }),
-                });
+            const data = await fetchWithProxy('/api/api_post.php', 'POST', {
+                api_option: 'paste',
+                api_paste_code: content,
+                api_paste_name: title,
+                api_paste_expire_date: 'N',
+                api_paste_format: 'text'
+            });
 
-                const result = await data.text();
-                if (result.startsWith('Bad API request')) {
-                    throw new Error('API Request Error: ' + result);
-                }
-                document.getElementById('response').textContent = 'Paste Created Successfully: ' + result;
-            } catch (error) {
-                document.getElementById('response').textContent = 'Error: ' + error.message;
-            }
+            document.getElementById('response').textContent = 'Paste Created Successfully: ' + data;
         }
 
         async function deletePaste() {
-            try {
-                const userKey = await getUserKey();
-                const pasteKey = document.getElementById('pasteKey').value;
+            const pasteKey = document.getElementById('pasteKey').value;
 
-                if (!pasteKey) {
-                    document.getElementById('response').textContent = 'Please provide a paste key to delete.';
-                    return;
-                }
-
-                const data = await fetch(`${serverUrl}/api/pastebin/api/api_post.php`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        api_dev_key: apiDevKey,
-                        api_user_key: userKey,
-                        api_option: 'delete',
-                        api_paste_key: pasteKey,
-                    }),
-                });
-
-                const result = await data.text();
-                if (result.startsWith('Bad API request')) {
-                    throw new Error('API Request Error: ' + result);
-                }
-                document.getElementById('response').textContent = 'Paste Deleted Successfully: ' + result;
-                loadPublicPasteTitles();
-            } catch (error) {
-                document.getElementById('response').textContent = 'Error: ' + error.message;
+            if (!pasteKey) {
+                document.getElementById('response').textContent = 'Please provide a paste key to delete.';
+                return;
             }
+
+            const data = await fetchWithProxy('/api/api_post.php', 'POST', {
+                api_option: 'delete',
+                api_paste_key: pasteKey
+            });
+
+            document.getElementById('response').textContent = 'Paste Deleted Successfully: ' + data;
+            loadPublicPasteTitles(); // Reload the paste titles
         }
 
         async function loadPublicPasteTitles() {
@@ -142,6 +105,7 @@
                 });
             } catch (error) {
                 document.getElementById('response').textContent = 'Failed to load public paste titles.';
+                console.error('Load public paste titles error:', error);
             }
         }
 
