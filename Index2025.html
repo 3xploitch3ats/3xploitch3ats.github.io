@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pastebin API via Proxy</title>
+    <style>
+        #pasteTitles {
+            width: 300px;
+            height: 150px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pastebin API via Proxy</h1>
+    
+    <input type="text" id="title" placeholder="Paste Title" />
+    <textarea id="content" placeholder="Paste Content"></textarea>
+    <button onclick="createPaste()">Create Paste</button>
+
+    <input type="text" id="pasteKey" placeholder="Paste Key to Delete" />
+    <button onclick="deletePaste()">Delete Paste</button>
+
+    <h2>Public Pastebin Titles</h2>
+    <select id="pasteTitles"></select>
+
+    <div id="response"></div>
+
+    <script>
+        const apiDevKey = 'sCoRRqMCgvCYl6iZm4P5_pH-BxSgFvEe';
+        const username = 'Thunder2025';
+        const password = 'Thunder2024$';
+
+
+        async function getUserKey() {
+            try {
+                const response = await fetch('/api/pastebin/api/api_login.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: apiDevKey,
+                        api_user_name: username,
+                        api_user_password: password,
+                    }),
+                });
+
+                const userKey = await response.text();
+                if (!response.ok || userKey.startsWith('Bad API request')) {
+                    throw new Error('Failed to authenticate: ' + userKey);
+                }
+
+                return userKey;
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+                throw error;
+            }
+        }
+
+        async function createPaste() {
+            try {
+                const userKey = await getUserKey();
+                const title = document.getElementById('title').value;
+                const content = document.getElementById('content').value;
+
+                const data = await fetch('/api/pastebin/api/api_post.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: apiDevKey,
+                        api_user_key: userKey,
+                        api_option: 'paste',
+                        api_paste_code: content,
+                        api_paste_name: title,
+                        api_paste_expire_date: 'N',
+                        api_paste_format: 'text',
+                    }),
+                });
+
+                const result = await data.text();
+                document.getElementById('response').textContent = 'Paste Created Successfully: ' + result;
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function deletePaste() {
+            try {
+                const userKey = await getUserKey();
+                const pasteKey = document.getElementById('pasteKey').value;
+
+                if (!pasteKey) {
+                    document.getElementById('response').textContent = 'Please provide a paste key to delete.';
+                    return;
+                }
+
+                const data = await fetch('/api/pastebin/api/api_post.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: apiDevKey,
+                        api_user_key: userKey,
+                        api_option: 'delete',
+                        api_paste_key: pasteKey,
+                    }),
+                });
+
+                const result = await data.text();
+                document.getElementById('response').textContent = 'Paste Deleted Successfully: ' + result;
+                loadPublicPasteTitles();
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function loadPublicPasteTitles() {
+            try {
+                const response = await fetch('/api/pastebin/u/Thunder2025');
+                const text = await response.text();
+                const pattern = /<span class="status -public" title="Public paste, anybody can see this paste."><\/span>\s*<a href="\/([^"]+)">([^<]+)<\/a>/g;
+                let match;
+                const titles = [];
+
+                while ((match = pattern.exec(text)) !== null) {
+                    titles.push({ title: match[2], pasteKey: match[1] });
+                }
+
+                const selectElement = document.getElementById('pasteTitles');
+                selectElement.innerHTML = '';
+
+                titles.forEach(paste => {
+                    const option = document.createElement('option');
+                    option.value = paste.pasteKey;
+                    option.textContent = paste.title;
+                    selectElement.appendChild(option);
+                });
+            } catch (error) {
+                document.getElementById('response').textContent = 'Failed to load public paste titles.';
+            }
+        }
+
+        window.onload = () => {
+            loadPublicPasteTitles();
+            setInterval(loadPublicPasteTitles, 5000);
+        };
+    </script>
+</body>
+</html>
