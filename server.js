@@ -4,6 +4,18 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware pour ajouter les en-têtes CORS
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*'); // Autoriser toutes les origines
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Pour les requêtes OPTIONS (pré-vol), renvoyer une réponse vide avec le statut 204
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
+    }
+    next();
+});
+
 // Middleware pour servir les fichiers statiques (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname, 'public')));
 
