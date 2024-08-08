@@ -30,12 +30,11 @@
         const apiDevKey = 'sCoRRqMCgvCYl6iZm4P5_pH-BxSgFvEe';
         const username = 'Thunder2025';
         const password = 'Thunder2024$';
-
-        const serverUrl = 'https://thunderproxy.glitch.me'; // Remplacez ceci par l'URL de votre serveur proxy
+        const proxyUrl = 'https://thunderproxy.glitch.me/api/pastebin';
 
         async function getUserKey() {
             try {
-                const response = await fetch(`${serverUrl}/api/pastebin/api/api_login.php`, {
+                const response = await fetch(`${proxyUrl}/api/api_login.php`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
@@ -63,7 +62,7 @@
                 const title = document.getElementById('title').value;
                 const content = document.getElementById('content').value;
 
-                const data = await fetch(`${serverUrl}/api/pastebin/api/api_post.php`, {
+                const response = await fetch(`${proxyUrl}/api/api_post.php`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
@@ -77,7 +76,7 @@
                     }),
                 });
 
-                const result = await data.text();
+                const result = await response.text();
                 document.getElementById('response').textContent = 'Paste Created Successfully: ' + result;
             } catch (error) {
                 document.getElementById('response').textContent = 'Error: ' + error.message;
@@ -94,7 +93,7 @@
                     return;
                 }
 
-                const data = await fetch(`${serverUrl}/api/pastebin/api/api_post.php`, {
+                const response = await fetch(`${proxyUrl}/api/api_post.php`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
@@ -105,7 +104,7 @@
                     }),
                 });
 
-                const result = await data.text();
+                const result = await response.text();
                 document.getElementById('response').textContent = 'Paste Deleted Successfully: ' + result;
                 loadPublicPasteTitles();
             } catch (error) {
@@ -115,7 +114,7 @@
 
         async function loadPublicPasteTitles() {
             try {
-                const response = await fetch(`${serverUrl}/api/pastebin/u/Thunder2025`);
+                const response = await fetch(`${proxyUrl}/u/Thunder2025`);
                 const text = await response.text();
                 const pattern = /<span class="status -public" title="Public paste, anybody can see this paste."><\/span>\s*<a href="\/([^"]+)">([^<]+)<\/a>/g;
                 let match;
@@ -136,6 +135,7 @@
                 });
             } catch (error) {
                 document.getElementById('response').textContent = 'Failed to load public paste titles.';
+                console.error('Error:', error);
             }
         }
 
