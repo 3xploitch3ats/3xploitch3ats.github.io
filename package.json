@@ -1,0 +1,18 @@
+{
+  "name": "glitch-proxy-server",
+  "version": "1.0.0",
+  "description": "A simple proxy server on Glitch using http-proxy-middleware",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6"
+  },
+  "engines": {
+    "node": "16.x"
+  },
+  "keywords": [],
+  "license": "ISC"
+}
