@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pastebin API via Proxy</title>
+    <style>
+        #pasteTitles {
+            width: 300px;
+            height: 150px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pastebin API via Proxy</h1>
+    
+    <h2>Select Account</h2>
+    <select id="accountSelect"></select>
+
+    <h2>Create Paste</h2>
+    <input type="text" id="title" placeholder="Paste Title" />
+    <textarea id="content" placeholder="Paste Content"></textarea>
+    <button onclick="createPaste()">Create Paste</button>
+
+    <h2>Delete Paste</h2>
+    <input type="text" id="pasteKey" placeholder="Paste Key to Delete" />
+    <button onclick="deletePaste()">Delete Paste</button>
+
+    <h2>Public Pastebin Titles</h2>
+    <select id="pasteTitles"></select>
+
+    <div id="response"></div>
+
+    <script>
+
+function decodeHex(hexString) {
+    let strResult = '';
+
+    for (let i = 0; i < hexString.length; i += 2) {
+        strResult += String.fromCharCode(parseInt(hexString.substr(i, 2), 16));
+    }
+
+    return strResult;
+}
+
+
+        const accounts = [
+            {
+username: '616e676c6169735f656e676c6973680d',
+password: '616e676c6169735f656e676c697368323032340d',
+apiDevKey: '676e7246596d623952384f756174575678654d3859767563362d7345727a596c0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '616269746962695f6d72630d',
+password: '616269746962695f4d52433831390d',
+apiDevKey: '58546879544c5978644955474c7864337762792d35506845526f5a6647514b4e0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '62656c67697175655f62656c0d',
+password: '62656c67697175655f62656c323032340d',
+apiDevKey: '354b785568346a7431545f313742466e5f3569677668706348626b6b747156680d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '63616c69666f726e69615f0d',
+password: '63616c69666f726e69615f323032340d',
+apiDevKey: '6b5652396f55585273652d4957726b51572d52686656344e67315857336e542d0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '63616e6164615f63610d',
+password: '63616e6164615f4341323032340d',
+apiDevKey: '4b715f635a776c4c2d5a45447270372d305f5257495f326a36486b666b64324f0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '63616e746f6e64656c6573740d',
+password: '63616e746f6e64656c657374323032340d',
+apiDevKey: '6c66425570564b4a413738676b7a6a5558345730484d6e6e707657734f4c49700d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6567797074655f0d',
+password: '6567797074655f323032346567790d',
+apiDevKey: '74574150714e6f357158734f7356574b3869346a75394a504e4b4251446c43370d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6573747269655f73626b0d',
+password: '6573747269655f73626b323032340d',
+apiDevKey: '5362594836633957524b66323473785144305462532d775966386965734a71340d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6575726f70655f0d',
+password: '6575726f70655f323032346575720d',
+apiDevKey: '71735f2d314c4c4f4d4650386873516362744c6b742d55574d5472586f3362730d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6672616e636169735f6672656e63680d',
+password: '6672616e636169735f6672656e6368323032340d',
+apiDevKey: '6c75564a4470765542554f396b777739565057634c4747644d59316872747a4f0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '666c6f726964615f0d',
+password: '666c6f726964615f323032340d',
+apiDevKey: '4a6947634e5f79554a455f6469653650637357416c696f7255775442523864700d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6672616e63655f66720d',
+password: '6672616e63655f4652323032340d',
+apiDevKey: '657743545936576b754b487355393264765477494561586c39333835423138570d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6772616e6474686566746175746f760d',
+password: '6772616e6474686566746175746f76323032340d',
+apiDevKey: '626b4443686a4152422d52517474514f433757326e37776f6730345f685655770d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6772656563655f0d',
+password: '6772656563655f323032346575720d',
+apiDevKey: '775278614c71706767694168436f4b305874356954776e4845794e6232594a4e0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6774616f6e6c696e650d',
+password: '6774616f6e6c696e65323032340d',
+apiDevKey: '39594d2d4c316d757470324149547a484650626a587a65315637464a6f466b470d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '69737261656c5f0d',
+password: '69737261656c5f323032346973720d',
+apiDevKey: '475f674b685956777a6b4d6a5a37766d76752d51616b4c674a4857476d324f520d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6e6577796f726b5f6e79630d',
+password: '6e6577796f726b5f4e5943323032340d',
+apiDevKey: '774f76386b552d597770703155784d3570345773397862543652464a7a796d450d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6c6f73616e67656c65735f6c610d',
+password: '6c6f73616e67656c65735f4c41323032340d',
+apiDevKey: '4a4577704d687971753135366d3550566a6f785a587472334433584e385345440d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6d657869636f5f0d',
+password: '6d657869636f5f4d4558323032340d',
+apiDevKey: '454c625650666e695a6f486b445778646f30627530564e5943366570323341680d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6d6f6e746f6c796d70650d',
+password: '6d6f6e746f6c796d7065323032340d',
+apiDevKey: '317a6a636a7a74666e4670325133766d6c5451776e5a326a56546c353078436a0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6d6f6e747265616c5f6d746c0d',
+password: '6d6f6e747265616c5f4d544c323032340d',
+apiDevKey: '6656616877627732446967334a6e505f74775761335a58713474724b45786e560d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6e6f727468616d65726963615f0d',
+password: '6e6f727468616d6572696361323032340d',
+apiDevKey: '75656e754a4b72724b6773434f76435349727049665642654d587634755979330d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '6e6f7274686361726f6c696e610d',
+password: '6e6f7274686361726f6c696e61323032340d',
+apiDevKey: '5354313241654552453053775f36474879446c413351546333416a443445334a0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '706172616469735f636974790d',
+password: '706172616469735f63697479323032340d',
+apiDevKey: '716134737a6f765f79425a41324a7666484b4733506c4c644f626d50477971610d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '70617261646973655f636974790d',
+password: '70617261646973655f63697479323032340d',
+apiDevKey: '687737356c624f7a7861766c6e6f6f545543636572322d726241756e3866744d0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '70617269735f70610d',
+password: '70617269735f5041323032340d',
+apiDevKey: '6e73495f6473667674564b3872487944347345794d7839353047466a6a7869780d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '706179736261730d',
+password: '706179736261733230323470620d',
+apiDevKey: '6f3836654d4379616b59736e65635f48795f63765f2d6d6441475253416236520d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '7175656265635f51630d',
+password: '7175656265635f5163323032340d',
+apiDevKey: '68524a7555725350777862706b5734715654303644493757363171756b356a440d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '726f756d616e69650d',
+password: '726f756d616e6965323032340d',
+apiDevKey: '766a6c41353755623849495463666f705159707165746348657a634767326f390d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '7275737369615f0d',
+password: '7275737369615f525553323032340d',
+apiDevKey: '69494b73755437714575446131796456574e7a726d504d5a357459524b64437a0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '73616e6672616e636973636f5f73660d',
+password: '73616e6672616e636973636f5f5346323032340d',
+apiDevKey: '5167557a74664f6939585958356e5a31537856765448426463516a685f4c6c450d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '7368657262726f6f6b655f73626b0d',
+password: '7368657262726f6f6b655f53424b323032340d',
+apiDevKey: '57495f6b6434724d323756524b45484a626c484d614948427169444b2d3161780d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '746f726f6e746f5f0d',
+password: '746f726f6e746f5f323032340d',
+apiDevKey: '346373426d523973766d4c306953416e314c346e685f7750442d494f653838500d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '556e697465645374617465736f66416d657269630d',
+password: '556e697465645374617465736f66416d65726963323032340d',
+apiDevKey: '4e305f7533385536352d3241485066465f77384b47617046364e39566e4679500d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '756b7261696e655f0d',
+password: '756b7261696e655f323032340d',
+apiDevKey: '6b516d555468384e4172797a6d4c72575a4c3356723641706d505836565667310d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '76616e636f757665725f0d',
+password: '76616e636f757665725f323032340d',
+apiDevKey: '31784e72307a524c3546746e4b7055374c314b78685851465a674f5a643767460d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '76616c646f725f3831390d',
+password: '76616c646f725f5644523831390d',
+apiDevKey: '754a425772796b6a502d54436a47724366356537744f395946696e5157482d4c0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+ },
+ {
+username: '72656464656164726564656d7074696f6e0d',
+password: '72656464656164726564656d7074696f6e323032340d',
+apiDevKey: '72454542466766514b4752546844667041587557514251357133576652617a6c0d',
+proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+            }
+        ];
+        function populateAccountSelect() {
+            const selectElement = document.getElementById('accountSelect');
+            accounts.forEach((account, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `Account ${index + 1} (${decodeHex(account.username)})`;
+                selectElement.appendChild(option);
+            });
+        }
+
+        async function getUserKey(account) {
+            try {
+                const response = await fetch(`${account.proxyUrl}/api/api_login.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: decodeHex(account.apiDevKey),
+                        api_user_name: decodeHex(account.username),
+                        api_user_password: decodeHex(account.password),
+                    }),
+                });
+
+                const userKey = await response.text();
+                if (!response.ok || userKey.startsWith('Bad API request')) {
+                    throw new Error('Failed to authenticate: ' + userKey);
+                }
+
+                return userKey;
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+                throw error;
+            }
+        }
+
+        async function createPaste() {
+            try {
+                const selectedIndex = document.getElementById('accountSelect').value;
+                const account = accounts[selectedIndex];
+                const userKey = await getUserKey(account);
+                const title = document.getElementById('title').value;
+                const content = document.getElementById('content').value;
+
+                const response = await fetch(`${account.proxyUrl}/api/api_post.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: decodeHex(account.apiDevKey),
+                        api_user_key: userKey,
+                        api_option: 'paste',
+                        api_paste_code: content,
+                        api_paste_name: title,
+                        api_paste_expire_date: 'N',
+                        api_paste_format: 'text',
+                    }),
+                });
+
+                const result = await response.text();
+                if (result.includes('Bad API request, Post limit, maximum pastes per 24h reached')) {
+                    throw new Error('Post limit reached');
+                }
+
+                document.getElementById('response').textContent = 'Paste Created Successfully: ' + result;
+                loadPublicPasteTitles();
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function deletePaste() {
+            try {
+                const selectedIndex = document.getElementById('accountSelect').value;
+                const account = accounts[selectedIndex];
+                const userKey = await getUserKey(account);
+                const pasteKey = document.getElementById('pasteKey').value;
+
+                if (!pasteKey) {
+                    document.getElementById('response').textContent = 'Please provide a paste key to delete.';
+                    return;
+                }
+
+                const response = await fetch(`${account.proxyUrl}/api/api_post.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: decodeHex(account.apiDevKey),
+                        api_user_key: userKey,
+                        api_option: 'delete',
+                        api_paste_key: pasteKey,
+                    }),
+                });
+
+                const result = await response.text();
+                document.getElementById('response').textContent = 'Paste Deleted Successfully: ' + result;
+                loadPublicPasteTitles();
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function loadPublicPasteTitles() {
+            try {
+                const selectedIndex = document.getElementById('accountSelect').value;
+                const account = accounts[selectedIndex];
+                const response = await fetch(`${account.proxyUrl}/u/${decodeHex(account.username)}`);
+                const text = await response.text();
+                const pattern = /<span class="status -public" title="Public paste, anybody can see this paste."><\/span>\s*<a href="\/([^"]+)">([^<]+)<\/a>/g;
+                let match;
+                const titles = [];
+
+                while ((match = pattern.exec(text)) !== null) {
+                    titles.push({ title: match[2], pasteKey: match[1] });
+                }
+
+                const selectElement = document.getElementById('pasteTitles');
+                selectElement.innerHTML = '';
+
+                titles.forEach(paste => {
+                    const option = document.createElement('option');
+                    option.value = paste.pasteKey;
+                    option.textContent = paste.title;
+                    selectElement.appendChild(option);
+                });
+            } catch (error) {
+                document.getElementById('response').textContent = 'Failed to load public paste titles.';
+                console.error('Error:', error);
+            }
+        }
+
+        window.onload = () => {
+            populateAccountSelect();
+            loadPublicPasteTitles();
+            setInterval(loadPublicPasteTitles, 5000);
+        };
+    </script>
+</body>
+</html>
