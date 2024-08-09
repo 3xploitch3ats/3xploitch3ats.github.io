@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Calcul des gains</title>
+</head>
+<body>
+  <textarea id="cartes" rows="15" cols="50">
+32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483
+  </textarea>
+
+  <button onclick="calculerGains()">Calculer les gains</button>
+
+  <textarea id="rangs" rows="15" cols="50"></textarea>
+  <textarea id="gains" rows="1" cols="50"></textarea>
+
+  <script>
+    function calculerGains() {
+      const cartesTextarea = document.getElementById('cartes');
+      const cartes = cartesTextarea.value.trim().split('\n');
+
+      const rangsTries = calculerRangsTries(cartes);
+      const rangs = rangsTries.reverse();
+      
+      const rangsAffichage = rangs.length <= cartes.length ? rangs : rangs.slice(0, cartes.length);
+      document.getElementById('rangs').value = rangsAffichage.join('\n');
+
+      const gains = calculerGainsParCarte(cartes, rangsTries);
+      document.getElementById('gains').value = `Total des gains : ${gains}`;
+    }
+
+    function determinerTypeDeMain(carte) {
+      const counts = {};
+      for (let i = 0; i < carte.length; i++) {
+        const card = carte[i];
+        counts[card] = (counts[card] || 0) + 1;
+      }
+
+      const values = Object.values(counts);
+      const uniqueValues = [...new Set(values)];
+      const sortedUnique = uniqueValues.sort((a, b) => b - a);
+
+      if (sortedUnique.length === 1) return 'Five of a kind';
+      if (sortedUnique.length === 2) {
+        if (sortedUnique[0] === 4 || sortedUnique[1] === 4) return 'Four of a kind';
+        if (sortedUnique[0] === 3 || sortedUnique[1] === 3) {
+          if (sortedUnique.includes(2)) return 'Full house';
+          return 'Three of a kind';
+        }
+        return 'Two pair';
+      }
+      if (sortedUnique.length === 3) {
+        if (sortedUnique[0] === 3) return 'Three of a kind';
+        if (sortedUnique[0] === 2 && sortedUnique[1] === 2) return 'Two pair';
+        return 'One pair';
+      }
+
+      const valuesMap = { A: 14, K: 13, Q: 12, J: 11, T: 10, '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2 };
+      const cardValues = carte.slice(0, -4).split('').map(card => valuesMap[card] || parseInt(card));
+      cardValues.sort((a, b) => b - a);
+
+      const pair = trouverPaires(cardValues);
+      const isPairInConsecutive = estPairDansSuite(cardValues, pair);
+
+      if (pair) {
+        if (isPairInConsecutive) return 'Pair as part of a consecutive sequence';
+        return 'One pair';
+      }
+
+      const triple = trouverTriples(cardValues);
+      if (triple) {
+        let count = 0;
+        for (let i = 0; i < cardValues.length - 1; i++) {
+          if (cardValues[i] === triple && cardValues[i + 1] === triple - 1) {
+            count++;
+          }
+        }
+        if (count === 2) return 'Suite Triple';
+      }
+
+      const quadruple = trouverQuadruples(cardValues);
+      if (quadruple) {
+        let count = 0;
+        for (let i = 0; i < cardValues.length - 1; i++) {
+          if (cardValues[i] === quadruple && cardValues[i + 1] === quadruple - 1) {
+            count++;
+          }
+        }
+        if (count === 3) return 'Suite Quadruple';
+      }
+
+      if (pair && isPairInConsecutive) {
+        return 'Pair as part of a consecutive sequence';
+      }
+
+      const isNonConsecutiveSuite = cardValues.slice(0, -1).some((value, index) => value !== cardValues[index + 1] + 1);
+      if (isNonConsecutiveSuite) return 'Non-consecutive suite';
+
+      // Détection de paire dans une suite
+      const isPairInSuite = cardValues.some((value, index) => {
+        if (value === cardValues[index + 1]) {
+          const suiteValues = cardValues.slice(index, index + 4); // 5 cartes forment une suite
+          const pairValue = value;
+          if (suiteValues.includes(pairValue)) return true;
+        }
+        return false;
+      });
+
+      if (isPairInSuite) return 'Pair as part of a consecutive sequence';
+
+      return 'High card';
+    }
+
+    function estPairDansSuite(values, pair) {
+      let count = 0;
+      let lastVal = 0;
+
+      for (let i = 0; i < values.length; i++) {
+        if (values[i] === pair && lastVal !== pair) {
+          count++;
+          lastVal = pair;
+        } else if (lastVal !== values[i] + 1) {
+          count = 0;
+          lastVal = values[i];
+        } else {
+          count++;
+          lastVal = values[i];
+        }
+
+        if (count === 2) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    function calculerRangsTries(cartes) {
+      const ranks = cartes.map((carte, index) => {
+        return { index: index + 1, carte };
+      });
+
+      ranks.sort((a, b) => {
+        const typeA = determinerTypeDeMain(a.carte);
+        const typeB = determinerTypeDeMain(b.carte);
+
+        if (typeA !== typeB) {
+          const typesPossibles = [
+            'Five of a kind', 'Four of a kind', 'Full house', 'Three of a kind', 'Two pair', 'One pair', 'High card',
+            'Suite Double', 'Suite Triple', 'Suite Quadruple', 'Pair as part of a non-consecutive sequence', 'Non-consecutive suite'
+          ];
+          return typesPossibles.indexOf(typeA) - typesPossibles.indexOf(typeB);
+        }
+
+        const valuesMap = { A: 14, K: 13, Q: 12, J: 11, T: 10, '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2 };
+
+        const valuesA = a.carte.slice(0, -4).split('').map(card => valuesMap[card] || parseInt(card));
+        const valuesB = b.carte.slice(0, -4).split('').map(card => valuesMap[card] || parseInt(card));
+
+        const nonConsecutive = !valuesA.every((val, i) => val === valuesB[i]);
+
+        if (nonConsecutive) {
+          valuesA.sort((x, y) => y - x);
+          valuesB.sort((x, y) => y - x);
+          for (let i = 0; i < valuesA.length; i++) {
+            if (valuesA[i] !== valuesB[i]) {
+              return valuesB[i] - valuesA[i];
+            }
+          }
+        } else {
+          for (let i = 0; i < valuesA.length; i++) {
+            if (valuesA[i] !== valuesB[i]) {
+              return valuesB[i] - valuesA[i];
+            }
+          }
+        }
+
+        const pairsA = trouverPaires(valuesA);
+        const pairsB = trouverPaires(valuesB);
+
+        if (pairsA !== pairsB) {
+          return pairsB - pairsA;
+        }
+
+        const triplesA = trouverTriples(valuesA);
+        const triplesB = trouverTriples(valuesB);
+
+        if (triplesA !== triplesB) {
+          return triplesB - triplesA;
+        }
+
+        const quadruplesA = trouverQuadruples(valuesA);
+        const quadruplesB = trouverQuadruples(valuesB);
+
+        if (quadruplesA !== quadruplesB) {
+          return quadruplesB - quadruplesA;
+        }
+
+        const suitesA = trouverSuites(valuesA);
+        const suitesB = trouverSuites(valuesB);
+
+        if (suitesA !== suitesB) {
+          return suitesB - suitesA;
+        }
+
+        const suiteDoubleA = trouverSuiteDouble(valuesA, pairsA);
+        const suiteDoubleB = trouverSuiteDouble(valuesB, pairsB);
+
+        if (suiteDoubleA !== suiteDoubleB) {
+          return suiteDoubleB - suiteDoubleA;
+        }
+
+        const suiteTripleA = trouverSuiteTriple(valuesA, pairsA);
+        const suiteTripleB = trouverSuiteTriple(valuesB, pairsB);
+
+        if (suiteTripleA !== suiteTripleB) {
+          return suiteTripleB - suiteTripleA;
+        }
+
+        const suiteQuadrupleA = trouverSuiteQuadruple(valuesA);
+        const suiteQuadrupleB = trouverSuiteQuadruple(valuesB);
+
+        if (suiteQuadrupleA !== suiteQuadrupleB) {
+          return suiteQuadrupleB - suiteQuadrupleA;
+        }
+
+        const suiteQuintupleA = trouverSuiteQuintuple(valuesA);
+        const suiteQuintupleB = trouverSuiteQuintuple(valuesB);
+
+        if (suiteQuintupleA !== suiteQuintupleB) {
+          return suiteQuintupleB - suiteQuintupleA;
+        }
+
+        return 0;
+      });
+
+      const orderedRanks = ranks.map(rank => rank.index);
+      return orderedRanks;
+    }
+
+    function trouverPaires(values) {
+      const valueCount = {};
+      for (const value of values) {
+        valueCount[value] = (valueCount[value] || 0) + 1;
+      }
+
+      const pairs = [];
+      for (const value in valueCount) {
+        if (valueCount[value] >= 2) {
+          pairs.push(parseInt(value));
+        }
+      }
+
+      pairs.sort((a, b) => b - a);
+      return pairs[0];
+    }
+
+    function trouverTriples(values) {
+      const valueCount = {};
+      for (const value of values) {
+        valueCount[value] = (valueCount[value] || 0) + 1;
+      }
+
+      for (const value in valueCount) {
+        if (valueCount[value] === 3) {
+          return parseInt(value);
+        }
+      }
+
+      return 0;
+    }
+
+    function trouverQuadruples(values) {
+      const valueCount = {};
+      for (const value of values) {
+        valueCount[value] = (valueCount[value] || 0) + 1;
+      }
+
+      for (const value in valueCount) {
+        if (valueCount[value] === 4) {
+          return parseInt(value);
+        }
+      }
+
+      return 0;
+    }
+
+    function trouverSuites(values) {
+      values.sort((a, b) => b - a);
+
+      for (let i = 0; i < values.length - 1; i++) {
+        if (values[i] - values[i + 1] !== 1) {
+          return 0;
+        }
+      }
+
+      return values[0];
+    }
+
+    function trouverSuiteDouble(values, pair) {
+      values.sort((a, b) => b - a);
+
+      let count = 0;
+      let lastVal = 0;
+
+      for (let i = 0; i < values.length; i++) {
+        if (values[i] === pair && lastVal !== pair) {
+          count++;
+          lastVal = pair;
+        } else if (lastVal !== values[i] + 1) {
+          count = 0;
+          lastVal = values[i];
+        } else {
+          count++;
+          lastVal = values[i];
+        }
+
+        if (count === 2) {
+          return values[i];
+        }
+      }
+
+      return 0;
+    }
+
+    function trouverSuiteTriple(values, pair) {
+      values.sort((a, b) => b - a);
+
+      let count = 0;
+      let lastVal = 0;
+
+      for (let i = 0; i < values.length; i++) {
+        if (values[i] === pair && lastVal !== pair) {
+          count++;
+          lastVal = pair;
+        } else if (lastVal !== values[i] + 1) {
+          count = 0;
+          lastVal = values[i];
+        } else {
+          count++;
+          lastVal = values[i];
+        }
+
+        if (count === 3) {
+          return values[i];
+        }
+      }
+
+      return 0;
+    }
+
+    function trouverSuiteQuadruple(values) {
+      values.sort((a, b) => b - a);
+
+      let count = 0;
+      let lastVal = 0;
+
+      for (let i = 0; i < values.length; i++) {
+        if (lastVal !== values[i] + 1) {
+          count = 0;
+          lastVal = values[i];
+        } else {
+          count++;
+          lastVal = values[i];
+        }
+
+        if (count === 4) {
+          return values[i];
+        }
+      }
+
+      return 0;
+    }
+
+    function trouverSuiteQuintuple(values) {
+      values.sort((a, b) => b - a);
+
+      let count = 0;
+      let lastVal = 0;
+
+      for (let i = 0; i < values.length; i++) {
+        if (lastVal !== values[i] + 1) {
+          count = 0;
+          lastVal = values[i];
+        } else {
+          count++;
+          lastVal = values[i];
+        }
+
+        if (count === 5) {
+          return values[i];
+        }
+      }
+
+      return 0;
+    }
+
+    function calculerGainsParCarte(cartes, rangs) {
+      const gains = rangs.map((index, i) => {
+        const [_, nombre] = cartes[i].split(' ');
+        return parseInt(nombre) * index;
+      }).reduce((total, gain) => total + gain, 0);
+      return gains;
+    }
+  </script>
+</body>
+</html>
