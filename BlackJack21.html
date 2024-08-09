@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Blackjack 21</title>
+  <style>
+    .card {
+      width: 100px;
+      height: 150px;
+      border: 1px solid black;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      box-sizing: border-box;
+      margin: 5px;
+      background-color: white;
+    }
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+    }
+
+    .card-text {
+      font-size: 24px;
+    }
+
+    .card-suit {
+      font-size: 32px;
+      color: red;
+    }
+
+    .red-suit {
+      color: red;
+    }
+
+    .players {
+      display: flex;
+    }
+
+    .player {
+      margin: 20px;
+    }
+
+    .chips {
+      margin-top: 10px;
+    }
+
+    .black-suit {
+      color: black;
+    }
+
+    .hidden {
+      background-color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="players">
+    <div class="player" id="player1">
+      <h3>Player</h3>
+      <div class="hand"></div>
+      <div class="chips">
+        <p>Chips: <span id="player1-chips">2000</span></p>
+        <p>Total: <span id="player1-total">0</span></p>
+        <p>Result: <span id="player1-result"></span></p>
+      </div>
+    </div>
+
+    <div class="player" id="gambler">
+      <h3>Dealer</h3>
+      <div class="hand"></div>
+      <div class="chips">
+        <p>Chips: <span id="gambler-chips">2000</span></p>
+        <p>Total: <span id="gambler-total">0</span></p>
+        <p>Result: <span id="gambler-result"></span></p>
+      </div>
+    </div>
+  </div>
+ <input type="number" id="bet" value="10" min="10">
+  <button onclick="deal()">Deal Cards</button>
+  <button onclick="hit()">Hit</button>
+  <button onclick="stand()">Stand</button>
+
+  <div class="result" id="result"></div>
+
+  <script>
+    let player1Chips = 2000;
+    let gamblerChips = 2000;
+    let player1Hand = [];
+    let gamblerHand = [];
+    let deck = [];
+    let gameInProgress = false;
+
+    function deal() {
+      if (!gameInProgress) {
+        player1Hand = [];
+        gamblerHand = [];
+        deck = getShuffledDeck();
+
+        clearHand('player1');
+        clearHand('gambler');
+clearResults();
+        drawCard('player1');
+        drawCard('gambler');
+        drawCard('player1');
+        drawCard('gambler', true);
+
+        gameInProgress = true;
+
+    const betAmount = parseInt(document.getElementById('bet').value) || 10;
+    // Soustraire le montant de la mise du gain total
+    updateGains(); // Mettre à jour les gains après avoir diminué le montant de la mise
+    player1Chips -= betAmount;
+    gamblerChips -= betAmount;
+    updateGains(); // Mettre à jour les gains après avoir diminué le montant de la mise
+         updateChipsDisplay();
+      }
+    }
+
+    function clearHand(player) {
+      const handDiv = document.querySelector(`#${player} .hand`);
+      handDiv.innerHTML = '';
+    }
+function clearResults() {
+  document.getElementById('result').textContent = '';
+  document.getElementById('player1-result').textContent = '';
+  document.getElementById('gambler-result').textContent = '';
+}    function hit() {
+      if (gameInProgress) {
+        drawCard('player1');
+        checkPlayerStatus();
+      }
+    }
+
+
+    function drawCard(player, hidden = false) {
+      const hand = player === 'player1' ? player1Hand : gamblerHand;
+      const handDiv = document.querySelector(`#${player} .hand`);
+      const card = deck.pop();
+      hand.push(card);
+      const cardElement = createCardElement(card);
+      if (hidden && player === 'gambler') {
+        cardElement.classList.add('hidden');
+      }
+      handDiv.appendChild(cardElement);
+
+      // Remove the drawn card from the deck
+      const index = deck.indexOf(card);
+      if (index > -1) {
+        deck.splice(index, 1);
+      }
+
+      // Update the total value display for the player or dealer
+      updateTotal(player, hand);
+    }
+
+    function updateTotal(player, hand) {
+      const total = calculateHandValue(hand);
+      document.getElementById(`${player}-total`).textContent = total;
+    }
+
+    function stand() {
+      if (gameInProgress) {
+        revealDealerCard();
+        setTimeout(() => {
+          while (calculateHandValue(gamblerHand) < 17) {
+            drawCard('gambler');
+          }
+          determineWinner();
+          gameInProgress = false;
+          updateChipsDisplay();
+        }, 5000);
+      }
+    }
+
+    function revealDealerCard() {
+      const dealerHandDiv = document.querySelector('#gambler .hand');
+      const cards = dealerHandDiv.querySelectorAll('.card.hidden');
+      cards.forEach(card => card.classList.remove('hidden'));
+    }
+
+    function createCardElement(card) {
+      const cardElement = document.createElement('div');
+      cardElement.classList.add('card');
+
+      const cardContent = document.createElement('div');
+      cardContent.classList.add('card-content');
+
+      const cardText = document.createElement('span');
+      cardText.classList.add('card-text');
+
+      let cardSuit = document.createElement('span');
+      cardSuit.classList.add('card-suit');
+
+      if (card === 'back') {
+        cardText.textContent = 'Back';
+        cardSuit.textContent = '⬜';
+      } else {
+  cardText.textContent = card.substring(0, card.length - 1);
+  cardSuit.innerHTML = getSuitSymbol(card.charAt(card.length - 1));
+      }
+
+      cardContent.appendChild(cardText);
+      cardContent.appendChild(cardSuit);
+      cardElement.appendChild(cardContent);
+
+      return cardElement;
+    }
+
+    function getSuitSymbol(suit) {
+      switch (suit) {
+        case '♠':
+          return '<span class="black-suit">♠</span>';
+        case '♣':
+          return '<span class="black-suit">♣</span>';
+        case '♦':
+          return '<span class="red-suit">♦</span>';
+        case '♥':
+          return '<span class="red-suit">♥</span>';
+        default:
+          return '';
+      }
+    }
+
+    function checkPlayerStatus() {
+      const player1Total = calculateHandValue(player1Hand);
+      if (player1Total > 21) {
+        document.getElementById('result').textContent = 'Player Busts! Dealer wins.';
+        gamblerChips += 20;
+        gameInProgress = false;
+      }
+    }
+
+    function determineWinner() {
+      const player1Total = calculateHandValue(player1Hand);
+      const gamblerTotal = calculateHandValue(gamblerHand);
+      const betAmount = parseInt(document.getElementById('bet').value) || 10;
+      if (player1Total > 21) {
+        document.getElementById('player1-result').textContent = 'Player Busts! Dealer wins.';
+        gamblerChips += betAmount;
+      } else if (gamblerTotal > 21) {
+        document.getElementById('gambler-result').textContent = 'Dealer Busts! Player wins.';
+        player1Chips += betAmount;
+      } else if (player1Total === gamblerTotal) {
+        document.getElementById('player1-result').textContent = 'It\'s a tie!';
+        document.getElementById('gambler-result').textContent = 'It\'s a tie!';
+        player1Chips += betAmount;
+        gamblerChips += betAmount;
+      } else if (player1Total > gamblerTotal) {
+        document.getElementById('player1-result').textContent = 'Player wins!';
+        player1Chips += betAmount;
+      } else {
+        document.getElementById('gambler-result').textContent = 'Dealer wins!';
+        gamblerChips += betAmount;
+      }
+updateGains();
+    }
+
+window.onload = function() {
+  loadGains();
+};
+
+// Fonction pour mettre à jour les gains dans le localStorage
+function updateGains() {
+  const gains = {
+    player1: player1Chips,
+    gambler: gamblerChips
+  };
+  localStorage.setItem('gains', JSON.stringify(gains));
+}
+
+// Fonction pour charger les gains depuis le localStorage
+function loadGains() {
+  const savedGains = localStorage.getItem('gains');
+  if (savedGains) {
+    const parsedGains = JSON.parse(savedGains);
+    player1Chips = parsedGains.player1;
+    gamblerChips = parsedGains.gambler;
+    updateChipsDisplay();
+  }
+}
+
+    function calculateHandValue(hand) {
+      let total = 0;
+      let hasAce = false;
+
+      for (const card of hand) {
+        const rank = card.substring(0, card.length - 1);
+        if (rank === 'A') {
+          hasAce = true;
+        }
+        total += getCardValue(card);
+      }
+
+      if (hasAce && total + 10 <= 21) {
+        total += 10;
+      }
+
+      return total;
+    }
+
+    function getCardValue(card) {
+      const rank = card.substring(0, card.length - 1);
+      if (['J', 'Q', 'K'].includes(rank)) {
+        return 10;
+      } else if (rank === 'A') {
+        return 1;
+      } else {
+        return parseInt(rank);
+      }
+    }
+
+    function updateChipsDisplay() {
+      document.getElementById('player1-chips').textContent = player1Chips;
+      document.getElementById('gambler-chips').textContent = gamblerChips;
+    }
+
+    function getShuffledDeck() {
+      const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+      const suits = ['♠', '♣', '♦', '♥'];
+      const deck = [];
+
+      for (const rank of ranks) {
+        for (const suit of suits) {
+          deck.push(rank + suit);
+        }
+      }
+
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+
+      return deck;
+    }
+  </script>
+</body>
+</html>
