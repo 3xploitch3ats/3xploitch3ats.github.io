@@ -153,128 +153,126 @@
         const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
         const cameraSelect = document.getElementById('cameraSelect');
         const videoContainer = document.getElementById('video-container');
-      
+
+	function decodeHex(hexString) {
+    	let strResult = '';
+   	for (let i = 0; i < hexString.length; i += 2) {
+        strResult += String.fromCharCode(parseInt(hexString.substr(i, 2), 16));
+   	}
+  	 return strResult;
+	}
+
         const accounts = [
             {
-username: '6261737361696e746c617572656e745f30310d',
-password: '6261737361696e746c617572656e745f3031323032340d',
-apiDevKey: '6e4f4664476a4132737970394f76356467347533434672446d3077345a66632d0d',
+username: 'bassaintlaurent_01',
+password: 'bassaintlaurent_012024',
+apiDevKey: 'nOFdGjA2syp9Ov5dg4u3CFrDm0w4Zfc-',
 proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '73616775656e61795f30320d',
-password: '73616775656e61795f3032323032340d',
-apiDevKey: '535a524a6a6f787265372d756878595a4f4752772d3350594a39733549396a6b0d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'saguenay_02',
+password: 'saguenay_022024',
+apiDevKey: 'SZRJjoxre7-uhxYZOGRw-3PYJ9s5I9jk',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6361706974616c656e6174696f6e616c655f30330d',
-password: '6361706974616c656e6174696f6e616c655f3033323032340d',
-apiDevKey: '4d2d345466646344354971452d3375673232437263587556473831355773426e0d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'capitalenationale_03',
+password: 'capitalenationale_032024',
+apiDevKey: 'M-4TfdcD5IqE-3ug22CrcXuVG815WsBn',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6d617572696369655f30340d',
-password: '6d617572696369655f3034323032340d',
-apiDevKey: '76416d5342595344364e5556754b6e44444b6247396c63376f786c35474441390d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'mauricie_04',
+password: 'mauricie_042024',
+apiDevKey: 'vAmSBYSD6NUVuKnDDKbG9lc7oxl5GDA9',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6573747269655f30350d',
-password: '6573747269655f3035323032340d',
-apiDevKey: '336d4f6569386b6d4145486f6f456e6c316e546d30374b44757167704864694e0d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'estrie_05',
+password: 'estrie_052024',
+apiDevKey: '3mOei8kmAEHooEnl1nTm07KDuqgpHdiN',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6d6f6e747265616c5f30360d',
-password: '6d6f6e747265616c5f3036323032340d',
-apiDevKey: '444b387176494f666f6a7859476a4d5a6339346d65424e6d784a6b76465f6f2d0d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'montreal_06',
+password: 'montreal_062024',
+apiDevKey: 'DK8qvIOfojxYGjMZc94meBNmxJkvF_o-',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6f7574616f756169735f30370d',
-password: '6f7574616f756169735f3037323032340d',
-apiDevKey: '7838354744734a787578536d353678427667735676454f69413662384b5166670d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'outaouais_07',
+password: 'outaouais_072024',
+apiDevKey: 'x85GDsJxuxSm56xBvgsVvEOiA6b8KQfg',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6162697469626974656d69735f30380d',
-password: '6162697469626974656d69735f3038323032340d',
-apiDevKey: '695f5f41716f4c58313671734946664e7734674c714d564d614a5165623661390d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'abitibitemis_08',
+password: 'abitibitemis_082024',
+apiDevKey: 'i__AqoLX16qsIFfNw4gLqMVMaJQeb6a9',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '636f74656e6f72645f30390d',
-password: '636f74656e6f72645f3039323032340d',
-apiDevKey: '366b4167645353724e4f71636d695f334b3648654170544f54685f6a694868570d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'cotenord_09',
+password: 'cotenord_092024',
+apiDevKey: '6kAgdSSrNOqcmi_3K6HeApTOTh_jiHhW',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6e6f726464757175656265635f31300d',
-password: '6e6f726464757175656265635f3130323032340d',
-apiDevKey: '4f7266527275637a706d384164497476496575693274374562557566574734320d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'nordduquebec_10',
+password: 'nordduquebec_102024',
+apiDevKey: 'OrfRruczpm8AdItvIeui2t7EbUufWG42',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6761737065736965696c6573646c6d5f31310d',
-password: '6761737065736965696c6573646c6d5f3131323032340d',
-apiDevKey: '4b50706c565644437a6636447262726d5043504c7a436b526859785959355f650d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'gaspesieilesdlm_11',
+password: 'gaspesieilesdlm_112024',
+apiDevKey: 'KPplVVDCzf6DrbrmPCPLzCkRhYxYY5_e',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '636861756469657265617070616c615f31320d',
-password: '636861756469657265617070616c615f3132323032340d',
-apiDevKey: '504c556a4232344f7a466652527a786d313670774453684e714145327371496e0d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'chaudiereappala_12',
+password: 'chaudiereappala_122024',
+apiDevKey: 'PLUjB24OzFfRRzxm16pwDShNqAE2sqIn',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6c6176616c5f5f31330d',
-password: '6c6176616c5f5f3133323032340d',
-apiDevKey: '654c30796d396e4d655072645966307573504b704255387a7237346e346664550d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'laval__13',
+password: 'laval__132024',
+apiDevKey: 'eL0ym9nMePrdYf0usPKpBU8zr74n4fdU',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6c616e617564696572655f31340d',
-password: '6c616e617564696572655f3134323032340d',
-apiDevKey: '5159654a5a594e68664f32773948457961666e7150634447772d4d764c70384a0d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'lanaudiere_14',
+password: 'lanaudiere_142024',
+apiDevKey: 'QYeJZYNhfO2w9HEyafnqPcDGw-MvLp8J',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6c617572656e74696465735f31350d',
-password: '6c617572656e74696465735f3135323032340d',
-apiDevKey: '6b6971376c4d33724e7a796164624c76572d525f4f304f30413948456b6e6d580d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'laurentides_15',
+password: 'laurentides_152024',
+apiDevKey: 'kiq7lM3rNzyadbLvW-R_O0O0A9HEknmX',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '6d6f6e746572656769655f31360d',
-password: '6d6f6e746572656769655f3136323032340d',
-apiDevKey: '336d4a686378694476426b774e5f67786274526a7a6b5046715f5073783466410d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'monteregie_16',
+password: 'monteregie_162024',
+apiDevKey: '3mJhcxiDvBkwN_gxbtRjzkPFq_Psx4fA',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
  },
  {
-username: '63656e74726564757175656265635f31370d',
-password: '63656e74726564757175656265635f3137323032340d',
-apiDevKey: '4d3777796a744867515173456475414e36665a4f565f6f53764c4b5265374d6b0d',
-proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
+username: 'centreduquebec_17',
+password: 'centreduquebec_172024',
+apiDevKey: 'M7wyjtHgQQsEduAN6fZOV_oSvLKRe7Mk',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
             }
         ];
-
-function decodeHex(hexString) {
-    let strResult = '';
-
-    for (let i = 0; i < hexString.length; i += 2) {
-        strResult += String.fromCharCode(parseInt(hexString.substr(i, 2), 16));
-    }
-
-    return strResult;
-}
 
 function populateAccountSelect() {
             const selectElement = document.getElementById('accountSelect');
             accounts.forEach((account, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                option.textContent = `Account ${index + 1} (${decodeHex(account.username)})`;
+                option.textContent = `Account ${index + 1} (${account.username})`;
                 selectElement.appendChild(option);
             });
         }
@@ -285,9 +283,9 @@ function populateAccountSelect() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
-                        api_dev_key: decodeHex(account.apiDevKey),
-                        api_user_name: decodeHex(account.username),
-                        api_user_password: decodeHex(account.password),
+                        api_dev_key: account.apiDevKey,
+                        api_user_name: account.username,
+                        api_user_password: account.password,
                     }),
                 });
 
@@ -295,14 +293,22 @@ function populateAccountSelect() {
                 if (!response.ok || userKey.startsWith('Bad API request')) {
                     throw new Error('Failed to authenticate: ' + userKey);
                 }
-
                 return userKey;
             } catch (error) {
                 document.getElementById('response').textContent = 'Error: ' + error.message;
                 throw error;
             }
         }
-
+        function pasteKeyslash(string) {
+    	if (string && string.includes('/')) {
+                const parts = string.split('/');
+                const pks = parts[parts.length - 1];
+                document.getElementById('pasteKey').value = pks;
+	}
+	else
+	{
+	}
+        }
         async function createPaste() {
             try {
                 const selectedIndex = document.getElementById('accountSelect').value;
@@ -310,11 +316,12 @@ function populateAccountSelect() {
                 const userKey = await getUserKey(account);
                 const title = document.getElementById('title').value;
                 const content = document.getElementById('content').value;
+
                 const response = await fetch(`${account.proxyUrl}/api/api_post.php`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
-                        api_dev_key: decodeHex(account.apiDevKey),
+                        api_dev_key: account.apiDevKey,
                         api_user_key: userKey,
                         api_option: 'paste',
                         api_paste_code: content,
@@ -325,9 +332,11 @@ function populateAccountSelect() {
                 });
 
                 const result = await response.text();
+
                 if (result.includes('Bad API request, Post limit, maximum pastes per 24h reached')) {
                     throw new Error('Post limit reached');
                 }
+pasteKeyslash(result);
 
                 document.getElementById('response').textContent = 'Paste Created Successfully: ' + result;
                 loadPublicPasteTitles();
@@ -335,33 +344,34 @@ function populateAccountSelect() {
                 document.getElementById('response').textContent = 'Error: ' + error.message;
             }
         }
-        function pasteKeyslash() {
-                  const pasteKey = document.getElementById('response').value;
-                  const parts = pasteKey.split('/');
-                const pasteCode = parts[parts.length - 1];
-                document.getElementById('pasteKey').textContent = pasteCode;
-        }
-        async function deletePaste() {
+
+function lastKeyslash() {
+    const hstring = document.getElementById('pasteKey').value;
+    if (hstring && hstring.includes('/')) {
+        const parts = hstring.split('/');
+        const pasteUrl = parts[parts.length - 1];
+    document.getElementById('pasteKey').value = pasteUrl;
+    }
+}
+
+async function deletePaste() {
+    lastKeyslash();
+
             try {
                 const selectedIndex = document.getElementById('accountSelect').value;
                 const account = accounts[selectedIndex];
                 const userKey = await getUserKey(account);
-              pasteKeyslash();
                 const pasteKey = document.getElementById('pasteKey').value;
 
-
-                
-              
                 if (!pasteKey) {
                     document.getElementById('response').textContent = 'Please provide a paste key to delete.';
                     return;
                 }
-
                 const response = await fetch(`${account.proxyUrl}/api/api_post.php`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
-                        api_dev_key: decodeHex(account.apiDevKey),
+                        api_dev_key: account.apiDevKey,
                         api_user_key: userKey,
                         api_option: 'delete',
                         api_paste_key: pasteKey,
@@ -380,7 +390,7 @@ function populateAccountSelect() {
             try {
                 const selectedIndex = document.getElementById('accountSelect').value;
                 const account = accounts[selectedIndex];
-                const response = await fetch(`${account.proxyUrl}/u/${decodeHex(account.username)}`);
+                const response = await fetch(`${account.proxyUrl}/u/${account.username}`);
                 const text = await response.text();
                 const pattern = /<span class="status -public" title="Public paste, anybody can see this paste."><\/span>\s*<a href="\/([^"]+)">([^<]+)<\/a>/g;
                 let match;
@@ -488,7 +498,7 @@ function populateAccountSelect() {
       function Pastedelete()
       {
               const response = document.getElementById('response').value;
-              document.getElementById('pasteKey').textContent = response;
+              document.getElementById('pasteKey').value = response;
               deletePaste();
       }
 
