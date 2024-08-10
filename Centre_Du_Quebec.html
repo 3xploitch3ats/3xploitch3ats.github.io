@@ -494,13 +494,6 @@ async function deletePaste() {
         function generateRandomId() {
             return Math.random().toString(36).substr(2, 8);
         }
-      
-      function Pastedelete()
-      {
-              const response = document.getElementById('response').value;
-              document.getElementById('pasteKey').value = response;
-              deletePaste();
-      }
 
         async function getLocalStream() {
             const constraints = await updateCameraSelect();
@@ -593,10 +586,10 @@ async function deletePaste() {
         });
 
         hangupButton.addEventListener('click', () => {
+              deletePaste();
             if (call) {
                 call.close();
                 removeRemoteVideo(peerIdInput.value.trim());
-
                 call = null;
             }
         });
@@ -773,15 +766,13 @@ async function deletePaste() {
             });
         }, 5000);
         window.addEventListener('beforeunload', () => {
+              deletePaste();
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
             if (call) {
                 call.close();
             }
-        });
-              window.addEventListener('beforeunload', (event) => {
-            Pastedelete();
         });
     </script>
 </body>
