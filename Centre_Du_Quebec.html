@@ -87,8 +87,10 @@
     <select id="accountSelect"></select>
     <h2>Public Pastebin Titles</h2>
     <select id="pasteTitles"></select>
-  
+      <button onclick="addtopeerId()">Add To Call</button>
+
 <div id="hiddenContent" style="display: none;">
+      <button onclick="addtoDelete()">Add To Delete</button>
     <h2>Create Paste</h2>
     <input type="text" id="title" placeholder="Paste Title" />
     <textarea id="content" placeholder="Paste Content"></textarea>
@@ -266,6 +268,20 @@ apiDevKey: 'M7wyjtHgQQsEduAN6fZOV_oSvLKRe7Mk',
 proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
             }
         ];
+function addtoDelete()
+{
+            var select = document.getElementById("pasteTitles");
+            var selectedValue = select.value;
+            var input = document.getElementById("pasteKey");
+            input.value = selectedValue;
+}
+function addtopeerId()
+{
+    const selectElement = document.getElementById('pasteTitles');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const selectedTitle = selectedOption.textContent;
+    document.getElementById('peerId').value = `${selectedTitle}`;
+}
 
 function populateAccountSelect() {
             const selectElement = document.getElementById('accountSelect');
