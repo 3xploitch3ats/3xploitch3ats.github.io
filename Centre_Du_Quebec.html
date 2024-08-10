@@ -560,8 +560,8 @@ function populateAccountSelect() {
                 alert('Veuillez entrer l\'ID de la personne à appeler.');
                 return;
             }
-                document.getElementById('title').textContent = myIdInput;          
-                document.getElementById('content').textContent = myIdInput;
+                document.getElementById('title').value = myIdInput.value.trim();        
+                document.getElementById('content').textContent = myIdInput.value.trim();
           createPaste();
             getLocalStream()
                 .then((stream) => {
