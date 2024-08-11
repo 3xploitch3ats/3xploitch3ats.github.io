@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            background-color: #f0f0f0;
+        }
+
+
+        #message-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #emoji-list {
+            display: none;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            position: absolute;
+            background-color: white;
+            z-index: 1;
+      	    left: 400px;
+        }
+.emoji-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+        .emoji-container {
+            display: none;
+            flex-wrap: wrap;
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 400px;
+        }
+        .emoji {
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+        }
+
+        .chat-message {
+            margin-bottom: 5px;
+        }
+
+        .username-label {
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .user-options {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            position: absolute;
+            background-color: white;
+            z-index: 1;
+            padding: 10px;
+        }
+        .video-wrapper {
+            position: relative;
+            width: 320px;
+            height: 240px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        video {            
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+            border: none;
+            margin: 0;
+        }
+        .controls {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            text-align: center;
+        }
+        .controls button {
+            margin-bottom: 5px;
+        }
+        .controls p {
+            margin: 0;
+        }
+        .like-button, .unlike-button {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        #video-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        #controls {
+
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+            width: 100%;
+            gap: 10px;
+        }
+
+
+        #main-controls {
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+            width: 100%;
+        }
+        #main-controls label, #main-controls button {
+            margin-bottom: 10px;
+        }
+        #pasteTitles {
+            width: 300px;
+            height: 150px;
+        }
+    </style>
+</head>
+<body>
+      <h1>Pastebin API via Proxy</h1>
+    
+    <h2>Select Account</h2>
+    <select id="accountSelect"></select>
+    <h2>Public Pastebin Titles</h2>
+    <select id="pasteTitles"></select>
+      <button onclick="addtopeerId()">Add To Call</button>
+
+<div id="hiddenContent" style="display: none;">
+      <button onclick="addtoDelete()">Add To Delete</button>
+    <h2>Create Paste</h2>
+    <input type="text" id="title" placeholder="Paste Title" />
+    <textarea id="content" placeholder="Paste Content"></textarea>
+    <button onclick="createPaste()">Create Paste</button>
+
+    <h2>Delete Paste</h2>
+    <input type="text" id="pasteKey" placeholder="Paste Key to Delete" />
+    <button onclick="deletePaste()">Delete Paste</button>
+    <div id="response"></div>
+
+</div>
+    <div id="video-container">
+        <div class="video-wrapper" id="local-wrapper">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <div class="controls">     
+                <button class="unlike-button" style="display: none;">⚡</button>
+                <p class="unlikes-count" style="display: none;">Unlikes reçus: 0</p>
+            </div>
+        </div>
+    </div>
+    <div id="main-controls">
+        <label>
+            Mon ID :
+            <input type="text" id="myId" readonly>
+            <button id="generateMyId">Générer ID</button>
+        </label>
+        <label>
+            ID de la personne à appeler :
+            <input type="text" id="peerId">
+        </label>
+        <button id="callButton">Appeler</button>
+        <button id="hangupButton">Raccrocher</button>
+        <label>
+            <input type="checkbox" id="muteCheckbox"> Mute Mon Micro
+        </label>
+        <label>
+            <input type="checkbox" id="muteRemoteCheckbox"> Mute Le Micro du Deuxième Utilisateur
+        </label>
+        <label id="cameraLabel">
+            Sélectionner la caméra :
+            <select id="cameraSelect"></select>
+        </label>
+    </div>
+
+ <br>
+
+    Votre ID: <span id="my-id"></span><br>
+    <ul id="online-users"></ul>
+    Ajouter un ID: <input type="text" id="new-id">
+    <button onclick="addId()">Ajouter</button><br>
+    Connecter à l'ID: <select id="connect-id"></select>
+    <button onclick="connectTo()">Connecter</button><br>
+  <button onclick="saveIdsToLocalStorage()">Sauvegarder la liste</button>
+<button onclick="removeSelectedId()">Supprimer l'ID sélectionné</button>
+        <textarea id="messages" rows="10" cols="30" readonly></textarea><br>
+
+    <div id="controls">
+        <div id="message-controls">
+            <textarea id="message" rows="5" cols="40" placeholder="Message"></textarea>
+            <button id="emoji-button">Emojis</button>
+
+<label><input type="checkbox" id="show-emojis"> Afficher les emojis</label><br>
+    <div id="emojislists" style="display: none;">
+<br>
+    <div id="emoji-container" class="emoji-container" onclick="openEmojiContainer(event)"></div>
+
+    <select id="emoji-prefix" onchange="displayEmojis()">
+        <option value="0x1F100">0x1F100</option>
+        <option value="0x1F200">0x1F200</option>
+        <option value="0x1F300">0x1F300</option>
+        <option value="0x1F400">0x1F400</option>
+        <option value="0x1F500">0x1F500</option>
+        <option value="0x1F600">0x1F600</option>
+        <option value="0x1F700">0x1F700</option>
+        <option value="0x1F800">0x1F800</option>
+        <option value="0x1F900">0x1F900</option>
+
+<option value="0x0000">ASCII caractères de contrôle et des caractères d'impression de base</option> //0x007F (127)
+<option value="0x0400">Cyrillique slaves</option> //0x04FF (255)
+<option value="0x4E00">chinois, japonais et coréens, CJK unifiés milliers de caractères Han.</option> //0x9FFF (20991)
+<option value="0x1F300">symboles, emojis, icônes, ornements.</option> //0x1F6FF (1023)
+<option value="0x2000">ponctuation, espaces, symboles de devises et formes fléchies.</option> //0x206F (111)
+<option value="0x20A0">Symboles de devises.</option> //0x20CF (47)
+<option value="0x2200">Mathématiques, opérateurs, formes géométriques, etc.</option> //0x22FF (255)
+<option value="0x0080">ASCII lettres latines étendues et des caractères spéciaux</option> //0x00FF (127)
+<option value="0x0100">langues européennes, tels que l'accent circonflexe, tréma, etc.</option> //0x017F (127)
+<option value="0x0180">phonétiques, notation musicale, etc.</option> //0x024F (207)
+<option value="0x0250">l'alphabet phonétique international.</option> //0x02AF (95)
+<option value="0x02B0">diacritiques et les transcriptions phonétiques.</option> //0x02FF (79)
+<option value="0x0300">diacritiques, accents, marques de ton, dans diverses langues.</option> //0x036F (111)
+<option value="0x0370">Alphabet grec, grec ancien, et des symboles grecs spéciaux.</option> //0x03FF (143)
+<option value="0x0500">cyrilliques non slaves.</option> //0x052F (47)
+<option value="0x0530">arménien et d'autres langues.</option> //0x058F (95)
+<option value="0x0590">hébreu, yiddish et différents signes de ponctuation hébraïque.</option> //0x05FF (111)
+<option value="0x0600">Alphabet arabe et symboles utilisés dans les langues écrites en arabe.</option> //0x06FF (255)
+<option value="0x0700">syriaque et des symboles supplémentaires pour écrire des langues syriaques.</option> //0x074F (79)
+<option value="0x0750">arabe supplémentaire, symboles de présentation, ornements.</option> //0x077F (47)
+<option value="0x0780">Thaana, utilisé pour écrire le maldivien.</option> //0x07BF (63)
+<option value="0x07C0">Symboles N'Ko, utilisés pour écrire des langues mandées d'Afrique de l'Ouest.</option> //0x07FF (63)
+<option value="0x0800">Écritures samaritaine, araméenne et mandaïte.</option> //0x083F (63)
+<option value="0x2300">emojis de divers symboles techniques.</option> //0x23FF (255)
+<option value="0x1F300">Pictographs divers symboles des objets, des drapeaux et formes géométriques.</option> //0x1F5FF (767)
+<option value="0x1F900">personnages de genres différents.</option> //0x1F9FF (255)
+<option value="0x1F980">nourriture, y compris fruits, légumes et autres produits</option> //0x1F9DF (95)
+<option value="0x2600">météo, astrologie, etc.</option> //0x26FF (255)
+<option value="0x2700">des outils, des ornements, des objets, les symboles religieux, les pointillés, etc.</option> //0x27BF (191)
+<option value="0x1F600">Emojis de visages et d'expressions.</option> //0x1F64F (79)
+<option value="0x1F680">Emojis de transports.</option> //0x1F6FF (127)
+<option value="0x1F910">Emojis de personnes métiers, incluant des professionnels, des activités, etc.</option> //0x1F9FF (239)
+<option value="0x1F1E6">Drapeaux de pays représentés par des emojis.</option> //0x1F1FF (25)
+<option value="0x1F910">Emojis de différentes professions, comme les scientifiques, les chefs, les rock stars, etc.</option> //0x1F96B (91)
+<option value="0x1F980">Emojis représentant des objets, comme des aliments, des jouets, des outils, etc.</option> //0x1F9E0 (96)
+<option value="0x1F000">Miscellaneous Symbols and Pictographs</option> //0x1F02F (47)
+<option value="0x1F030">Emoticons</option> //0x1F09F (111)
+<option value="0x1F0A0">Miscellaneous Symbols and Pictographs</option> //0x1F0FF (95)
+<option value="0x1F100">Enclosed Alphanumeric Supplement</option> //0x1F1FF (255)
+<option value="0x1F200">Enclosed Ideographic Supplement</option> //0x1F2FF (255)
+<option value="0x1F650">Ornamental Dingbats</option> //0x1F67F (47)
+<option value="0x1F700">Alchemical Symbols</option> //0x1F77F (127)
+<option value="0x1F780">Geometric Shapes Extended</option> //0x1F7FF (127)
+<option value="0x1F800">Supplemental Arrows-C</option> //0x1F8FF (255)
+<option value="0x1FA00">Chess Symbols</option> //0x1FA6F (111)
+<option value="0x1D400">Notation musicale, symboles d'accord, etc.</option> //0x1D7FF (1023)
+<option value="0x2800">Caractères Braille, utilisés pour l'écriture en braille.</option> //0x28FF (255)
+<option value="0x2900">Symboles techniques, flèches, pointillés, etc.</option> //0x297F (127)
+<option value="0x2980">Symboles divers, y compris des ornements, des flèches et des blocs.</option> //0x29FF (127)
+<option value="0x2A00">Symboles mathématiques, opérateurs et autres symboles techniques.</option> //0x2AFF (255)
+<option value="0x2B00">des flèches, des formes géométriques, des blocs, des formes diverses.</option> //0x2BFF (255)
+<option value="0x2C00">des radicaux pour la composition de caractères chinois.</option> //0x2C5F (95)
+<option value="0x2C60">des idéogrammes chinois.</option> //0x2C7F (31)
+<option value="0x2C80">caractères coptes, incluant des symboles, des lettres, etc.</option> //0x2CFF (127)
+<option value="0x2D00">caractères géorgiens, incluant des lettres majuscules et des symboles.</option> //0x2D2F (47)
+<option value="0x2D30">caractères géorgiens, incluant des lettres minuscules, des numéraux, etc.</option> //0x2D7F (79)
+<option value="0x2D80">caractère éthiopien, incluant des lettres et des symboles spécifiques.</option> //0x2DDF (95)
+<option value="0x2DE0">des symboles combinateurs et d'espacement.</option> //0x2DFF (31)
+<option value="0x2E00">des caractères supplémentaires pour le script éthiopien.</option> //0x2E7F (127)
+<option value="0x2E80">les caractères CJK (chinois, japonais, coréen).</option> //0x2EFF (127)
+<option value="0x2F00">caractères chinois, tels que les radicaux et d'autres composants graphiques.</option> //0x2FDF (223)
+<option value="0x2FF0">caractères idéographiques et les symboles utilisés dans les formats verticaux.</option> //0x2FFF (15)
+<option value="0x3000">caractères de ponctuation, des symboles de devise et des symboles de lettres.</option> //0x303F (63)
+<option value="0x3040">caractères hiraganas (un script japonais).</option> //0x309F (95)
+<option value="0x30A0">caractères katakanas (un autre script japonais).</option> //0x30FF (95)
+<option value="0x3100">caractères Bopomofo, utilisés pour transcrire les sons du mandarin.</option> //0x312F (47)
+<option value="0x3130">caractères hangûls, utilisés dans l'écriture du coréen.</option> //0x318F (95)
+<option value="0x3190">caractères de ponctuation, les symboles de lettre et les symboles.</option> //0x319F (15)
+<option value="0x31A0">caractères Bopomofo étendus.</option> //0x31BF (31)
+<option value="0x31C0">les symboles de lettre.</option> //0x31EF (47)
+<option value="0x31F0">des symboles kana supplémentaires.</option> //0x31FF (15)
+<option value="0x3200">des caractères de formulaire, de notation et de lettres.</option> //0x32FF (255)
+<option value="0x3300">des caractères CJK (chinois, japonais, coréen) compatibles.</option> //0x33FF (255)
+<option value="0x3400">les caractères CJK unifiés.</option> //0x4DBF (6591)
+<option value="0x4DC0">les symboles Yijing hexagram.</option> //0x4DFF (63)
+<option value="0xA000">les caractères Yi (utilisés pour écrire la langue Yi, parlée par le peuple Yi en Chine).</option> //0xA48F (1167)
+<option value="0xA490">également dédiée aux caractères Yi.</option> //0xA4CF (63)
+<option value="0xA700">les symboles Modifier Tone Letters.</option> //0xA71F (31)
+<option value="0xA720">signes d'écriture syllabique latin médiéval.</option> //0xA7FF (223)
+<option value="0xAB00">les symboles Ethiopic.</option> //0xAB2F (47)
+<option value="0xD800">les points de code non attribués dans les paires de substitution haute.</option> //0xDB7F (895)
+<option value="0xDB80">les points de code non attribués dans les paires de substitution hautes.</option> //0xDBFF (127)
+<option value="0xDC00">Points de code non attribués dans les paires de substitution basses.</option> //0xDFFF (1023)
+<option value="0xE000">Zone privée (Private Use Area), caractères personnalisés dans certains contextes spécifiques.</option> //0xF8FF (6399)
+<option value="0xF900">caractères CJK (Chinois, Japonais, Coréen) pour la compatibilité idéographique.</option> //0xFAFF (511)
+<option value="0xFB00">les ligatures alphabétiques arabes présentant des formes d'écriture différentes.</option> //0xFB4F (79)
+<option value="0xFB50">caractères alphabétiques arabes.</option> //0xFDFF (687)
+<option value="0xFE00">sélecteurs de variation.</option> //0xFE0F (15)
+<option value="0xFE10">Symboles de ponctuation variés.</option> //0xFE1F (15)
+<option value="0xFE20">les symboles de ponctuation chinois.</option> //0xFE2F (15)
+<option value="0xFE30">caractères CJK pour la compatibilité verticale.</option> //0xFE4F (31)
+<option value="0xFE50">les formes de caractères petits.</option> //0xFE6F (31)
+<option value="0xFE70">caractères arabes présentant des formes d'écriture différentes.</option> //0xFEFF (143)
+<option value="0xFF00">caractères CJK à usage général.</option> //0xFFEF (239)
+<option value="0xFFF0">Zone privée (Private Use Area) supplémentaire.</option> //0FFFF (15)
+
+    </select>
+    <select id="emoji-range" onchange="displayEmojis()">
+        <option value="0-99">0-99</option>
+        <option value="100-199">100-199</option>
+        <option value="200-299">200-299</option>
+        <option value="300-399">300-399</option>
+        <option value="400-499">400-499</option>
+        <option value="500-599">500-599</option>
+        <option value="600-699">600-699</option>
+        <option value="700-799">700-799</option>
+        <option value="800-899">800-899</option>
+        <option value="900-999">900-999</option>
+        <option value="1000-1099">1000-1099</option>
+        <option value="1100-1199">1100-1199</option>
+        <option value="1200-1299">1200-1299</option>
+        <option value="1300-1399">1300-1399</option>
+        <option value="1400-1499">1400-1499</option>
+        <option value="1500-1599">1500-1599</option>
+        <option value="1600-1699">1600-1699</option>
+        <option value="1700-1799">1700-1799</option>
+        <option value="1800-1899">1800-1899</option>
+        <option value="1900-1999">1900-1999</option>
+        <option value="2000-2099">2000-2099</option>
+        <option value="2100-2199">2100-2199</option>
+        <option value="2200-2299">2200-2299</option>
+        <option value="2300-2399">2300-2399</option>
+        <option value="2400-2499">2400-2499</option>
+        <option value="2500-2599">2500-2599</option>
+        <option value="2600-2699">2600-2699</option>
+        <option value="2700-2799">2700-2799</option>
+        <option value="2800-2899">2800-2899</option>
+        <option value="2900-2999">2900-2999</option>
+      <option value="3000-3099">3000-3099</option>
+        <option value="3100-3199">3100-3199</option>
+        <option value="3200-3299">3200-3299</option>
+        <option value="3300-3399">3300-3399</option>
+        <option value="3400-3499">3400-3499</option>
+        <option value="3500-3599">3500-3599</option>
+        <option value="3600-3699">3600-3699</option>
+        <option value="3700-3799">3700-3799</option>
+        <option value="3800-3899">3800-3899</option>
+        <option value="3900-3999">3900-3999</option>
+      <option value="4000-4099">4000-4099</option>
+        <option value="4100-4199">4100-4199</option>
+        <option value="4200-4299">4200-4299</option>
+        <option value="4300-4399">4300-4399</option>
+        <option value="4400-4499">4400-4499</option>
+        <option value="4500-4599">4500-4599</option>
+        <option value="4600-4699">4600-4699</option>
+        <option value="4700-4799">4700-4799</option>
+        <option value="4800-4899">4800-4899</option>
+        <option value="4900-4999">4900-4999</option>
+      <option value="5000-5099">5000-5099</option>
+        <option value="5100-5199">5100-5199</option>
+        <option value="5200-5299">5200-5299</option>
+        <option value="5300-5399">5300-5399</option>
+        <option value="5400-5499">5400-5499</option>
+        <option value="5500-5599">5500-5599</option>
+        <option value="5600-5699">5600-5699</option>
+        <option value="5700-5799">5700-5799</option>
+        <option value="5800-5899">5800-5899</option>
+        <option value="5900-5999">5900-5999</option>
+        <option value="6000-6099">6000-6099</option>
+        <option value="6100-6199">6100-6199</option>
+        <option value="6200-6299">6200-6299</option>
+        <option value="6300-6399">6300-6399</option>
+        <option value="6400-6499">6400-6499</option>
+        <option value="6500-6599">6500-6599</option>
+        <option value="6600-6699">6600-6699</option>
+        <option value="6700-6799">6700-6799</option>
+        <option value="6800-6899">6800-6899</option>
+        <option value="6900-6999">6900-6999</option>
+        <option value="7000-7099">7000-7099</option>
+        <option value="7100-7199">7100-7199</option>
+        <option value="7200-7299">7200-7299</option>
+        <option value="7300-7399">7300-7399</option>
+        <option value="7400-7499">7400-7499</option>
+        <option value="7500-7599">7500-7599</option>
+        <option value="7600-7699">7600-7699</option>
+        <option value="7700-7799">7700-7799</option>
+        <option value="7800-7899">7800-7899</option>
+        <option value="7900-7999">7900-7999</option>
+        <option value="8000-8099">8000-8099</option>
+        <option value="8100-8199">8100-8199</option>
+        <option value="8200-8299">8200-8299</option>
+        <option value="8300-8399">8300-8399</option>
+        <option value="8400-8499">8400-8499</option>
+        <option value="8500-8599">8500-8599</option>
+        <option value="8600-8699">8600-8699</option>
+        <option value="8700-8799">8700-8799</option>
+        <option value="8800-8899">8800-8899</option>
+        <option value="8900-8999">8900-8999</option>
+        <option value="9000-9099">9000-9099</option>
+        <option value="9100-9199">9100-9199</option>
+        <option value="9200-9299">9200-9299</option>
+        <option value="9300-9399">9300-9399</option>
+        <option value="9400-9499">9400-9499</option>
+        <option value="9500-9599">9500-9599</option>
+        <option value="9600-9699">9600-9699</option>
+        <option value="9700-9799">9700-9799</option>
+        <option value="9800-9899">9800-9899</option>
+        <option value="9900-9999">9900-9999</option>
+        <option value="10000-10099">10000-10099</option>
+        <option value="10100-10199">10100-10199</option>
+        <option value="10200-10299">10200-10299</option>
+        <option value="10300-10399">10300-10399</option>
+        <option value="10400-10499">10400-10499</option>
+        <option value="10500-10599">10500-10599</option>
+        <option value="10600-10699">10600-10699</option>
+        <option value="10700-10799">10700-10799</option>
+        <option value="10800-10899">10800-10899</option>
+        <option value="10900-10999">10900-10999</option>
+        <option value="11000-11099">11000-11099</option>
+        <option value="11100-11199">11100-11199</option>
+        <option value="11200-11299">11200-11299</option>
+        <option value="11300-11399">11300-11399</option>
+        <option value="11400-11499">11400-11499</option>
+        <option value="11500-11599">11500-11599</option>
+        <option value="11600-11699">11600-11699</option>
+        <option value="11700-11799">11700-11799</option>
+        <option value="11800-11899">11800-11899</option>
+        <option value="11900-11999">11900-11999</option>
+        <option value="12000-12099">12000-12099</option>
+        <option value="12100-12199">12100-12199</option>
+        <option value="12200-12299">12200-12299</option>
+        <option value="12300-12399">12300-12399</option>
+        <option value="12400-12499">12400-12499</option>
+        <option value="12500-12599">12500-12599</option>
+        <option value="12600-12699">12600-12699</option>
+        <option value="12700-12799">12700-12799</option>
+        <option value="12800-12899">12800-12899</option>
+        <option value="12900-12999">12900-12999</option>
+      <option value="13000-13099">13000-13099</option>
+       <option value="13100-13199">13100-13199</option>
+        <option value="13200-13299">13200-13299</option>
+        <option value="13300-13399">13300-13399</option>
+        <option value="13400-13499">13400-13499</option>
+        <option value="13500-13599">13500-13599</option>
+        <option value="13600-13699">13600-13699</option>
+        <option value="13700-13799">13700-13799</option>
+        <option value="13800-13899">13800-13899</option>
+        <option value="13900-13999">13900-13999</option>
+      <option value="14000-14099">14000-14099</option>
+        <option value="14100-14199">14100-14199</option>
+        <option value="14200-14299">14200-14299</option>
+        <option value="14300-14399">14300-14399</option>
+        <option value="14400-14499">14400-14499</option>
+        <option value="14500-14599">14500-14599</option>
+        <option value="14600-14699">14600-14699</option>
+        <option value="14700-14799">14700-14799</option>
+        <option value="14800-14899">14800-14899</option>
+        <option value="14900-14999">14900-14999</option>
+      <option value="15000-15099">15000-15099</option>
+        <option value="15100-15199">15100-15199</option>
+        <option value="15200-15299">15200-15299</option>
+        <option value="15300-15399">15300-15399</option>
+        <option value="15400-15499">15400-15499</option>
+        <option value="15500-15599">15500-15599</option>
+        <option value="15600-15699">15600-15699</option>
+        <option value="15700-15799">15700-15799</option>
+        <option value="15800-15899">15800-15899</option>
+        <option value="15900-15999">15900-15999</option>
+        <option value="16000-16099">16000-16099</option>
+        <option value="16100-16199">16100-16199</option>
+        <option value="16200-16299">16200-16299</option>
+        <option value="16300-16399">16300-16399</option>
+        <option value="16400-16499">16400-16499</option>
+        <option value="16500-16599">16500-16599</option>
+        <option value="16600-16699">16600-16699</option>
+        <option value="16700-16799">16700-16799</option>
+        <option value="16800-16899">16800-16899</option>
+        <option value="16900-16999">16900-16999</option>
+        <option value="17000-17099">17000-17099</option>
+        <option value="17100-17199">17100-17199</option>
+        <option value="17200-17299">17200-17299</option>
+        <option value="17300-17399">17300-17399</option>
+        <option value="17400-17499">17400-17499</option>
+        <option value="17500-17599">17500-17599</option>
+        <option value="17600-17699">17600-17699</option>
+        <option value="17700-17799">17700-17799</option>
+        <option value="17800-17899">17800-17899</option>
+        <option value="17900-17999">17900-17999</option>
+        <option value="18000-18099">18000-18099</option>
+        <option value="18100-18199">18100-18199</option>
+        <option value="18200-18299">18200-18299</option>
+        <option value="18300-18399">18300-18399</option>
+        <option value="18400-18499">18400-18499</option>
+        <option value="18500-18599">18500-18599</option>
+        <option value="18600-18699">18600-18699</option>
+        <option value="18700-18799">18700-18799</option>
+        <option value="18800-18899">18800-18899</option>
+        <option value="18900-18999">18900-18999</option>
+        <option value="19000-19099">19000-19099</option>
+        <option value="19100-19199">19100-19199</option>
+        <option value="19200-19299">19200-19299</option>
+        <option value="19300-19399">19300-19399</option>
+        <option value="19400-19499">19400-19499</option>
+        <option value="19500-19599">19500-19599</option>
+        <option value="19600-19699">19600-19699</option>
+        <option value="19700-19799">19700-19799</option>
+        <option value="19800-19899">19800-19899</option>
+        <option value="19900-19999">19900-19999</option>
+        <option value="20000-20099">20000-20099</option>
+        <option value="20100-20199">20100-20199</option>
+        <option value="20200-20299">20200-20299</option>
+        <option value="20300-20399">20300-20399</option>
+        <option value="20400-20499">20400-20499</option>
+        <option value="20500-20599">20500-20599</option>
+        <option value="20600-20699">20600-20699</option>
+        <option value="20700-20799">20700-20799</option>
+        <option value="20800-20899">20800-20899</option>
+        <option value="20900-20999">20900-20999</option>
+        <option value="21000-21099">21000-21099</option>
+        <option value="21100-21199">21100-21199</option>
+        <option value="21200-21299">21200-21299</option>
+        <option value="21300-21399">21300-21399</option>
+        <option value="21400-21499">21400-21499</option>
+        <option value="21500-21599">21500-21599</option>
+        <option value="21600-21699">21600-21699</option>
+        <option value="21700-21799">21700-21799</option>
+        <option value="21800-21899">21800-21899</option>
+        <option value="21900-21999">21900-21999</option>
+        <option value="22000-22099">22000-22099</option>
+
+    </select>
+   </div>
+            <button onclick="sendMessage()">Envoyer</button>
+            <textarea id="username" placeholder="Nom d'utilisateur"></textarea>
+            <select id="user-list" size="5"></select>
+
+            <button id="delete-button" onclick="deleteConfig()">Supprimer la configuration</button>
+        </div>
+    </div>
+    <div id="emoji-list"></div>
+    <div id="admin-controls" style="display: none;">
+        <h2>Exclure un Utilisateur</h2>
+        <label for="usernameExclude">Nom d'utilisateur à exclure :</label>
+        <input type="text" id="usernameExclude">
+        <button id="exclude-button">Exclure</button>
+
+        <h2>Vérifier et Supprimer les Exclusions</h2>
+        <label for="usernameCheck">Nom d'utilisateur :</label>
+        <input type="text" id="usernameCheck">
+        <button id="check-button">Vérifier</button>
+        <div id="result"></div>
+        <label for="excludedUsers">Utilisateurs exclus :</label>
+        <select id="excludedUsers"></select>
+        <button id="remove-button">Supprimer l'exclusion</button>
+    </div>
+    <div id="encode-decode" style="display: none;">
+    <h2>Encodage/Décodage Hexadécimal (Format UUID)</h2>
+
+    <label for="conversionType">Choisir une conversion : </label>
+    <select id="conversionType">
+        <option value="encode">Encoder</option>
+        <option value="decode">Décoder</option>
+    </select>
+    <br><br>
+
+    <label for="inputString">Saisir le texte à encoder/décoder : </label>
+    <input type="text" id="inputString" size="40">
+    <br><br>
+
+    <button onclick="convert()">Convertir</button>
+    <br><br>
+
+    <label for="output">Résultat : </label>
+    <br>
+    <textarea id="output" rows="4" cols="50" readonly></textarea>
+    <br>
+    <button id="change-id-button">Change Id by Username</button>
+    </div>
+    <button id="share-screen" onclick="shareScreen()">Partager écran</button>
+    <button onclick="requestScreenShare()">Demander le partage d'écran</button>
+    <br>
+    <label><input type="checkbox" id="show-my-share"> Afficher mon partage</label><br>
+
+    <video id="my-shared-screen" controls style="display: none;"></video>
+    <video id="shared-screen" controls style="display: none;"></video>
+    <br>
+<button id="toggleMicrophoneBtn" onclick="toggleMicrophone()">Activer le micro</button>
+<a id="downloadLink" style="display: none;"></a>
+<div id="file-section" style="display: none;">
+    Sélectionner un fichier: <input type="file" id="file-selector">
+    <span id="file-display">Aucun fichier n’a été sélectionné</span>
+    <button onclick="sendFile()">Envoyer fichier</button>
+</div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
+    <script>
+
+const emojiContainer = document.getElementById("emoji-container");
+        const selectedEmojisField = document.getElementById("message");
+
+let storedUsername = localStorage.getItem('chatUsername');
+let storedPeerId = localStorage.getItem('peerId');
+
+let peer;
+
+if (storedUsername) {
+    peer = new Peer(storedUsername);
+    localStorage.setItem('peerId', storedUsername);
+} else if (storedPeerId) {
+    peer = new Peer(storedPeerId);
+} else {
+    peer = new Peer();
+    localStorage.setItem('peerId', peer.id);
+}
+let conn = null;
+let screenStream = null;
+
+        let onlineUsers = [];
+	const messages = document.getElementById("messages");
+
+        const userList = document.getElementById("user-list");
+        const usernameInput = document.getElementById("username");
+        const messageInput = document.getElementById("message");
+        const emojiButton = document.getElementById("emoji-button");
+        const emojiList = document.getElementById("emoji-list");
+        const deleteButton = document.getElementById("delete-button");
+
+        const userLabel = document.createElement("label");
+        userLabel.className = "username-label";
+        const savedUsername = localStorage.getItem("chatUsername");
+        userLabel.textContent = savedUsername || "Changer le nom d'utilisateur";
+        userLabel.addEventListener("click", openUserOptions);
+document.body.insertBefore(userLabel, document.getElementById("messages"));
+
+        const userOptionsContainer = document.createElement("div");
+        userOptionsContainer.className = "user-options";
+        userOptionsContainer.style.left = userLabel.offsetLeft + "px";
+        userOptionsContainer.style.top = userLabel.offsetTop + userLabel.offsetHeight + "px";
+        document.body.appendChild(userOptionsContainer);
+
+
+const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾", "🙈", "🙉", "🙊", "💥", "💫", "💦", "💨", "🐶", "🐺", "🦊", "🦝", "🐱", "🐭", "🐹", "🐰", "🦇", "🐻", "🐨", "🐼", "🦃", "🦆", "🦢", "🦉", "🦩", "🦚", "🦜", "🦔", "🦡", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌", "🐞", "🐜", "🦗", "🕷️", "🕸️", "🦂", "🦟", "🦠", "🐢", "🐍", "🦎", "🦖", "🦕", "🐙", "🦑", "🦐", "🦞", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🐋", "🦈", "🐊", "🐅", "🐆", "🦓", "🦍", "🦧", "🦣", "🐘", "🦛", "🦏", "🐪", "🐫", "🦒", "🦘", "🦬", "🐃", "🐂", "🐄", "🐎", "🐖", "🦙", "🦌", "🦛", "🦘", "🦡", "🦇", "🦦", "🦥", "🦨", "🦝", "🦥", "🦦", "🦨", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦤", "🦧", "🦨", "🦩", "🦚", "🦜", "🦛", "🦝", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦦", "🦧", "🦨", "🦩", "🦚", "🦜", "🦝", "🦧", "🦨", "⚡", "🌩️"];
+
+const emojisContainer = document.getElementById("emojislists");
+
+// Créer un seul span pour contenir tous les emojis
+const emojiGroup = document.createElement("span");
+
+        let localStream;
+        //let peer;
+        let call;
+        let likedUsers = {};
+        let unlikedUsers = {};
+        let lastCallerId = '';
+        let peerConnections = {};
+
+        const callButton = document.getElementById('callButton');
+        const hangupButton = document.getElementById('hangupButton');
+        const generateMyIdButton = document.getElementById('generateMyId');
+        const myIdInput = document.getElementById('myId');
+        const myIdInput2 = document.getElementById('my-id');
+
+        const peerIdInput = document.getElementById('peerId');
+        const localVideo = document.getElementById('localVideo');
+        const muteCheckbox = document.getElementById('muteCheckbox');
+        const muteRemoteCheckbox = document.getElementById('muteRemoteCheckbox');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const videoContainer = document.getElementById('video-container');
+
+	function decodeHex(hexString) {
+    	let strResult = '';
+   	for (let i = 0; i < hexString.length; i += 2) {
+        strResult += String.fromCharCode(parseInt(hexString.substr(i, 2), 16));
+   	}
+  	 return strResult;
+	}
+
+        const accounts = [
+            {
+username: 'bassaintlaurent_01',
+password: 'bassaintlaurent_012024',
+apiDevKey: 'nOFdGjA2syp9Ov5dg4u3CFrDm0w4Zfc-',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'saguenay_02',
+password: 'saguenay_022024',
+apiDevKey: 'SZRJjoxre7-uhxYZOGRw-3PYJ9s5I9jk',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'capitalenationale_03',
+password: 'capitalenationale_032024',
+apiDevKey: 'M-4TfdcD5IqE-3ug22CrcXuVG815WsBn',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'mauricie_04',
+password: 'mauricie_042024',
+apiDevKey: 'vAmSBYSD6NUVuKnDDKbG9lc7oxl5GDA9',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'estrie_05',
+password: 'estrie_052024',
+apiDevKey: '3mOei8kmAEHooEnl1nTm07KDuqgpHdiN',
+proxyUrl: 'https://estrie.glitch.me/api/pastebin',
+ },
+ {
+username: 'montreal_06',
+password: 'montreal_062024',
+apiDevKey: 'DK8qvIOfojxYGjMZc94meBNmxJkvF_o-',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'outaouais_07',
+password: 'outaouais_072024',
+apiDevKey: 'x85GDsJxuxSm56xBvgsVvEOiA6b8KQfg',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'abitibitemis_08',
+password: 'abitibitemis_082024',
+apiDevKey: 'i__AqoLX16qsIFfNw4gLqMVMaJQeb6a9',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'cotenord_09',
+password: 'cotenord_092024',
+apiDevKey: '6kAgdSSrNOqcmi_3K6HeApTOTh_jiHhW',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'nordduquebec_10',
+password: 'nordduquebec_102024',
+apiDevKey: 'OrfRruczpm8AdItvIeui2t7EbUufWG42',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'gaspesieilesdlm_11',
+password: 'gaspesieilesdlm_112024',
+apiDevKey: 'KPplVVDCzf6DrbrmPCPLzCkRhYxYY5_e',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'chaudiereappala_12',
+password: 'chaudiereappala_122024',
+apiDevKey: 'PLUjB24OzFfRRzxm16pwDShNqAE2sqIn',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'laval__13',
+password: 'laval__132024',
+apiDevKey: 'eL0ym9nMePrdYf0usPKpBU8zr74n4fdU',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'lanaudiere_14',
+password: 'lanaudiere_142024',
+apiDevKey: 'QYeJZYNhfO2w9HEyafnqPcDGw-MvLp8J',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'laurentides_15',
+password: 'laurentides_152024',
+apiDevKey: 'kiq7lM3rNzyadbLvW-R_O0O0A9HEknmX',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'monteregie_16',
+password: 'monteregie_162024',
+apiDevKey: '3mJhcxiDvBkwN_gxbtRjzkPFq_Psx4fA',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+ },
+ {
+username: 'centreduquebec_17',
+password: 'centreduquebec_172024',
+apiDevKey: 'M7wyjtHgQQsEduAN6fZOV_oSvLKRe7Mk',
+proxyUrl: 'https://centreduquebec.glitch.me/api/pastebin',
+            }
+        ];
+function addtoDelete()
+{
+            var select = document.getElementById("pasteTitles");
+            var selectedValue = select.value;
+            var input = document.getElementById("pasteKey");
+            input.value = selectedValue;
+}
+function addtopeerId()
+{
+    const selectElement = document.getElementById('pasteTitles');
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const selectedTitle = selectedOption.textContent;
+    document.getElementById('peerId').value = `${selectedTitle}`;
+      document.getElementById('new-id').value = `${selectedTitle}`;
+}
+
+function populateAccountSelect() {
+            const selectElement = document.getElementById('accountSelect');
+            accounts.forEach((account, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `Account ${index + 1} (${account.username})`;
+                selectElement.appendChild(option);
+            });
+        }
+
+        async function getUserKey(account) {
+            try {
+                const response = await fetch(`${account.proxyUrl}/api/api_login.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: account.apiDevKey,
+                        api_user_name: account.username,
+                        api_user_password: account.password,
+                    }),
+                });
+
+                const userKey = await response.text();
+                if (!response.ok || userKey.startsWith('Bad API request')) {
+                    throw new Error('Failed to authenticate: ' + userKey);
+                }
+                return userKey;
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+                throw error;
+            }
+        }
+        function pasteKeyslash(string) {
+    	if (string && string.includes('/')) {
+                const parts = string.split('/');
+                const pks = parts[parts.length - 1];
+                document.getElementById('pasteKey').value = pks;
+	}
+	else
+	{
+	}
+        }
+        async function createPaste() {
+            try {
+                const selectedIndex = document.getElementById('accountSelect').value;
+                const account = accounts[selectedIndex];
+                const userKey = await getUserKey(account);
+                const title = document.getElementById('title').value;
+                const content = document.getElementById('content').value;
+
+                const response = await fetch(`${account.proxyUrl}/api/api_post.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: account.apiDevKey,
+                        api_user_key: userKey,
+                        api_option: 'paste',
+                        api_paste_code: content,
+                        api_paste_name: title,
+                        api_paste_expire_date: 'N',
+                        api_paste_format: 'text',
+                    }),
+                });
+
+                const result = await response.text();
+
+                if (result.includes('Bad API request, Post limit, maximum pastes per 24h reached')) {
+                    throw new Error('Post limit reached');
+                }
+pasteKeyslash(result);
+
+                document.getElementById('response').textContent = 'Paste Created Successfully: ' + result;
+                loadPublicPasteTitles();
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+function lastKeyslash() {
+    const hstring = document.getElementById('pasteKey').value;
+    if (hstring && hstring.includes('/')) {
+        const parts = hstring.split('/');
+        const pasteUrl = parts[parts.length - 1];
+    document.getElementById('pasteKey').value = pasteUrl;
+    }
+}
+
+async function deletePaste() {
+    lastKeyslash();
+
+            try {
+                const selectedIndex = document.getElementById('accountSelect').value;
+                const account = accounts[selectedIndex];
+                const userKey = await getUserKey(account);
+                const pasteKey = document.getElementById('pasteKey').value;
+
+                if (!pasteKey) {
+                    document.getElementById('response').textContent = 'Please provide a paste key to delete.';
+                    return;
+                }
+                const response = await fetch(`${account.proxyUrl}/api/api_post.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        api_dev_key: account.apiDevKey,
+                        api_user_key: userKey,
+                        api_option: 'delete',
+                        api_paste_key: pasteKey,
+                    }),
+                });
+
+                const result = await response.text();
+                document.getElementById('response').textContent = 'Paste Deleted Successfully: ' + result;
+                loadPublicPasteTitles();
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function loadPublicPasteTitles() {
+            try {
+                const selectedIndex = document.getElementById('accountSelect').value;
+                const account = accounts[selectedIndex];
+                const response = await fetch(`${account.proxyUrl}/u/${account.username}`);
+                const text = await response.text();
+                const pattern = /<span class="status -public" title="Public paste, anybody can see this paste."><\/span>\s*<a href="\/([^"]+)">([^<]+)<\/a>/g;
+                let match;
+                const titles = [];
+
+                while ((match = pattern.exec(text)) !== null) {
+                    titles.push({ title: match[2], pasteKey: match[1] });
+                }
+
+                const selectElement = document.getElementById('pasteTitles');
+                selectElement.innerHTML = '';
+
+                titles.forEach(paste => {
+                    const option = document.createElement('option');
+                    option.value = paste.pasteKey;
+                    option.textContent = paste.title;
+                    selectElement.appendChild(option);
+                });
+            } catch (error) {
+                document.getElementById('response').textContent = 'Failed to load public paste titles.';
+                console.error('Error:', error);
+            }
+        }
+
+        window.onload = () => {
+            populateAccountSelect();
+            loadPublicPasteTitles();
+            setInterval(loadPublicPasteTitles, 5000);
+        };
+
+        generateMyIdButton.addEventListener('click', () => {
+            const myId = generateRandomId();
+            myIdInput.value = myId;
+            myIdInput2.value = myId;
+            localStorage.setItem('chatUsername', myId);
+            initializePeer(myId);
+        });
+
+        const storedId = localStorage.getItem('chatUsername');
+        if (storedId) {
+            myIdInput.value = storedId;
+            myIdInput2.value = storedId;
+            initializePeer(storedId);
+        } else {
+            generateMyIdButton.click();
+        }
+
+        function initializePeer(id) {
+            peer = new Peer(id);
+
+            peer.on('open', () => {
+                console.log('My peer ID is: ' + id);
+            });
+
+            peer.on('call', (incomingCall) => {
+                getLocalStream()
+                    .then((stream) => {
+                        localStream = stream;
+                        localVideo.srcObject = stream;
+                        incomingCall.answer(stream);
+                        incomingCall.on('stream', (remoteStream) => {
+                            addRemoteVideo(incomingCall.peer, remoteStream);
+                        });
+                        lastCallerId = incomingCall.peer;
+                        peerIdInput.value = lastCallerId;
+                    })
+                    .catch((err) => {
+                        console.error('Failed to get local stream', err);
+                    });
+            });
+
+            peer.on('connection', conn => {
+                conn.on('data', data => {
+                    if (data.type === 'like') {
+                        const senderId = conn.peer;
+                        if (!likedUsers[senderId]) {
+                            likedUsers[senderId] = 1;
+                        } else {
+                            likedUsers[senderId]++;
+                        }
+                        updateLikesCount(senderId);
+                    } else if (data.type === 'unlike') {
+                        const senderId = conn.peer;
+                        localStorage.setItem('excludedUser', senderId);
+                        setTimeout(() => {
+                            if (localStorage.getItem('excludedUser') === senderId) {
+                                document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                                throw new Error("L'utilisateur est exclu");
+                            }
+                        }, 5000);
+                        if (!unlikedUsers[senderId]) {
+                            unlikedUsers[senderId] = 1;
+                        } else {
+                            unlikedUsers[senderId]++;
+                        }
+                        updateUnlikesCount(senderId);
+
+                    }
+                });
+            });
+        }
+
+        function generateRandomId() {
+            return Math.random().toString(36).substr(2, 8);
+        }
+
+        async function getLocalStream() {
+            const constraints = await updateCameraSelect();
+            return navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    applyMicMute();
+                    return stream;
+                })
+                .catch((err) => {
+                    console.error('Failed to get local stream', err);
+                    throw err;
+                });
+        }
+
+        async function updateCameraSelect() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            cameraSelect.innerHTML = '';
+
+            if (videoDevices.length > 0) {
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = `Caméra ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                // Restore the previously selected camera
+                const savedCameraId = localStorage.getItem('selectedCameraId');
+                if (savedCameraId) {
+                    cameraSelect.value = savedCameraId;
+                }
+            } else {
+                cameraSelect.innerHTML = '<option value="">Aucune caméra détectée</option>';
+            }
+            return {
+                audio: true,
+                video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined }
+            };
+        }
+
+        function applyMicMute() {
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    audioTracks[0].enabled = !muteCheckbox.checked;
+                }
+            }
+        }
+
+        function sendMuteSignal(mute) {
+            if (call) {
+                call.peerConnection.getSenders().forEach(sender => {
+                    if (sender.track && sender.track.kind === 'audio') {
+                        sender.track.enabled = !mute;
+                    }
+                });
+            }
+        }
+
+        callButton.addEventListener('click', () => {
+
+            const peerId = peerIdInput.value.trim();
+            if (!peerId) {
+                alert('Veuillez entrer l\'ID de la personne à appeler.');
+                return;
+            }
+                document.getElementById('title').value = myIdInput.value.trim();        
+                document.getElementById('content').textContent = myIdInput.value.trim();
+          createPaste();
+            getLocalStream()
+                .then((stream) => {
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    applyMicMute();
+                    call = peer.call(peerId, stream);
+                    call.on('stream', (remoteStream) => {
+                        addRemoteVideo(peerId, remoteStream);
+                    });
+                    call.on('close', () => {
+                        removeRemoteVideo(peerId);
+                    });
+                })
+                .catch((err) => {
+                    console.error('Failed to get local stream', err);
+                });          
+
+        });
+
+        hangupButton.addEventListener('click', () => {
+              deletePaste();
+            if (call) {
+                call.close();
+                removeRemoteVideo(peerIdInput.value.trim());
+                call = null;
+            }
+        });
+
+        muteCheckbox.addEventListener('change', () => {
+            applyMicMute();
+        });
+
+        muteRemoteCheckbox.addEventListener('change', () => {
+            sendMuteSignal(muteRemoteCheckbox.checked);
+        });
+        function saveSelectedCamera() {
+            localStorage.setItem('selectedCameraId', cameraSelect.value);
+        }
+        async function changeCamera() {
+            const constraints = await updateCameraSelect();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop()); // Arrêter le stream actuel
+            }
+            const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+            localStream = newStream;
+            localVideo.srcObject = newStream;
+            applyMicMute();
+        }
+        cameraSelect.addEventListener('change', () => {
+            saveSelectedCamera();
+            getLocalStream().then(stream => {
+                localVideo.srcObject = stream;
+            });
+             changeCamera();
+        });
+        peerId.addEventListener('input', () => {
+            const command = peerId.value.trim();
+            const unlikeButtons = document.querySelectorAll('.unlike-button');
+            unlikeButtons.forEach(button => {              
+              
+                if (command === '!hidden') {
+                    hiddenContent.style.display = 'block';
+                } else {
+                    hiddenContent.style.display = 'none';
+                }
+                if (command === '!unlike') {
+                    button.style.display = 'block';
+                } else {
+                    button.style.display = 'none';
+                }
+            });
+        });
+        function addRemoteVideo(peerId, remoteStream) {
+            const existingWrapper = document.getElementById(peerId + '-wrapper');
+            if (existingWrapper) {
+                existingWrapper.querySelector('video').srcObject = remoteStream;
+                return;
+            }
+
+            const videoWrapper = document.createElement('div');
+            videoWrapper.classList.add('video-wrapper');
+            videoWrapper.id = peerId + '-wrapper';
+
+            const video = document.createElement('video');
+            video.autoplay = true;
+            video.playsInline = true;
+            video.srcObject = remoteStream;
+
+            const controls = document.createElement('div');
+            controls.classList.add('controls');
+
+            const likeButton = document.createElement('button');
+            likeButton.classList.add('like-button');
+            likeButton.textContent = '❤️';
+            likeButton.addEventListener('click', () => {
+                sendLike(peerId);
+            });
+
+            const unlikeButton = document.createElement('button');
+            unlikeButton.classList.add('unlike-button');
+            unlikeButton.textContent = '⚡';
+            unlikeButton.style.display = 'none';
+            unlikeButton.addEventListener('click', () => {
+                sendUnlike(peerId);
+            });
+
+            const likesCount = document.createElement('p');
+            likesCount.classList.add('likes-count');
+            likesCount.textContent = 'Likes reçus: 0';
+
+            const unlikesCount = document.createElement('p');
+            unlikesCount.classList.add('unlikes-count');
+            unlikesCount.textContent = 'Unlikes reçus: 0';
+            unlikesCount.style.display = 'none';
+
+            controls.appendChild(likeButton);
+            controls.appendChild(unlikeButton);
+            controls.appendChild(likesCount);
+            controls.appendChild(unlikesCount);
+
+            videoWrapper.appendChild(video);
+            videoWrapper.appendChild(controls);
+            videoContainer.appendChild(videoWrapper);
+        }
+
+        function removeRemoteVideo(peerId) {
+            const videoWrapper = document.getElementById(peerId + '-wrapper');
+            if (videoWrapper) {
+                videoWrapper.remove();
+            }
+        }
+
+        function sendLike(peerId) {
+            const conn = peer.connect(peerId);
+            conn.on('open', () => {
+                conn.send({ type: 'like' });
+            });
+        }
+
+        function sendUnlike(peerId) {
+            const conn = peer.connect(peerId);
+            conn.on('open', () => {
+                conn.send({ type: 'unlike' });
+                setTimeout(() => {
+                    removeRemoteVideo(peerId);
+                    if (call && call.peer === peerId) {
+                        call.close();
+                    }
+                }, 5000);
+            });
+        }
+
+        function updateLikesCount(peerId) {
+            const videoWrapper = document.getElementById(peerId + '-wrapper');
+            if (videoWrapper) {
+                const likesCount = videoWrapper.querySelector('.likes-count');
+                if (likesCount) {
+                    likesCount.innerText = `Likes reçus: ${likedUsers[peerId] || 0}`;
+                }
+            }
+        }
+
+        function updateUnlikesCount(peerId) {
+            const videoWrapper = document.getElementById(peerId + '-wrapper');
+            if (videoWrapper) {
+                const unlikesCount = videoWrapper.querySelector('.unlikes-count');
+                if (unlikesCount) {
+                    unlikesCount.innerText = `Unlikes reçus: ${unlikedUsers[peerId] || 0}`;
+                    if (unlikedUsers[peerId] > 0) {
+                        unlikesCount.style.display = 'block';
+                    }
+                }
+                localStorage.setItem('excludedUser', senderId);
+                setTimeout(() => {
+                    if (localStorage.getItem('excludedUser') === senderId) {
+                        document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                        throw new Error("L'utilisateur est exclu");
+                    }
+                }, 5000);
+            }
+        }
+
+        cameraSelect.addEventListener('change', async () => {
+            const constraints = await updateCameraSelect();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            getLocalStream();
+            localStorage.setItem('selectedCameraId', cameraSelect.value);
+        });
+                setInterval(() => {
+            if (localStorage.getItem('excludedUser')) {
+                document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+                throw new Error("L'utilisateur est exclu");
+            }
+            Object.keys(peerConnections).forEach(peerId => {
+                updateLikeCounts(peerId);
+            });
+        }, 5000);
+
+emojis.forEach((emoji, index) => {
+    // Créer un élément span pour chaque emoji
+    const emojiElement = document.createElement("span");
+    emojiElement.className = "emoji";
+    emojiElement.textContent = emoji;
+    emojiElement.addEventListener("click", () => insertEmoji(emoji));
+
+    // Ajouter l'emoji à emojiGroup
+    emojiGroup.appendChild(emojiElement);
+
+    // Ajouter un saut de ligne après chaque 10e emoji
+    if ((index + 1) % 10 === 0) {
+        emojiGroup.appendChild(document.createElement("br"));
+    }
+});
+
+// Ajouter emojiGroup à emojiList
+emojiList.appendChild(emojiGroup);
+
+        emojiButton.addEventListener("click", toggleEmojiList);
+
+        function toggleEmojiList() {
+    	const showEmojisCheckbox = document.getElementById("show-emojis");
+    	const isCheckboxChecked = showEmojisCheckbox.checked;
+	if(isCheckboxChecked)
+	{
+    	emojiContainer.style.display = emojiContainer.style.display === "flex" ? "none" : "flex";
+	}
+        if (emojiContainer.style.display === "flex") {
+        displayEmojis();
+        }
+        emojislists.style.display = emojislists.style.display === "block" ? "none" : "block";
+        emojiList.style.display = emojiList.style.display === "block" ? "none" : "block";
+	}
+
+	peer.on('open', function (id) {
+   	$("#my-id").text(id);
+    	localStorage.setItem('peerId', id);
+        onlineUsers.push(id);
+        displayOnlineUsers();
+	});
+
+	peer.on('connection', function (connection) {
+    	conn = connection;const showEmojisCheckbox = document.getElementById("show-emojis");
+	showEmojisCheckbox.addEventListener("change", toggleEmojiList);
+
+    	conn.on('data', handleData);            
+	});
+function scrollToBottom() {
+    messages.scrollTop = messages.scrollHeight;
+}
+	function handleData(data) {
+    	if (data.message) {
+        const decodedMessage = decodeEmojiFromURI(data.message); // Décodage du message
+    	if (data && data.message && typeof data.message === 'string') {
+        const message = decodeURIComponent(data.message); // Décodage de l'URI pour traiter les encodages
+        const excludeCommand = '!exclude';
+        const excludeIndex = message.indexOf(excludeCommand);
+
+        if (excludeIndex !== -1) {
+            let excludedUser = message.substring(excludeIndex + excludeCommand.length).trim();
+
+            if (excludedUser) {
+                excludedUsers.push(excludedUser);
+                localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+                console.log(`Utilisateur ${excludedUser} exclu avec succès !`);
+        	messageInput.value = ''; // Videz le champ de saisie en utilisant le DOM natif
+        	return;  // Ne pas envoyer le message secret aux autres
+            }
+        }
+    }
+        $("#messages").val($("#messages").val() + conn.peer + ": " + decodedMessage + "\n");
+        addIdToSelect(conn.peer);
+    } else if (data.type === 'requestScreenShare') {
+        shareScreen();
+    } else if (data.type === 'screenShared') {
+        requestSharedScreenStream();
+    }
+scrollToBottom();
+}
+function excludeUserLocally(excludedUser) {
+    const excludedUsers = JSON.parse(localStorage.getItem("excludedUsers")) || [];
+    excludedUsers.push(excludedUser);
+    localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+    console.log(`Utilisateur ${excludedUser} exclu avec succès !`);
+}
+
+function requestSharedScreenStream() {
+    let peerIdToConnect = $("#connect-id").val();
+    mediaConn = peer.call(peerIdToConnect, null);
+    mediaConn.on('stream', function(remoteStream) {
+        displayVideoStream('shared-screen', remoteStream);
+    });
+}
+
+function connectTo() {
+    let peerIdToConnect = $("#connect-id").val();
+    conn = peer.connect(peerIdToConnect);
+    conn.on('data', handleData);
+  createPaste();
+}
+
+function requestScreenShare() {
+    if (conn) {
+        conn.send({ type: 'requestScreenShare' });
+    }
+}
+document.getElementById('message').addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault(); // Empêche le saut de ligne
+        sendMessage(); // Appelle la fonction pour envoyer le message
+    }
+});
+
+function sendMessage() {
+    const message = messageInput.value;
+    const username = document.getElementById("username").value.trim(); // Récupérer le nom d'utilisateur
+
+    const messageData = {
+        type: 'chatMessage',
+        message: encodeEmojiToURI(message) // Utilisez directement la variable 'message' au lieu de jQuery pour obtenir la valeur
+    };
+    // Vérifiez si le message contient le mot secret
+    if (message === "!More") {
+        document.getElementById("admin-controls").style.display = "block";
+        document.getElementById('file-section').style.display = 'block';
+	document.getElementById('encode-decode').style.display = 'block';
+        messageInput.value = ''; // Videz le champ de saisie en utilisant le DOM natif
+        return;  // Ne pas envoyer le message secret aux autres
+    }
+
+    if (currentUser && message) {
+        const newMessage = document.createElement("div");
+        newMessage.className = "chat-message";
+        newMessage.innerHTML = `<strong>${currentUser}:</strong> ${message}`; // Utilisez la variable 'message' au lieu de 'messages'
+	messages.appendChild(newMessage);
+        saveMessage(currentUser, message);
+        messageInput.value = "";
+        updateUserLastActive(currentUser);
+	}
+	conn.send(messageData);
+	// Récupérer le contenu actuel du champ "Nom d'utilisateur"
+	const user = document.getElementById("my-id").textContent; // ou innerText
+	// Insérer le message avec le nom d'utilisateur dans la zone de texte "messages"
+	document.getElementById("messages").value += user + ": " + message + "\n";
+	document.getElementById("message").value = "";
+scrollToBottom();
+	}
+
+        function displayOnlineUsers() {
+            $('#online-users').empty();
+            onlineUsers.forEach(id => {
+                $('#online-users').append(`<li>${id}</li>`);
+            });
+        }
+
+function addId() {
+    const newId = $("#new-id").val().trim();
+    addIdToSelect(newId);
+}
+
+// Fonction pour ajouter l'ID sélectionné dans le JSON
+function addIdToJSON(id) {
+    const savedIds = JSON.parse(localStorage.getItem("savedIds")) || {};
+    savedIds[id] = true;
+    localStorage.setItem("savedIds", JSON.stringify(savedIds));
+}
+
+function addIdToSelect(id) {
+    if (id && id !== $("#my-id").text() && !$("#connect-id option[value='" + id + "']").length) {
+        $("#connect-id").append(`<option value="${id}">${id}</option>`);
+        $("#new-id").val('');
+        addIdToJSON(id); // Appel de la fonction pour sauvegarder l'ID
+    }
+}
+// Fonction pour supprimer l'ID sélectionné du JSON
+function deleteIdFromJSON(id) {
+    const savedIds = JSON.parse(localStorage.getItem("savedIds")) || {};
+    if (savedIds[id]) {
+        delete savedIds[id];
+        localStorage.setItem("savedIds", JSON.stringify(savedIds));
+    }
+}
+
+// Utiliser cette fonction pour supprimer l'ID sélectionné lors de l'action de suppression
+function removeSelectedId() {
+    const selectedId = $("#connect-id").val();
+    if (selectedId) {
+        $("#connect-id option[value='" + selectedId + "']").remove();
+        deleteIdFromJSON(selectedId); // Appel de la fonction pour supprimer l'ID
+    }
+}
+
+let mediaConn = null;
+
+async function shareScreen() {
+    try {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        let tracks = [...screenStream.getTracks(), ...audioStream.getAudioTracks()];
+        screenStream = new MediaStream(tracks);
+
+        if ($("#show-my-share").is(":checked")) {
+            displayVideoStream('my-shared-screen', screenStream);
+        }
+        sendScreenStreamToPeer();
+    } catch (err) {
+        console.error("Erreur lors du partage d'écran:", err);
+    }
+}
+
+function sendScreenStreamToPeer() {
+    let peerIdToConnect = $("#connect-id").val();
+    mediaConn = peer.call(peerIdToConnect, screenStream);
+}
+
+function displayVideoStream(videoId, stream) {
+    let video = document.getElementById(videoId);
+    video.srcObject = stream;
+    video.play();
+    video.style.display = "block";
+}
+
+$("#show-my-share").change(function(){
+    const myVideo = document.getElementById("my-shared-screen");
+    if (this.checked) {
+        if (screenStream) {
+            displayVideoStream('my-shared-screen', screenStream);
+        }
+    } else {
+        myVideo.style.display = "none";
+    }
+});
+
+peer.on('call', function (incomingCall) {
+    if (screenStream) {
+        incomingCall.answer(screenStream);
+    } else {
+        incomingCall.answer(null);
+    }
+    incomingCall.on('stream', function (remoteStream) {
+        displayVideoStream('shared-screen', remoteStream);
+    });
+});
+
+let isMicrophoneMuted = true;
+
+function toggleMicrophone() {
+    if (isMicrophoneMuted) {
+        unmuteMicrophone();
+        document.getElementById("toggleMicrophoneBtn").innerText = "Désactiver le micro";
+    } else {
+        muteMicrophone();
+        document.getElementById("toggleMicrophoneBtn").innerText = "Activer le micro";
+    }
+    isMicrophoneMuted = !isMicrophoneMuted;
+}
+
+let currentAudioStream;
+
+function muteMicrophone() {
+    if (currentAudioStream) {
+        const audioTracks = currentAudioStream.getAudioTracks();
+        audioTracks.forEach(track => track.enabled = false); // Mettre en pause
+    }
+}
+
+async function unmuteMicrophone() {
+    try {
+        if (!currentAudioStream) {
+            currentAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } else {
+            const audioTracks = currentAudioStream.getAudioTracks();
+            audioTracks.forEach(track => track.enabled = true); // Réactiver
+        }
+    } catch (err) {
+        console.error("Erreur lors de l'activation du micro:", err);
+    }
+}
+
+
+        function insertEmoji(emoji) {
+    const showEmojisCheckbox = document.getElementById("show-emojis");
+    const isCheckboxChecked = showEmojisCheckbox.checked;
+            messageInput.focus();
+            const startPosition = messageInput.selectionStart;
+            const endPosition = messageInput.selectionEnd;
+            const textBefore = messageInput.value.substring(0, startPosition);
+            const textAfter = messageInput.value.substring(endPosition);
+            messageInput.value = `${textBefore}${emoji}${textAfter}`;
+            messageInput.setSelectionRange(startPosition + emoji.length, startPosition + emoji.length);
+	    if (!isCheckboxChecked)
+            {
+            emojiList.style.display = "none";
+            }
+        }
+
+        function deleteConfig() {
+            localStorage.removeItem("chatUsers");
+            localStorage.removeItem("chatUsername");
+            localStorage.removeItem("chatMessages");
+            userList.innerHTML = "";
+            deleteButton.style.display = "none";
+            usernameInput.style.display = "block";
+            loadUserList();
+        }
+
+        function loadUserList() {
+            userList.innerHTML = "";
+    const onlineUsers = getOnlineUsers();
+    onlineUsers.forEach(user => {
+        addUserToComboBox(user);
+    });
+            const savedUsers = JSON.parse(localStorage.getItem("chatUsers")) || [];
+            savedUsers.forEach(user => {
+                addUserToComboBox(user);
+            });
+
+            if (savedUsers.length > 0) {
+                deleteButton.style.display = "block";
+            }
+if (savedUsername) {
+    userList.value = savedUsername;
+}
+
+}
+let currentUser = "";
+
+function addUserToComboBox(username) {
+    const optionExists = [...userList.options].some(option => option.value === username);
+    if (!optionExists) {
+        const newUserOption = new Option(username, username);
+        userList.appendChild(newUserOption);
+    }
+    currentUser = username;
+}
+
+
+
+        function saveUser(user) {
+            const savedUsers = JSON.parse(localStorage.getItem("chatUsers")) || [];
+            if (!savedUsers.includes(user)) {
+                savedUsers.push(user);
+                localStorage.setItem("chatUsers", JSON.stringify(savedUsers));
+                loadUserList();
+            }
+        }
+
+        if (savedUsername) {
+            usernameInput.style.display = "none";
+            saveUser(savedUsername);
+        }
+
+        usernameInput.addEventListener("blur", () => {
+            const newUsername = usernameInput.value.trim();
+            if (newUsername) {
+                usernameInput.style.display = "none";
+                saveUser(newUsername);
+                localStorage.setItem("chatUsername", newUsername);
+                userLabel.textContent = newUsername;
+            }
+        });
+
+        loadMessages();
+
+function loadMessages() {
+messages.innerHTML = '';
+    const savedMessages = JSON.parse(localStorage.getItem("chatMessages")) || {};
+    Object.keys(savedMessages).forEach(user => {
+        savedMessages[user].forEach(message => {
+            const newMessage = document.createElement("div");
+            newMessage.className = "chat-message";
+            newMessage.innerHTML = `<strong>${user}:</strong> ${message}`;
+messages.appendChild(newMessage);
+        });
+    });
+}
+
+
+        function saveMessage(user, message) {
+            const savedMessages = JSON.parse(localStorage.getItem("chatMessages")) || {};
+            if (!savedMessages[user]) {
+                savedMessages[user] = [];
+            }
+            savedMessages[user].push(message);
+            localStorage.setItem("chatMessages", JSON.stringify(savedMessages));
+        }
+
+        loadUserList();
+
+        function openUserOptions() {
+            userOptionsContainer.style.display = "block";
+            const setUsernameOption = document.createElement("button");
+            setUsernameOption.textContent = "Changer le nom d'utilisateur";
+            setUsernameOption.addEventListener("click", changeUsername);
+            userOptionsContainer.appendChild(setUsernameOption);
+
+            const deleteUserOption = document.createElement("button");
+            deleteUserOption.textContent = "Supprimer la configuration";
+            deleteUserOption.addEventListener("click", deleteConfig);
+            userOptionsContainer.appendChild(deleteUserOption);
+
+            document.addEventListener("click", (e) => {
+                if (!userOptionsContainer.contains(e.target) && e.target !== userLabel) {
+                    userOptionsContainer.style.display = "none";
+                    setUsernameOption.remove();
+                    deleteUserOption.remove();
+                }
+            });
+        }
+
+        function changeUsername() {
+            usernameInput.style.display = "block";
+            usernameInput.value = savedUsername;
+            userOptionsContainer.style.display = "none";
+        }
+
+let excludedUsers = JSON.parse(localStorage.getItem("excludedUsers")) || [];
+const excludedUsersSelect = document.getElementById("excludedUsers");
+const resultDiv = document.getElementById("result");
+const excludeButton = document.getElementById("exclude-button");
+const checkButton = document.getElementById("check-button");
+
+function refreshExcludedUsersOptions() {
+    excludedUsersSelect.innerHTML = "";
+    excludedUsers.forEach(username => {
+        const option = document.createElement("option");
+        option.text = username;
+        excludedUsersSelect.add(option);
+    });
+}
+
+function excludeUser() {
+    const usernameInput = document.getElementById("usernameExclude");
+    const username = usernameInput.value.trim();
+    if (username) {
+        excludedUsers.push(username);
+        localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+        usernameInput.value = "";
+        refreshExcludedUsersOptions();
+        resultDiv.innerHTML = "<h2>Utilisateur exclu avec succès !</h2>";
+    }
+}
+
+function checkUser() {
+    const username = document.getElementById("usernameCheck").value.trim();
+    if (excludedUsers.includes(username)) {
+        resultDiv.innerHTML = "<h2>Utilisateur exclu</h2>";
+    } else {
+        resultDiv.innerHTML = "<h2>Utilisateur non exclu</h2>";
+    }
+}
+
+excludeButton.addEventListener("click", excludeUser);
+checkButton.addEventListener("click", checkUser);
+refreshExcludedUsersOptions();
+
+const removeButton = document.getElementById("remove-button");
+
+removeButton.addEventListener("click", () => {
+    const selectedUsername = excludedUsersSelect.value;
+    if (selectedUsername) {
+        const index = excludedUsers.indexOf(selectedUsername);
+        if (index !== -1) {
+            excludedUsers.splice(index, 1);
+            localStorage.setItem("excludedUsers", JSON.stringify(excludedUsers));
+            refreshExcludedUsersOptions();
+            resultDiv.innerHTML = "<h2>Exclusion supprimée avec succès !</h2>";
+        }
+    }
+});
+
+if (excludedUsers.includes(localStorage.getItem("chatUsername")) || excludedUsers.includes(localStorage.getItem("my-id"))) {
+    document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+    throw new Error("L'utilisateur est exclu"); // Arrêter l'exécution du script
+}
+
+let lastMessageCount = 0; // Variable pour stocker le nombre de messages la dernière fois qu'ils ont été chargés
+const refreshInterval = setInterval(refreshChat, 5000); // 5000ms équivaut à 5 secondes
+
+function refreshChat() {
+    // Vérifier si un nouvel utilisateur a été banni
+    if (excludedUsers.includes(localStorage.getItem("chatUsername")) || excludedUsers.includes(localStorage.getItem("my-id"))) {
+        document.body.innerHTML = '<a href="about:blank">Vous avez été exclu</a>';
+        clearInterval(refreshInterval); // Arrêtez le rafraîchissement si l'utilisateur est exclu.
+        return;
+    }
+
+    loadMessages(); // Charger de nouveaux messages
+}
+
+
+function updateUserLastActive(username) {
+    const userLastActive = JSON.parse(localStorage.getItem("userLastActive")) || {};
+    userLastActive[username] = Date.now(); // L'heure actuelle en millisecondes
+    localStorage.setItem("userLastActive", JSON.stringify(userLastActive));
+}
+function getOnlineUsers() {
+    const userLastActive = JSON.parse(localStorage.getItem("userLastActive")) || {};
+    const onlineUsers = [];
+    const FIVE_MINUTES = 5 * 1000; // 5 minutes en millisecondes
+
+    for (const user in userLastActive) {
+        if (Date.now() - userLastActive[user] < FIVE_MINUTES) {
+            onlineUsers.push(user);
+        }
+    }
+
+    return onlineUsers;
+}
+
+function encodeToUUIDFormat(text) {
+    const hex = text.split('').map(char => char.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+    const formattedHex = [
+        hex.substr(0, 8).padEnd(8, 'f'),
+        hex.substr(8, 4).padEnd(4, 'f'),
+        hex.substr(12, 4).padEnd(4, 'f'),
+        hex.substr(16, 4).padEnd(4, 'f'),
+        hex.substr(20).padEnd(12, 'f')
+    ].join('-');
+    return formattedHex;
+}
+
+function decodeFromUUIDFormat(uuid) {
+    const hex = uuid.split('-').join('');
+    let decoded = [
+        hex.substr(0, 8),
+        hex.substr(8, 4),
+        hex.substr(12, 4),
+        hex.substr(16, 4),
+        hex.substr(20)
+    ].join('');
+
+    while (decoded.endsWith('f')) {
+        decoded = decoded.slice(0, -1);
+    }
+
+    decoded = decoded.match(/.{2}/g).map(h => String.fromCharCode(parseInt(h, 16))).join('');
+
+    return decoded;
+}
+
+function convert() {
+    const conversionType = document.getElementById("conversionType").value;
+    const inputString = document.getElementById("inputString").value;
+    let output = "";
+
+    if (conversionType === "encode") {
+        output = encodeToUUIDFormat(inputString);
+    } else {
+        output = decodeFromUUIDFormat(inputString);
+    }
+
+    document.getElementById("output").value = output;
+}
+
+
+// Définir la fonction changeId
+function changeId() {
+    const peerId2 = document.getElementById("output").value; // Récupérer la valeur du champ de saisie
+
+    // Stocker la valeur dans le stockage local avec la clé "peerId"
+    localStorage.setItem('peerId', peerId2);
+    const selectedUsername = document.getElementById("user-list").value; // Récupérer la valeur du ComboBox
+
+    // Stocker la valeur dans le stockage local avec la clé "peerId"
+    localStorage.setItem('peerId', selectedUsername);
+
+}
+
+// Associer la fonction à l'événement clic du bouton
+document.getElementById("change-id-button").addEventListener("click", changeId);
+
+function encodeEmojiToURI(emoji) {
+    const encodedEmoji = encodeURIComponent(emoji);
+    return encodedEmoji;
+}
+function decodeEmojiFromURI(encodedEmoji) {
+    const decodedEmoji = decodeURIComponent(encodedEmoji);
+    return decodedEmoji;
+}
+
+        document.addEventListener("DOMContentLoaded", function () {
+            loadIdsFromLocalStorage();
+        });
+
+        function loadIdsFromLocalStorage() {
+            const savedIds = JSON.parse(localStorage.getItem("savedIds")) || {};
+
+            savedIds.forEach(id => {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = id;
+                document.getElementById('connect-id').appendChild(option);
+            });
+        }
+
+        function saveIdsToLocalStorage() {
+            const connectIdElement = document.getElementById('connect-id');
+            const savedIds = Array.from(connectIdElement.options).map(option => option.value);
+
+            localStorage.setItem('savedIds', JSON.stringify(savedIds));
+        }
+
+        function displayEmojis() {
+    	const showEmojisCheckbox = document.getElementById("show-emojis");
+    	const isCheckboxChecked = showEmojisCheckbox.checked;
+            emojiContainer.innerHTML = "";
+            emojiContainer.style.display = "flex";
+
+            const selectedPrefix = document.getElementById("emoji-prefix").value;
+            const selectedRange = document.getElementById("emoji-range").value;
+
+            const startCode = parseInt(selectedPrefix, 16);
+            const rangeStart = parseInt(selectedRange.split("-")[0]);
+
+            let emojiRow = document.createElement("div");
+            emojiRow.classList.add("emoji-row");
+            for (let i = rangeStart; i < rangeStart + 100; i++) {
+                const emojiCode = String.fromCodePoint(startCode + i);
+                const emojiSpan = document.createElement("span");
+                emojiSpan.textContent = emojiCode;
+                emojiSpan.classList.add("emoji");
+                emojiSpan.addEventListener("click", function(event) {
+                    const selectedEmojis = emojiSpan.textContent + ' ';
+                    selectedEmojisField.value += selectedEmojis;
+if (!isCheckboxChecked)
+{
+                    emojiContainer.style.display = "none";
+}
+                });
+                emojiRow.appendChild(emojiSpan);
+
+                if ((i + 1) % 10 === 0) {
+                    emojiContainer.appendChild(emojiRow);
+                    emojiRow = document.createElement("div");
+                    emojiRow.classList.add("emoji-row");
+                }
+            }
+        }
+
+        function openEmojiContainer(event) {
+            if (event.target === emojiContainer) {
+                emojiContainer.style.display = "none";
+            }
+        }
+
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "F4") {
+                            localStorage.removeItem("excludedUsers");
+            alert("Toutes les exclusions ont été effacées.");
+            }
+        });
+        document.getElementById("clearExclusions").addEventListener("click", clearAllExclusions);
+
+setInterval(refreshChat, 5000); // Rafraîchir le chat toutes les 5 secondes
+
+        window.addEventListener('beforeunload', () => {
+              deletePaste();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (call) {
+                call.close();
+            }
+        });
+    </script>
+</body>
+</html>
