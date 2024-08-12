@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat avec Emojis</title>
+    <style>
+        <!-- body { font-family: Arial, sans-serif; }  -->
+                    body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #app {
+            width: 600px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            position: absolute;
+        }
+        #color-picker {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        #messages { border: 1px solid #ddd; height: 300px; overflow-y: scroll; margin-bottom: 10px; padding: 10px; }
+        #messageInput { width: calc(100% - 100px); }
+        #sendButton { width: 80px; }
+        #usernameSection, #userListSection { margin-bottom: 20px; }
+        #chatSection { display: none; }
+        #emoji-container { display: none; position: absolute; background: white; border: 1px solid #ddd; padding: 10px; }
+        .emoji { cursor: pointer; font-size: 20px; margin: 5px; }
+        .username-label { cursor: pointer; }
+        .user-options { position: absolute; background: white; border: 1px solid #ddd; padding: 10px; }
+        #notification { color: red; }
+        .like-button, .unlike-button { margin: 5px; }
+        .like-count, .unlike-count { margin: 5px; font-weight: bold; display: none; }
+      
+
+      
+    </style>
+</head>
+<body>
+      <div id="app">
+        <input type="color" id="color-picker">
+    <h1>Chat avec Emojis</h1>
+
+    <div id="usernameSection">
+        <input type="text" id="usernameInput" placeholder="Enter your username">
+        <button id="setUsernameButton">Set Username</button>
+    </div>
+
+    <div id="chatSection">
+        <div id="userListSection">
+            <select id="userSelect">
+                <!-- ComboBox will be populated with online users -->
+            </select>
+        </div>
+
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Type your message...">
+        <button id="sendButton">Send</button>
+        <button id="emoji-button">Emojis</button>
+        <div id="emoji-container">
+            <div id="emoji-list"></div>
+        </div>
+        <button id="like-button">❤️</button>
+        <button id="unlike-button" style="display: none;">⚡</button>
+        <div id="notification"></div>
+        <div id="like-count" class="like-count">Likes: 0</div>
+        <div id="unlike-count" class="unlike-count">Unlikes: 0</div>
+    </div>
+    </div>
+    <script>
+        const ws = new WebSocket('wss://globalserver15.glitch.me'); // Remplacez par l'URL de votre serveur WebSocket
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const usernameInput = document.getElementById('usernameInput');
+        const setUsernameButton = document.getElementById('setUsernameButton');
+        const userSelect = document.getElementById('userSelect');
+        const chatSection = document.getElementById('chatSection');
+        const usernameSection = document.getElementById('usernameSection');
+        const emojiButton = document.getElementById('emoji-button');
+        const emojiContainer = document.getElementById('emoji-container');
+        const emojiList = document.getElementById('emoji-list');
+        const likeButton = document.getElementById('like-button');
+        const unlikeButton = document.getElementById('unlike-button');
+        const notificationDiv = document.getElementById('notification');
+        const likeCountDiv = document.getElementById('like-count');
+        const unlikeCountDiv = document.getElementById('unlike-count');
+        const secretWord = '!unlike'; // Mot secret pour afficher les compteurs
+
+        let username = '';
+        let excludedUsers = JSON.parse(localStorage.getItem('excludedUsers')) || [];
+        let likes = {};
+        let unlikes = {};
+      
+      function checkExclusion() {
+    // Charger les unlikes depuis localStorage
+    const savedUnlikes = JSON.parse(localStorage.getItem('unlikedUsers')) || {};
+
+    // Si l'utilisateur est dans la liste des unlikes, cacher la section du nom d'utilisateur et afficher le message
+    if (Object.keys(savedUnlikes).length > 0) {
+        usernameSection.style.display = 'none'; // Cacher la section du nom d'utilisateur
+        document.body.innerHTML = '<h2>Vous avez été exclu du chat</h2>';
+        throw new Error("L'utilisateur est exclu"); // Arrêter l'exécution du script
+    }
+}
+
+        function updateUserList(users) {
+            userSelect.innerHTML = ''; // Vide le ComboBox
+            const usersSet = new Set(users); // Utilise un Set pour éviter les doublons
+            usersSet.forEach(user => {
+                if (user !== username && !excludedUsers.includes(user)) { // Exclut les utilisateurs exclus
+                    const option = document.createElement('option');
+                    option.value = user;
+                    option.textContent = user;
+                    userSelect.appendChild(option);
+                }
+            });
+        }
+
+        function handleUserDisconnect(peerId) {
+            if (excludedUsers.includes(peerId)) return;
+            updateUserList([]);
+            notificationDiv.textContent = `${peerId} s'est déconnecté.`;
+            setTimeout(() => {
+                notificationDiv.textContent = '';
+            }, 5000);
+        }
+
+        function handleUnlike(peerId) {
+            if (!excludedUsers.includes(peerId)) {
+                excludedUsers.push(peerId);
+                localStorage.setItem('excludedUsers', JSON.stringify(excludedUsers));
+                updateUserList([]);
+                notificationDiv.textContent = `${peerId} a été exclu du chat.`;
+                setTimeout(() => {
+                    notificationDiv.textContent = '';
+                }, 5000);
+                if (peerId === username) {
+                    document.body.innerHTML = '<h2>Vous avez été exclu du chat</h2>';
+                }
+            }
+        }
+
+        ws.onopen = () => {
+            console.log('Connected to WebSocket server');
+            checkExclusion(); // Vérifie l'exclusion au démarrage
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('Received message:', data);
+
+            if (data.type === 'userList') {
+                updateUserList(data.users);
+            } else if (data.type === 'message') {
+                const messageElement = document.createElement('div');
+                messageElement.textContent = `${data.sender}: ${data.content}`;
+                messagesDiv.appendChild(messageElement);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } else if (data.type === 'like' || data.type === 'unlike') {
+                if (data.type === 'unlike') {
+                    handleUnlike(data.senderId);
+                }
+                displayReaction(data.type, data.senderId);
+            } else if (data.type === 'notification') {
+                displayNotification(data.content);
+            } else if (data.type === 'disconnect') {
+                handleUserDisconnect(data.senderId);
+            }
+        };
+
+        function displayReaction(type, senderId) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `${senderId} a ${type}é vous`;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // Mise à jour des compteurs
+            if (type === 'like') {
+                likes[senderId] = (likes[senderId] || 0) + 1;
+                updateLikeCount();
+            } else if (type === 'unlike') {
+                unlikes[senderId] = (unlikes[senderId] || 0) + 1;
+                updateUnlikeCount();
+            }
+        }
+
+        function updateLikeCount() {
+            const totalLikes = Object.values(likes).reduce((sum, count) => sum + count, 0);
+            likeCountDiv.textContent = `Likes: ${totalLikes}`;
+        }
+
+        function updateUnlikeCount() {
+            const totalUnlikes = Object.values(unlikes).reduce((sum, count) => sum + count, 0);
+            unlikeCountDiv.textContent = `Unlikes: ${totalUnlikes}`;
+              localStorage.setItem("unlikedUsers", JSON.stringify(unlikes));
+            checkExclusion();
+        }
+
+        function displayNotification(content) {
+            notificationDiv.textContent = content;
+            setTimeout(() => {
+                notificationDiv.textContent = '';
+            }, 5000);
+        }
+
+        emojiButton.onclick = () => {
+            emojiContainer.style.display = emojiContainer.style.display === 'block' ? 'none' : 'block';
+        };
+
+        const emojis = ["😀", "😃", "😄"];
+        emojis.forEach(emoji => {
+            const span = document.createElement('span');
+            span.textContent = emoji;
+            span.classList.add('emoji');
+            span.onclick = () => {
+                messageInput.value += emoji;
+                emojiContainer.style.display = 'none';
+            };
+            emojiList.appendChild(span);
+        });
+
+        likeButton.onclick = () => {
+            const peerId = userSelect.value;
+            if (peerId) {
+                ws.send(JSON.stringify({ type: 'like', peerId: peerId }));
+            }
+        };
+
+        unlikeButton.onclick = () => {
+            const peerId = userSelect.value;
+            if (peerId) {
+                ws.send(JSON.stringify({ type: 'unlike', peerId: peerId }));
+                handleUnlike(peerId);
+            }
+        };
+
+        setUsernameButton.onclick = () => {
+            username = usernameInput.value;
+            if (username) {
+                localStorage.setItem('chatUsername', username);
+                chatSection.style.display = 'block';
+                usernameSection.style.display = 'none';
+                ws.send(JSON.stringify({ type: 'setUsername', username: username }));
+            }
+        };
+        messageInput.addEventListener('input', () => {
+            if (messageInput.value.trim().startsWith(secretWord)) {
+                unlikeButton.style.display = 'block';
+            } else {
+                unlikeButton.style.display = 'none';
+            }
+        });
+
+        sendButton.onclick = () => {
+            const message = messageInput.value;
+            if (message) {
+                const selectedUser = userSelect.value;
+                ws.send(JSON.stringify({
+                    type: 'message',
+                    content: message,
+                    recipient: selectedUser
+                }));
+                messageInput.value = '';
+            }
+        };
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+        // Réinitialisation du localStorage avec F8
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'F8') {
+                localStorage.clear();
+                location.reload();
+            }
+        });
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const app = document.getElementById('app');
+            const colorPicker = document.getElementById('color-picker');
+
+            const CONFIG_KEY = 'appConfig';
+
+            function saveConfig() {
+                const config = {
+                    width: app.style.width.replace('px', ''),
+                    height: app.style.height.replace('px', ''),
+                    color: app.style.backgroundColor,
+                    position: {
+                        x: app.style.left.replace('px', ''),
+                        y: app.style.top.replace('px', '')
+                    }
+                };
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+            }
+
+            function loadConfig() {
+                const configStr = localStorage.getItem(CONFIG_KEY);
+                if (configStr) {
+                    const config = JSON.parse(configStr);
+                    app.style.width = `${config.width}px`;
+                    app.style.height = `${config.height}px`;
+                    app.style.backgroundColor = config.color;
+                    app.style.left = `${config.position.x}px`;
+                    app.style.top = `${config.position.y}px`;
+                }
+            }
+
+            function onColorChange(event) {
+                app.style.backgroundColor = event.target.value;
+                saveConfig();
+            }
+
+            colorPicker.addEventListener('input', onColorChange);
+
+            loadConfig();
+
+            // Dragging functionality
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+
+            app.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = parseInt(app.style.left || 0, 10);
+                startTop = parseInt(app.style.top || 0, 10);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+
+            function onMouseMove(e) {
+                if (isDragging) {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    app.style.left = `${startLeft + dx}px`;
+                    app.style.top = `${startTop + dy}px`;
+                }
+            }
+
+            function onMouseUp() {
+                if (isDragging) {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    saveConfig();
+                }
+            }
+        });
+
+        checkExclusion(); // Vérifie l'exclusion à l'initialisation
+    </script>
+</body>
+</html>
