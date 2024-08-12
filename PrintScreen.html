@@ -46,9 +46,8 @@
             xhr.addEventListener('load', () => {
                 if (xhr.status === 200) {
                     const data = JSON.parse(xhr.responseText);
-                    const baseUrl = 'https://printscreen.glitch.me/'; // Use your Glitch URL here
-                    //const baseUrl = window.location.origin; // Get base URL (e.g., https://your-project.glitch.me)
-                    const fullUrl = `${baseUrl}${data.fileUrl}`; // Combine base URL with file URL
+                    const baseUrl = 'https://printscreen.glitch.me'; // Ensure this matches your server's URL
+                    const fullUrl = `${baseUrl}${data.fileUrl}`; // Construct the full URL from the response
 
                     document.getElementById('imageUrl').innerText = fullUrl;
                     document.getElementById('imageFrame').src = fullUrl;
