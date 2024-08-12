@@ -279,7 +279,7 @@ proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
             accounts.forEach((account, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                option.textContent = `Account ${index + 1} (${decodeHex(account.username)})`;
+                option.textContent = `Account ${index + 1} (${account.username})`;
                 selectElement.appendChild(option);
             });
         }
@@ -290,9 +290,9 @@ proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
-                        api_dev_key: decodeHex(account.apiDevKey),
-                        api_user_name: decodeHex(account.username),
-                        api_user_password: decodeHex(account.password),
+                        api_dev_key: account.apiDevKey,
+                        api_user_name: account.username,
+                        api_user_password: account.password,
                     }),
                 });
 
@@ -320,7 +320,7 @@ proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
-                        api_dev_key: decodeHex(account.apiDevKey),
+                        api_dev_key: account.apiDevKey,
                         api_user_key: userKey,
                         api_option: 'paste',
                         api_paste_code: content,
@@ -358,7 +358,7 @@ proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
-                        api_dev_key: decodeHex(account.apiDevKey),
+                        api_dev_key: account.apiDevKey,
                         api_user_key: userKey,
                         api_option: 'delete',
                         api_paste_key: pasteKey,
@@ -377,7 +377,7 @@ proxyUrl: 'https://corsengine-pastebin.glitch.me/api/pastebin',
             try {
                 const selectedIndex = document.getElementById('accountSelect').value;
                 const account = accounts[selectedIndex];
-                const response = await fetch(`${account.proxyUrl}/u/${decodeHex(account.username)}`);
+                const response = await fetch(`${account.proxyUrl}/u/${account.username}`);
                 const text = await response.text();
                 const pattern = /<span class="status -public" title="Public paste, anybody can see this paste."><\/span>\s*<a href="\/([^"]+)">([^<]+)<\/a>/g;
                 let match;
