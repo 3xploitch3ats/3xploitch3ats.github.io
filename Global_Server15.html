@@ -70,10 +70,11 @@
         </div>
         <button id="like-button">❤️</button>
         <button id="unlike-button" style="display: none;">⚡</button>
-        <div id="notification"></div>
+        <div id="notification1"></div>
         <div id="like-count" class="like-count">Likes: 0</div>
-        <div id="unlike-count" class="unlike-count">Unlikes: 0</div>
     </div>
+    <div id="notification2"></div>
+    <div id="unlike-count" class="unlike-count">Unlikes: 0</div>
     </div>
     <script>
         const ws = new WebSocket('wss://globalserver15.glitch.me'); // Remplacez par l'URL de votre serveur WebSocket
@@ -102,7 +103,7 @@
       
       function checkExclusion() {
     // Charger les unlikes depuis localStorage
-    const savedUnlikes = JSON.parse(localStorage.getItem('unlikedUsers')) || {};
+    const savedUnlikes = JSON.parse(localStorage.getItem('excludedUsers')) || {};
 
     // Si l'utilisateur est dans la liste des unlikes, cacher la section du nom d'utilisateur et afficher le message
     if (Object.keys(savedUnlikes).length > 0) {
@@ -116,37 +117,13 @@
             userSelect.innerHTML = ''; // Vide le ComboBox
             const usersSet = new Set(users); // Utilise un Set pour éviter les doublons
             usersSet.forEach(user => {
-                if (user !== username && !excludedUsers.includes(user)) { // Exclut les utilisateurs exclus
+                if (user !== username) { // Exclut les utilisateurs exclus
                     const option = document.createElement('option');
                     option.value = user;
                     option.textContent = user;
                     userSelect.appendChild(option);
                 }
             });
-        }
-
-        function handleUserDisconnect(peerId) {
-            if (excludedUsers.includes(peerId)) return;
-            updateUserList([]);
-            notificationDiv.textContent = `${peerId} s'est déconnecté.`;
-            setTimeout(() => {
-                notificationDiv.textContent = '';
-            }, 5000);
-        }
-
-        function handleUnlike(peerId) {
-            if (!excludedUsers.includes(peerId)) {
-                excludedUsers.push(peerId);
-                localStorage.setItem('excludedUsers', JSON.stringify(excludedUsers));
-                updateUserList([]);
-                notificationDiv.textContent = `${peerId} a été exclu du chat.`;
-                setTimeout(() => {
-                    notificationDiv.textContent = '';
-                }, 5000);
-                if (peerId === username) {
-                    document.body.innerHTML = '<h2>Vous avez été exclu du chat</h2>';
-                }
-            }
         }
 
         ws.onopen = () => {
@@ -166,17 +143,11 @@
                 messagesDiv.appendChild(messageElement);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             } else if (data.type === 'like' || data.type === 'unlike') {
-                if (data.type === 'unlike') {
-                    handleUnlike(data.senderId);
-                }
                 displayReaction(data.type, data.senderId);
             } else if (data.type === 'notification') {
                 displayNotification(data.content);
-            } else if (data.type === 'disconnect') {
-                handleUserDisconnect(data.senderId);
             }
         };
-
         function displayReaction(type, senderId) {
             const messageElement = document.createElement('div');
             messageElement.textContent = `${senderId} a ${type}é vous`;
@@ -192,19 +163,6 @@
                 updateUnlikeCount();
             }
         }
-
-        function updateLikeCount() {
-            const totalLikes = Object.values(likes).reduce((sum, count) => sum + count, 0);
-            likeCountDiv.textContent = `Likes: ${totalLikes}`;
-        }
-
-        function updateUnlikeCount() {
-            const totalUnlikes = Object.values(unlikes).reduce((sum, count) => sum + count, 0);
-            unlikeCountDiv.textContent = `Unlikes: ${totalUnlikes}`;
-              localStorage.setItem("unlikedUsers", JSON.stringify(unlikes));
-            checkExclusion();
-        }
-
         function displayNotification(content) {
             notificationDiv.textContent = content;
             setTimeout(() => {
@@ -215,6 +173,36 @@
         emojiButton.onclick = () => {
             emojiContainer.style.display = emojiContainer.style.display === 'block' ? 'none' : 'block';
         };
+      
+        function updateLikeCount() {
+            const totalLikes = Object.values(likes).reduce((sum, count) => sum + count, 0);
+            likeCountDiv.textContent = `Likes: ${totalLikes}`;
+
+        const notification1 = document.getElementById('notification1');
+        if (totalLikes > 0) {
+            notification1.style.display = 'block';
+            likeCountDiv.style.display = 'block'; // Affiche le compteur de likes
+        } else {
+            notification1.style.display = 'none';
+            likeCountDiv.style.display = 'none'; // Masque le compteur de likes
+        }
+            }
+
+        function updateUnlikeCount() {
+            const totalUnlikes = Object.values(unlikes).reduce((sum, count) => sum + count, 0);
+            unlikeCountDiv.textContent = `Unlikes: ${totalUnlikes}`;
+              localStorage.setItem("excludedUsers", JSON.stringify(unlikes));
+
+        const notification2 = document.getElementById('notification2');
+        if (totalUnlikes > 0) {
+            notification2.style.display = 'block';
+            unlikeCountDiv.style.display = 'block'; // Affiche le compteur d'unlikes
+        } else {
+            notification2.style.display = 'none';
+            unlikeCountDiv.style.display = 'none'; // Masque le compteur d'unlikes
+        }
+            checkExclusion();
+        }
 
 const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾", "🙈", "🙉", "🙊", "💥", "💫", "💦", "💨", "🐶", "🐺", "🦊", "🦝", "🐱", "🐭", "🐹", "🐰", "🦇", "🐻", "🐨", "🐼", "🦃", "🦆", "🦢", "🦉", "🦩", "🦚", "🦜", "🦔", "🦡", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌", "🐞", "🐜", "🦗", "🕷️", "🕸️", "🦂", "🦟", "🦠", "🐢", "🐍", "🦎", "🦖", "🦕", "🐙", "🦑", "🦐", "🦞", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🐋", "🦈", "🐊", "🐅", "🐆", "🦓", "🦍", "🦧", "🦣", "🐘", "🦛", "🦏", "🐪", "🐫", "🦒", "🦘", "🦬", "🐃", "🐂", "🐄", "🐎", "🐖", "🦙", "🦌", "🦛", "🦘", "🦡", "🦇", "🦦", "🦥", "🦨", "🦝", "🦥", "🦦", "🦨", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦤", "🦧", "🦨", "🦩", "🦚", "🦜", "🦛", "🦝", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦦", "🦧", "🦨", "🦩", "🦚", "🦜", "🦝", "🦧", "🦨", "⚡", "🌩️"];
         emojis.forEach(emoji => {
