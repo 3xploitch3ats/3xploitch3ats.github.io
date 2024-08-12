@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Upload</title>
+    <style>
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            height: 20px;
+            margin-top: 10px;
+        }
+        .progress-bar span {
+            display: block;
+            height: 100%;
+            background-color: #4caf50;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload an Image</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="fileInput" name="file">
+        <button type="button" onclick="uploadImage()">Upload</button>
+    </form>
+    <div class="progress-bar" id="progressBar"><span></span></div>
+    <p>Image URL: <span id="imageUrl"></span></p>
+    <iframe id="imageFrame" style="width: 100%; height: 500px;"></iframe>
+
+    <script>
+        function uploadImage() {
+            const form = document.getElementById('uploadForm');
+            const formData = new FormData(form);
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    document.querySelector('#progressBar span').style.width = percentComplete + '%';
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    const data = JSON.parse(xhr.responseText);
+                    const baseUrl = 'https://printscreen.glitch.me'; // Use your Glitch URL here
+                    //const baseUrl = window.location.origin; // Get base URL (e.g., https://your-project.glitch.me)
+                    const fullUrl = `${baseUrl}${data.fileUrl}`; // Combine base URL with file URL
+
+                    document.getElementById('imageUrl').innerText = fullUrl;
+                    document.getElementById('imageFrame').src = fullUrl;
+                } else {
+                    console.error('Upload failed:', xhr.responseText);
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                console.error('Upload failed');
+            });
+
+            xhr.open('POST', '/upload', true);
+            xhr.send(formData);
+        }
+    </script>
+</body>
+</html>
