@@ -344,6 +344,13 @@ const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", 
                 }
             }
         });
+        function fetchUserList() {
+            ws.send(JSON.stringify({ type: 'getUserList' }));
+        }
+        // Met à jour la liste des utilisateurs toutes les 5 secondes
+        setInterval(() => {
+            fetchUserList();
+        }, 5000);
 
         checkExclusion(); // Vérifie l'exclusion à l'initialisation
     </script>
