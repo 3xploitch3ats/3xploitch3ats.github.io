@@ -1,0 +1,7 @@
+git clone https://github.com/ytdl-org/youtube-dl.git
+cd youtube_dl
+pip install -U youtube-dl
+pip install pyinstaller
+
+pyinstaller --onefile __main__.py
+rename dist/__main__.exe to youtube-dl.exe
