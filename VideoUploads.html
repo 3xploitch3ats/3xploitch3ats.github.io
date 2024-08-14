@@ -86,8 +86,7 @@
             xhr.addEventListener('load', () => {
                 if (xhr.status === 200) {
                     const data = JSON.parse(xhr.responseText);
-                    const baseUrl = 'https://videouploads.glitch.me'; // L'URL de ton serveur Glitch
-                    const fullUrl = `${baseUrl}${data.fileUrl}`;
+                    const fullUrl = `https://videouploads.glitch.me${data.fileUrl}`;
 
                     videoUrlElement.innerText = fullUrl;
                     videoUrlElement.href = fullUrl;
@@ -102,7 +101,7 @@
                 console.error('Upload failed');
             });
 
-            xhr.open('POST', 'https://videouploads.glitch.me/upload', true); // L'URL de ton serveur Glitch
+            xhr.open('POST', 'https://videouploads.glitch.me/upload', true);
             xhr.send(formData);
         }
     </script>
