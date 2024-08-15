@@ -84,10 +84,9 @@
 
             xhr.addEventListener('load', () => {
                 if (xhr.status === 200) {
-                    // Handle plain text response
-                    const fileUrl = xhr.responseText;
+                    const data = JSON.parse(xhr.responseText);
                     const baseUrl = window.location.origin;
-                    const fullUrl = `${baseUrl}${fileUrl}`;
+                    const fullUrl = `${baseUrl}${data.fileUrl}`;
 
                     fileLinkElement.innerText = fullUrl;
                     fileLinkElement.href = fullUrl;
