@@ -84,9 +84,9 @@
 
             xhr.addEventListener('load', () => {
                 if (xhr.status === 200) {
-                    // If server responds with file path
-                    const filePath = xhr.responseText.trim();
-                    const fullUrl = `https://uploads-files.glitch.me${filePath}`;
+                       // Construct the full URL correctly
+                    const baseUrl = uploadUrl.replace('/uploads', '');
+                    const fullUrl = `https://uploads-files.glitch.me${data.fileUrl}`;
                     
                     fileLinkElement.innerText = fullUrl;
                     fileLinkElement.href = fullUrl;
