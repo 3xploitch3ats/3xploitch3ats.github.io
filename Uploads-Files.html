@@ -84,9 +84,9 @@
 
             xhr.addEventListener('load', () => {
                 if (xhr.status === 200) {
-                    const data = JSON.parse(xhr.responseText);
-                    const fullUrl = `${uploadUrl}${data.fileUrl}`;
-
+             const fileUrl = xhr.responseText.trim(); // Response is expected to be the file URL
+                    const fullUrl = `https://uploads-files.glitch.me${fileUrl}`;
+                    
                     fileLinkElement.innerText = fullUrl;
                     fileLinkElement.href = fullUrl;
                 } else {
