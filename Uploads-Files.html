@@ -85,7 +85,9 @@
             xhr.addEventListener('load', () => {
                 if (xhr.status === 200) {
                     const data = JSON.parse(xhr.responseText);
-                    const fullUrl = `${uploadUrl.replace('/upload', '')}${data.fileUrl}`;
+                    // Construct the full URL correctly
+                    const baseUrl = uploadUrl.replace('/upload', '');
+                    const fullUrl = `${baseUrl}${data.fileUrl}`;
 
                     fileLinkElement.innerText = fullUrl;
                     fileLinkElement.href = fullUrl;
