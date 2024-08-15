@@ -46,7 +46,7 @@
         const fileLinkElement = document.getElementById('fileLink');
 
         // Replace with the URL of your Glitch project
-        const uploadUrl = 'https://uploads-files.glitch.me/upload';
+        const uploadUrl = 'https://uploads-files.glitch.me/upload/';
 
         dropZone.addEventListener('dragover', (event) => {
             event.preventDefault();
@@ -85,8 +85,7 @@
             xhr.addEventListener('load', () => {
                 if (xhr.status === 200) {
                     const data = JSON.parse(xhr.responseText);
-                    const baseUrl = window.location.origin;
-                    const fullUrl = `${baseUrl}${data.fileUrl}`;
+                    const fullUrl = `${uploadUrl}${data.fileUrl}`;
 
                     fileLinkElement.innerText = fullUrl;
                     fileLinkElement.href = fullUrl;
