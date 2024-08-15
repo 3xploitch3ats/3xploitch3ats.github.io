@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload</title>
+    <style>
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            height: 20px;
+            margin-top: 10px;
+        }
+        .progress-bar span {
+            display: block;
+            height: 100%;
+            background-color: #4caf50;
+            width: 0%;
+        }
+        #dropZone {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            font-size: 16px;
+            color: #888;
+            margin-top: 20px;
+        }
+        #dropZone.dragover {
+            background-color: #e0e0e0;
+        }
+        #fileLink {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload a File</h1>
+    <div id="dropZone">Drag and drop a file here</div>
+    <div class="progress-bar" id="progressBar"><span></span></div>
+    <p>File URL: <a id="fileLink" href="" target="_blank">Link</a></p>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const progressBar = document.getElementById('progressBar');
+        const fileLinkElement = document.getElementById('fileLink');
+
+        // Replace with the URL of your Glitch project
+        const uploadUrl = 'https://your-glitch-project.glitch.me/upload';
+
+        dropZone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropZone.classList.remove('dragover');
+
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                uploadFile(file);
+            } else {
+                alert('Please drop a file.');
+            }
+        });
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressBar.querySelector('span').style.width = percentComplete + '%';
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    const data = JSON.parse(xhr.responseText);
+                    const fullUrl = `${uploadUrl.replace('/upload', '')}${data.fileUrl}`;
+
+                    fileLinkElement.innerText = fullUrl;
+                    fileLinkElement.href = fullUrl;
+                } else {
+                    console.error('Upload failed:', xhr.responseText);
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                console.error('Upload failed');
+            });
+
+            xhr.open('POST', uploadUrl, true);
+            xhr.send(formData);
+        }
+    </script>
+</body>
+</html>
