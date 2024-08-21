@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triangle 3D avec Textes</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1;
+            color: white;
+        }
+        .slider {
+            display: block;
+            margin-bottom: 10px;
+        }
+        .combo-box {
+            margin-bottom: 10px;
+        }
+        .text-box {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game-canvas"></canvas>
+
+    <div class="control-panel">
+        <!-- Triangles -->
+        <div class="combo-box">
+            <label for="triangleSelect">Triangles:</label>
+            <select id="triangleSelect"></select>
+            <input type="text" id="triangleName" class="text-box" placeholder="Nom du Triangle">
+            <button id="addTriangle">Ajouter Triangle</button>
+            <button id="removeTriangle">Supprimer Triangle</button>
+        </div>
+        <label for="triPosX">Position X (Triangle):</label>
+        <input type="range" id="triPosX" class="slider" min="-5" max="5" step="0.1" value="0">
+        <label for="triPosY">Position Y (Triangle):</label>
+        <input type="range" id="triPosY" class="slider" min="-5" max="5" step="0.1" value="0">
+        <label for="triPosZ">Position Z (Triangle):</label>
+        <input type="range" id="triPosZ" class="slider" min="-5" max="5" step="0.1" value="5">
+        <label for="triRotX">Rotation X (Triangle):</label>
+        <input type="range" id="triRotX" class="slider" min="-3.14" max="3.14" step="0.01" value="0">
+        <label for="triRotY">Rotation Y (Triangle):</label>
+        <input type="range" id="triRotY" class="slider" min="-3.14" max="3.14" step="0.01" value="0">
+        <label for="triRotZ">Rotation Z (Triangle):</label>
+        <input type="range" id="triRotZ" class="slider" min="-3.14" max="3.14" step="0.01" value="0">
+
+        <!-- Labels -->
+        <div class="combo-box">
+            <label for="labelSelect">Labels:</label>
+            <select id="labelSelect"></select>
+            <input type="text" id="labelText" class="text-box" placeholder="Texte du Label">
+            <button id="addLabel">Ajouter Label</button>
+            <button id="removeLabel">Supprimer Label</button>
+        </div>
+        <label for="labelPosX">Position X (Label):</label>
+        <input type="range" id="labelPosX" class="slider" min="-5" max="5" step="0.1" value="0">
+        <label for="labelPosY">Position Y (Label):</label>
+        <input type="range" id="labelPosY" class="slider" min="-5" max="5" step="0.1" value="0">
+        <label for="labelPosZ">Position Z (Label):</label>
+        <input type="range" id="labelPosZ" class="slider" min="-5" max="5" step="0.1" value="5">
+        <label for="labelRotX">Rotation X (Label):</label>
+        <input type="range" id="labelRotX" class="slider" min="-3.14" max="3.14" step="0.01" value="0">
+        <label for="labelRotY">Rotation Y (Label):</label>
+        <input type="range" id="labelRotY" class="slider" min="-3.14" max="3.14" step="0.01" value="0">
+        <label for="labelRotZ">Rotation Z (Label):</label>
+        <input type="range" id="labelRotZ" class="slider" min="-3.14" max="3.14" step="0.01" value="0">
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://threejs.org/examples/jsm/loaders/FontLoader.js"></script>
+    <script src="https://threejs.org/examples/jsm/geometries/TextGeometry.js"></script>
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        let triangles = [];
+        let labels = [];
+
+        // Load font for text labels
+        const loader = new THREE.FontLoader();
+
+        // Controls
+        const controls = {
+            mouseX: 0,
+            mouseY: 0,
+            mouseDown: false,
+            ctrlDown: false,
+            zoom: 1
+        };
+
+   // Event listeners for camera control
+        canvas.addEventListener('wheel', (event) => {
+            camera.position.z += event.deltaY * 0.01;
+            event.preventDefault();
+                                          saveConfig();
+        });
+
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let prevMouseX = 0;
+        let prevMouseY = 0;
+
+        canvas.addEventListener('mousedown', (event) => {
+            isDragging = true;
+            dragStart = { x: event.clientX, y: event.clientY };
+            prevMouseX = event.clientX;
+            prevMouseY = event.clientY;
+                                saveConfig();
+
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (isDragging) {
+                if (event.ctrlKey) {
+                    const deltaX = (event.clientX - dragStart.x) / window.innerWidth * 10;
+                    const deltaY = (event.clientY - dragStart.y) / window.innerHeight * 10;
+                    const triangleIndex = document.getElementById('triangleSelect').value;
+                    if (triangleIndex !== '') {
+                        const triangle = triangles[triangleIndex].mesh;
+                        triangle.position.x += deltaX;
+                        triangle.position.y -= deltaY;
+                    }
+                    dragStart = { x: event.clientX, y: event.clientY };
+                } else {
+                    const deltaX = event.clientX - prevMouseX;
+                    const deltaY = event.clientY - prevMouseY;
+                    const triangleIndex = document.getElementById('triangleSelect').value;
+                    if (triangleIndex !== '') {
+                        const triangle = triangles[triangleIndex].mesh;
+                        triangle.rotation.y += deltaX * 0.01;
+                        triangle.rotation.x += deltaY * 0.01;
+                    }
+                    prevMouseX = event.clientX;
+                    prevMouseY = event.clientY;
+                }
+                                    saveConfig();
+
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Function to create a triangle
+        function createTriangle(name, position, rotation) {
+            const geometry = new THREE.ConeGeometry(1, 1.5, 3); // Triangle with adjusted height
+            const materials = [
+                new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide }), // Face 1 (Red)
+                new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide }), // Face 2 (Green)
+                new THREE.MeshBasicMaterial({ color: 0x0000ff, side: THREE.DoubleSide }), // Face 3 (Blue)
+                new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide })  // Base (Yellow)
+            ];
+
+            const triangle = new THREE.Mesh(geometry, materials);
+            triangle.position.set(position.x, position.y, position.z);
+            triangle.rotation.set(rotation.x, rotation.y, rotation.z);
+            scene.add(triangle);
+            triangles.push({ mesh: triangle, name });
+            updateTriangleSelect();
+            return triangle;
+        }
+
+        // Function to create a label
+        function createLabel(text, triangleIndex, position, rotation) {
+            loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+                const textOptions = {
+                    font: font,
+                    size: 0.1,
+                    height: 0.01,
+                    curveSegments: 12,
+                    bevelEnabled: false
+                };
+                const textGeometry = new THREE.TextGeometry(text, textOptions);
+                const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const labelMesh = new THREE.Mesh(textGeometry, textMaterial);
+
+                const triangleMesh = triangles[triangleIndex]?.mesh;
+                if (triangleMesh) {
+                    labelMesh.position.set(position.x, position.y, position.z);
+                    labelMesh.rotation.set(rotation.x, rotation.y, rotation.z);
+                    labelMesh.position.add(triangleMesh.position);
+                    scene.add(labelMesh);
+                  triangles[triangleIndex].mesh.add(labelMesh);
+                    labels.push({ mesh: labelMesh, triangleIndex, text });
+                    updateLabelSelect();
+                }
+            });
+        }
+
+        // Function to update the triangles in the select box
+        function updateTriangleSelect() {
+            const triangleSelect = document.getElementById('triangleSelect');
+            triangleSelect.innerHTML = '';
+            triangles.forEach((triangle, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = triangle.name;
+                triangleSelect.appendChild(option);
+            });
+                      saveConfig();
+        }
+
+        // Function to update the labels in the select box
+        function updateLabelSelect() {
+            const labelSelect = document.getElementById('labelSelect');
+            labelSelect.innerHTML = '';
+            labels.forEach((label, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = label.text;
+                labelSelect.appendChild(option);
+            });
+                      saveConfig();
+        }
+
+        // Function to save the configuration
+        function saveConfig() {
+            const rotationX = document.getElementById('triRotX').value;
+            const rotationY = document.getElementById('triRotY').value;
+            const rotationZ = document.getElementById('triRotZ').value;
+            const positionX = document.getElementById('triPosX').value;
+            const positionY = document.getElementById('triPosY').value;
+            const positionZ = document.getElementById('triPosZ').value;
+            const colors = {}; // Gérer les couleurs si nécessaire
+
+            const trianglesData = triangles.map(tri => ({
+                name: tri.name,
+                position: {
+                    x: tri.mesh.position.x,
+                    y: tri.mesh.position.y,
+                    z: tri.mesh.position.z
+                },
+                rotation: {
+                    x: tri.mesh.rotation.x,
+                    y: tri.mesh.rotation.y,
+                    z: tri.mesh.rotation.z
+                }
+            }));
+
+            const labelsData = labels.map(label => ({
+                text: label.text,
+                position: {
+                    x: label.mesh.position.x,
+                    y: label.mesh.position.y,
+                    z: label.mesh.position.z
+                },
+                rotation: {
+                    x: label.mesh.rotation.x,
+                    y: label.mesh.rotation.y,
+                    z: label.mesh.rotation.z
+                },
+                triangleIndex: label.triangleIndex
+            }));
+
+            fetch('https://triangle3d.glitch.me/save-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rotationX,
+                    rotationY,
+                    rotationZ,
+                    positionX,
+                    positionY,
+                    positionZ,
+                    colors,
+                    triangles: trianglesData,
+                    labels: labelsData
+                })
+            }).then(response => response.text())
+            .then(result => console.log(result))
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Function to load the configuration
+        function loadConfig() {
+            fetch('https://triangle3d.glitch.me/config')
+                .then(response => response.json())
+                .then(config => {
+                    if (config.triangles) {
+                        config.triangles.forEach(triangleData => {
+                            createTriangle(triangleData.name, triangleData.position, triangleData.rotation);
+                        });
+                    }
+
+                    if (config.labels) {
+                        config.labels.forEach(labelData => {
+                            createLabel(labelData.text, labelData.triangleIndex, labelData.position, labelData.rotation);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Initialize controls and load configuration
+        document.getElementById('addTriangle').addEventListener('click', () => {
+            const name = document.getElementById('triangleName').value;
+            const position = {
+                x: parseFloat(document.getElementById('triPosX').value),
+                y: parseFloat(document.getElementById('triPosY').value),
+                z: parseFloat(document.getElementById('triPosZ').value)
+            };
+            const rotation = {
+                x: parseFloat(document.getElementById('triRotX').value),
+                y: parseFloat(document.getElementById('triRotY').value),
+                z: parseFloat(document.getElementById('triRotZ').value)
+            };
+            createTriangle(name, position, rotation);
+            saveConfig();
+        });
+
+        document.getElementById('removeTriangle').addEventListener('click', () => {
+            const select = document.getElementById('triangleSelect');
+            const index = select.value;
+            if (triangles[index]) {
+                scene.remove(triangles[index].mesh);
+                triangles.splice(index, 1);
+                updateTriangleSelect();
+                saveConfig();
+            }
+        });
+
+        document.getElementById('addLabel').addEventListener('click', () => {
+            const text = document.getElementById('labelText').value;
+            const triangleIndex = document.getElementById('triangleSelect').value;
+            const position = {
+                x: parseFloat(document.getElementById('labelPosX').value),
+                y: parseFloat(document.getElementById('labelPosY').value),
+                z: parseFloat(document.getElementById('labelPosZ').value)
+            };
+            const rotation = {
+                x: parseFloat(document.getElementById('labelRotX').value),
+                y: parseFloat(document.getElementById('labelRotY').value),
+                z: parseFloat(document.getElementById('labelRotZ').value)
+            };
+            createLabel(text, triangleIndex, position, rotation);
+            saveConfig();
+        });
+
+        document.getElementById('removeLabel').addEventListener('click', () => {
+            const select = document.getElementById('labelSelect');
+            const index = select.value;
+            if (labels[index]) {
+                scene.remove(labels[index].mesh);
+                labels.splice(index, 1);
+                updateLabelSelect();
+                saveConfig();
+            }
+        });
+              function updateTriangle() {
+            const triangleIndex = document.getElementById('triangleSelect').value;
+            if (triangleIndex !== '') {
+                const triangle = triangles[triangleIndex].mesh;
+                triangle.position.set(
+                    parseFloat(document.getElementById('triPosX').value),
+                    parseFloat(document.getElementById('triPosY').value),
+                    parseFloat(document.getElementById('triPosZ').value)
+                );
+                triangle.rotation.set(
+                    parseFloat(document.getElementById('triRotX').value),
+                    parseFloat(document.getElementById('triRotY').value),
+                    parseFloat(document.getElementById('triRotZ').value)
+                );
+            }
+        }
+
+        // Update label position and rotation
+        function updateLabel() {
+            const labelIndex = document.getElementById('labelSelect').value;
+            if (labelIndex !== '') {
+                const label = labels[labelIndex].textMesh;
+                label.position.set(
+                    parseFloat(document.getElementById('labelPosX').value),
+                    parseFloat(document.getElementById('labelPosY').value),
+                    parseFloat(document.getElementById('labelPosZ').value)
+                );
+                label.rotation.set(
+                    parseFloat(document.getElementById('labelRotX').value),
+                    parseFloat(document.getElementById('labelRotY').value),
+                    parseFloat(document.getElementById('labelRotZ').value)
+                );
+            }
+        }
+
+      
+        document.querySelectorAll('#triPosX, #triPosY, #triPosZ, #triRotX, #triRotY, #triRotZ').forEach(input => {
+            input.addEventListener('input', updateTriangle);
+        });
+
+        document.querySelectorAll('#labelPosX, #labelPosY, #labelPosZ, #labelRotX, #labelRotY, #labelRotZ').forEach(input => {
+            input.addEventListener('input', updateLabel);
+        });
+
+// Event listeners for label transformation sliders
+document.getElementById('labelPosX').addEventListener('input', function() {
+    const labelIndex = document.getElementById('labelSelect').value;
+    if (labelIndex !== '') {
+        const label = labels[labelIndex].mesh;
+        label.position.x = parseFloat(this.value);
+        saveConfig();
+    }
+});
+
+document.getElementById('labelPosY').addEventListener('input', function() {
+    const labelIndex = document.getElementById('labelSelect').value;
+    if (labelIndex !== '') {
+        const label = labels[labelIndex].mesh;
+        label.position.y = parseFloat(this.value);
+        saveConfig();
+    }
+});
+
+document.getElementById('labelPosZ').addEventListener('input', function() {
+    const labelIndex = document.getElementById('labelSelect').value;
+    if (labelIndex !== '') {
+        const label = labels[labelIndex].mesh;
+        label.position.z = parseFloat(this.value);
+        saveConfig();
+    }
+});
+
+document.getElementById('labelRotX').addEventListener('input', function() {
+    const labelIndex = document.getElementById('labelSelect').value;
+    if (labelIndex !== '') {
+        const label = labels[labelIndex].mesh;
+        label.rotation.x = parseFloat(this.value);
+        saveConfig();
+    }
+});
+
+document.getElementById('labelRotY').addEventListener('input', function() {
+    const labelIndex = document.getElementById('labelSelect').value;
+    if (labelIndex !== '') {
+        const label = labels[labelIndex].mesh;
+        label.rotation.y = parseFloat(this.value);
+        saveConfig();
+    }
+});
+
+document.getElementById('labelRotZ').addEventListener('input', function() {
+    const labelIndex = document.getElementById('labelSelect').value;
+    if (labelIndex !== '') {
+        const label = labels[labelIndex].mesh;
+        label.rotation.z = parseFloat(this.value);
+        saveConfig();
+    }
+});
+
+        // Load configuration on startup
+        loadConfig();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
