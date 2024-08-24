@@ -98,7 +98,30 @@
 
         let triangles = [];
         let labels = [];
+        const zoomRange = document.getElementById('zoomRange');
 
+              // Sauvegarde la valeur du range dans localStorage
+        zoomRange.addEventListener('input', () => {
+            localStorage.setItem('zoomValue', zoomRange.value);
+            // Logique liée au zoom (par exemple, zoomer sur les triangles)
+            drawUserTriangles();  // Redessiner les triangles avec le zoom appliqué
+        });
+
+        // Charger la valeur sauvegardée pour le zoom
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedZoomValue = localStorage.getItem('zoomValue');
+            if (savedZoomValue !== null) {
+                zoomRange.value = savedZoomValue;
+            }
+            drawUserTriangles();  // Redessiner les triangles avec le zoom appliqué
+        });
+              function drawUserTriangles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const zoom = zoomRange.value / 10;  // Appliquer un facteur de zoom
+            Object.values(users).forEach(user => {
+                drawTriangle(user.position, user.rotation, zoom);
+            });
+        }
         // Load font for text labels
         const loader = new THREE.FontLoader();
 
