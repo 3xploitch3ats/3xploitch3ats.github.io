@@ -82,6 +82,7 @@
         <input type="range" id="labelRotY" class="slider" min="-3.14" max="3.14" step="0.01" value="0">
         <label for="labelRotZ">Rotation Z (Label):</label>
         <input type="range" id="labelRotZ" class="slider" min="-3.14" max="3.14" step="0.01" value="0">
+        <input type="range" id="zoomRange" min="1" max="2000" value="1">
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -134,17 +135,16 @@
             zoom: 1
         };
 
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let prevMouseX = 0;
+        let prevMouseY = 0;
    // Event listeners for camera control
         canvas.addEventListener('wheel', (event) => {
             camera.position.z += event.deltaY * 0.01;
             event.preventDefault();
                                           saveConfig();
         });
-
-        let isDragging = false;
-        let dragStart = { x: 0, y: 0 };
-        let prevMouseX = 0;
-        let prevMouseY = 0;
 
         canvas.addEventListener('mousedown', (event) => {
             isDragging = true;
@@ -259,7 +259,10 @@
             });
                       saveConfig();
         }
-
+const getZoomValue = () => {
+    const zoomElement = document.getElementById('zoomRange');
+    return zoomElement.value;
+};
         // Function to save the configuration
         function saveConfig() {
             const rotationX = document.getElementById('triRotX').value;
@@ -268,7 +271,8 @@
             const positionX = document.getElementById('triPosX').value;
             const positionY = document.getElementById('triPosY').value;
             const positionZ = document.getElementById('triPosZ').value;
-            const colors = {}; // Gérer les couleurs si nécessaire
+            const colors = {};
+            const zoom = getZoomValue();
 
             const trianglesData = triangles.map(tri => ({
                 name: tri.name,
@@ -313,7 +317,9 @@
                     positionZ,
                     colors,
                     triangles: trianglesData,
-                    labels: labelsData
+                    labels: labelsData,
+                    zoom: zoomRange.value,
+                    cameraZ: camera.position.z
                 })
             }).then(response => response.text())
             .then(result => console.log(result))
@@ -336,6 +342,16 @@
                             createLabel(labelData.text, labelData.triangleIndex, labelData.position, labelData.rotation);
                         });
                     }
+                if (config.zoom) {
+                const zoomElement = document.getElementById('zoomRange');
+                if (zoomElement) {
+                    zoomElement.value = config.zoom;
+                  camera.position.z = zoomElement.value
+                }
+            }
+            if (config.cameraZ) {
+                camera.position.z = config.cameraZ; // Charger la position Z de la caméra
+            }
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -493,6 +509,19 @@ document.getElementById('labelRotZ').addEventListener('input', function() {
         saveConfig();
     }
 });
+document.getElementById('triPosX').addEventListener('input', updateTriangle);
+document.getElementById('triPosY').addEventListener('input', updateTriangle);
+document.getElementById('triPosZ').addEventListener('input', updateTriangle);
+document.getElementById('triRotX').addEventListener('input', updateTriangle);
+document.getElementById('triRotY').addEventListener('input', updateTriangle);
+document.getElementById('triRotZ').addEventListener('input', updateTriangle);
+
+document.getElementById('labelPosX').addEventListener('input', updateLabel);
+document.getElementById('labelPosY').addEventListener('input', updateLabel);
+document.getElementById('labelPosZ').addEventListener('input', updateLabel);
+document.getElementById('labelRotX').addEventListener('input', updateLabel);
+document.getElementById('labelRotY').addEventListener('input', updateLabel);
+document.getElementById('labelRotZ').addEventListener('input', updateLabel);
 
         // Load configuration on startup
         loadConfig();
