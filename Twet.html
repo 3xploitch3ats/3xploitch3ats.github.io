@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat avec Emojis</title>
+    <style>
+        <!-- body { font-family: Arial, sans-serif; }  -->
+                    body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #app {
+            width: 600px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            position: absolute;
+        }
+        #color-picker {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        #messages { border: 1px solid #ddd; height: 300px; overflow-y: scroll; margin-bottom: 10px; padding: 10px; }
+        #messageInput { width: calc(100% - 100px); }
+        #sendButton { width: 80px; }
+        #usernameSection, #userListSection { margin-bottom: 20px; }
+        #chatSection { display: none; }
+        #emoji-container { display: none; position: absolute; background: white; border: 1px solid #ddd; padding: 10px; }
+        .emoji { cursor: pointer; font-size: 20px; margin: 5px; }
+        .username-label { cursor: pointer; }
+        .user-options { position: absolute; background: white; border: 1px solid #ddd; padding: 10px; }
+        #notification { color: red; }
+        .like-button, .unlike-button { margin: 5px; }
+        .like-count, .unlike-count { margin: 5px; font-weight: bold; display: none; }
+      
+
+      .chat-window {
+            width: 300px;
+            height: 200px;
+            border: 1px solid #ddd;
+            background: white;
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            display: none;
+            z-index: 10;
+        }
+        .chat-window .header {
+            background: #f1f1f1;
+            padding: 5px;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+        }
+        .chat-window .header .close-button {
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .chat-window .content {
+            padding: 10px;
+            height: calc(100% - 60px);
+            overflow-y: auto;
+        }
+        .chat-window .footer {
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            border-top: 1px solid #ddd;
+        }
+        .chat-window .footer input {
+            flex: 1;
+            margin-right: 5px;
+        }
+        #startCameraButton,
+        #startScreenShareButton,
+        #startCameraButtonAll,
+        #startScreenShareButtonAll {
+            margin: 5px;
+        }
+        #chatWindowsBar {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .chat-window-button {
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            background: #f1f1f1;
+            cursor: pointer;
+        }
+        .chat-window-button.active {
+            background: #ddd;
+        }
+
+      .header {
+            background: #007bff;
+            color: white;
+            padding: 5px;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .content {
+            height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        .footer {
+            display: flex;
+            padding: 5px;
+            background: #eee;
+        }
+        .footer input {
+            flex: 1;
+            padding: 5px;
+            margin-right: 5px;
+        }
+        .footer button {
+            padding: 5px 10px;
+        }
+        .video-player {
+            position: relative;
+            width: 150px;
+            height: 100px;
+            margin: 5px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+        }
+        .video-player.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            border: none;
+        }
+#screenShareContainer {
+    position: relative;
+    width: 100%; /* ou une largeur spécifique */
+    height: 100%; /* ou une hauteur spécifique */
+    background-color: black; /* couleur de fond si aucune vidéo */
+}
+
+#screenSharePlayer {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* ou ajustez selon vos besoins */
+}
+
+.footer div {
+    text-align: left; /* Aligns the content inside each div to the left */
+    margin-bottom: 10px; /* Adds some space between each line for better readability */
+}
+      .emoji-menu {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    padding: 10px;
+    display: none;
+    z-index: 1000; /* Ensures it appears above other elements */
+}
+
+.emoji-menu .emoji {
+    display: inline-block;
+    font-size: 24px;
+    cursor: pointer;
+    margin: 2px;
+}
+
+.emoji-menu .emoji:hover {
+    background-color: #f0f0f0;
+}
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+        .progress-bar span {
+            display: block;
+            height: 20px;
+            background-color: #4caf50;
+            width: 0;
+            transition: width 0.4s;
+        }
+        #profileImage {
+            width: 60px;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+      <div id="app">
+        <input type="color" id="color-picker">
+    <h1>Chat avec Emojis</h1>
+
+    <div id="usernameSection">
+        <input type="text" id="usernameInput" placeholder="Enter your username">
+        <button id="setUsernameButton">Set Username</button>
+    </div>
+<button id="changeUsernameButton" style="display:none;">Change Username</button>
+<button id="pictureprofile" style="display:none;">Change Picture</button>
+    <div id="chatSection">
+        <div id="userListSection">
+            <select id="userSelect">
+                <!-- ComboBox will be populated with online users -->
+            </select>
+                <button id="openPrivateChatButton">Ouvrir Chat Privé</button>
+
+                </div>
+            <label>
+        <input type="checkbox" id="shareCameraCheckbox"> Partager la caméra avec tout le monde
+    </label>
+    <label>
+        <input type="checkbox" id="shareScreenCheckbox"> Partager l'écran avec tout le monde
+    </label>
+          <div id="pictureprofilesection">
+    <h1>Upload an Image</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="fileInput" name="file">
+        <button type="button" onclick="uploadImage()">Upload</button>
+    </form>
+    <div class="progress-bar" id="progressBar"><span></span></div>
+    <p>Image URL: <a id="imageUrl" href="" target="_blank">Link</a></p>
+    <iframe id="imageFrame" style="width: 60px; height: 40px;"></iframe>
+ </div>
+          <img id="profileImage" style="display: none;" /> <!-- Hidden profile image element -->
+
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Type your message...">
+        <button id="sendButton">Send</button>
+        <button id="emoji-button">Emojis</button>
+        <div id="emoji-container">
+            <div id="emoji-list"></div>
+        </div>
+        <button id="like-button">❤️</button>
+        <button id="unlike-button" style="display: none;">⚡</button>
+        <div id="notification1"></div>
+        <div id="like-count" class="like-count">Likes: 0</div>
+    </div>
+    <div id="notification2"></div>
+    <div id="unlike-count" class="unlike-count">Unlikes: 0</div>
+
+  
+    <div id="videoContainer">
+        <!-- Les vidéos des utilisateurs s'afficheront ici -->
+    </div>
+            <div id="playerContainer" class="player-container">
+                <!-- Player elements will be dynamically added here -->
+            </div>
+
+            <div id="screenShareContainer" style="display: none;">
+<video id="screenSharePlayer" autoplay></video>
+
+</div>
+
+        <div class="window-controls">
+           <!--  <button id="screenShareButton">Share Screen</button> -->
+    <div class="chat-windows-bar" id="chatWindowsBar">
+        <!-- Barre pour accéder aux fenêtres de chat -->
+    </div>
+                <div id="privateChatWindows"></div>
+    </div>
+            </div>
+      <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.2/dist/peerjs.min.js"></script>
+    <script>
+        const ws = new WebSocket('wss://twet.glitch.me'); // Remplacez par l'URL de votre serveur WebSocket
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const usernameInput = document.getElementById('usernameInput');
+        const setUsernameButton = document.getElementById('setUsernameButton');
+        const userSelect = document.getElementById('userSelect');
+        const chatSection = document.getElementById('chatSection');
+        const usernameSection = document.getElementById('usernameSection');
+        const emojiButton = document.getElementById('emoji-button');
+        const emojiContainer = document.getElementById('emoji-container');
+        const emojiList = document.getElementById('emoji-list');
+        const likeButton = document.getElementById('like-button');
+        const unlikeButton = document.getElementById('unlike-button');
+        const notificationDiv = document.getElementById('notification');
+        const likeCountDiv = document.getElementById('like-count');
+        const unlikeCountDiv = document.getElementById('unlike-count');
+        const secretWord = '!unlike'; // Mot secret pour afficher les compteurs
+
+        const screenSharePlayer = document.getElementById('screenSharePlayer');
+        const screenShareButton = document.getElementById('screenShareButton');
+        const playerContainer = document.getElementById('playerContainer');
+        const privateChatWindowsDiv = document.getElementById('privateChatWindows');
+        const chatWindows = {};
+        const videoContainer = document.getElementById('videoContainer');
+        const shareCameraCheckbox = document.getElementById('shareCameraCheckbox');
+        const shareScreenCheckbox = document.getElementById('shareScreenCheckbox');
+        let players = {};
+let privateChats = {};
+
+        let username = '';
+        let excludedUsers = JSON.parse(localStorage.getItem('excludedUsers')) || [];
+        let likes = {};
+        let unlikes = {};
+      
+      function checkExclusion() {
+    // Charger les unlikes depuis localStorage
+    const savedUnlikes = JSON.parse(localStorage.getItem('excludedUsers')) || {};
+
+    // Si l'utilisateur est dans la liste des unlikes, cacher la section du nom d'utilisateur et afficher le message
+    if (Object.keys(savedUnlikes).length > 0) {
+        usernameSection.style.display = 'none'; // Cacher la section du nom d'utilisateur
+        document.body.innerHTML = '<h2>Vous avez été exclu du chat</h2>';
+        throw new Error("L'utilisateur est exclu"); // Arrêter l'exécution du script
+    }
+}
+      
+    sendButton.onclick = () => {
+               event.preventDefault();
+            const message = messageInput.value.trim();
+            ws.send(JSON.stringify({
+                type: 'message',
+                content: message,
+                sender: username,
+                isPrivate: false
+
+            }));
+               messageInput.value = '';
+    };
+      
+// Function to update the image display
+function updateImageDisplay(url) {
+    const profileImage = document.getElementById('profileImage');
+    const imageFrame = document.getElementById('imageFrame');
+    const imageUrlElement = document.getElementById('imageUrl');
+    
+    if (url) {
+        // Update elements with the image URL
+        profileImage.src = url;
+        profileImage.style.display = 'block'; // Show the image
+        imageUrlElement.innerText = url;
+        imageUrlElement.href = url;
+        imageFrame.src = url;
+    } else {
+        // Clear and hide elements if no URL is provided
+        profileImage.style.display = 'none'; // Hide the image
+        imageUrlElement.innerText = 'No image available';
+        imageUrlElement.href = '#';
+        imageFrame.src = '';
+    }
+}
+
+// Function to delete the old image from the server
+function deleteOldImage(url) {
+    if (url) {
+        console.log('Deleting old image at URL:', url);
+        const xhrDelete = new XMLHttpRequest();
+        xhrDelete.open('DELETE', url, true); // DELETE request to remove the old image
+        xhrDelete.send();
+    }
+}
+
+// Load profile image from localStorage on page load
+window.onload = function() {
+    const storedImageUrl = localStorage.getItem('profileImageUrl');
+    if (storedImageUrl) {
+        updateImageDisplay(storedImageUrl);
+    } else {
+        updateImageDisplay(); // Handle case where no image URL is stored
+    }
+};
+
+// Function to handle image upload
+function uploadImage() {
+    const form = document.getElementById('uploadForm');
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+
+    // Update progress bar during upload
+    xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            document.querySelector('#progressBar span').style.width = percentComplete + '%';
+        }
+    });
+
+    // Handle the response after upload
+    xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            const baseUrl = 'https://twet.glitch.me'; // Ensure this matches your backend URL
+            const fullUrl = `${baseUrl}${data.fileUrl}`;
+
+            // Get the old image URL from localStorage
+            const oldImageUrl = localStorage.getItem('profileImageUrl');
+
+            // Delete the old image from the server
+            deleteOldImage(oldImageUrl);
+
+            // Save the new image URL to localStorage
+            localStorage.setItem('profileImageUrl', fullUrl);
+
+            // Update the profile image
+            updateImageDisplay(fullUrl);
+        } else {
+            console.error('Upload failed:', xhr.responseText);
+        }
+    });
+
+    xhr.addEventListener('error', () => {
+        console.error('Upload failed');
+    });
+
+    xhr.open('POST', 'https://twet.glitch.me/upload', true); // Replace with your backend server URL
+    xhr.send(formData);
+}
+
+        function updateUserList(users) {
+            userSelect.innerHTML = ''; // Vide le ComboBox
+            const usersSet = new Set(users); // Utilise un Set pour éviter les doublons
+            usersSet.forEach(user => {
+                if (user !== username) { // Exclut les utilisateurs exclus
+                    const option = document.createElement('option');
+                    option.value = user;
+                    option.textContent = user;
+                    userSelect.appendChild(option);
+                }
+            });
+        }
+
+        ws.onopen = () => {
+            console.log('Connected to WebSocket server');
+            checkExclusion(); // Vérifie l'exclusion au démarrage
+        };
+      
+
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log('Received message:', data);
+
+            if (data.type === 'userList') {
+                updateUserList(data.users);
+            } else if (data.type === 'message') {
+            handlePublicMessage(data);
+        } else if (data.type === 'privateMessage') {
+            // Traitement des messages privés
+            handlePrivateMessage(data); 
+            } else if (data.type === 'like' || data.type === 'unlike') {
+                displayReaction(data.type, data.senderId);
+            } else if (data.type === 'notification') {
+                displayNotification(data.content);
+            }
+                    if (data.type === 'videoShare') {
+                // Créer un élément vidéo pour chaque flux reçu
+                const videoElement = document.createElement('video');
+                videoElement.src = data.content; // URL du blob
+                videoElement.autoplay = true;
+                videoElement.controls = true;
+                videoContainer.appendChild(videoElement);
+            }
+        };
+// Function to handle private messages
+function handlePrivateMessage(data) {
+    const sender = data.sender || 'Unknown';
+    const content = data.content || '';
+    const chatWindow = chatWindows[sender];
+    if (chatWindow) {
+        const contentDiv = chatWindow.querySelector('.content');
+        const messageElement = document.createElement('div');
+        messageElement.textContent = `${sender}: ${content}`;
+        contentDiv.appendChild(messageElement);
+        contentDiv.scrollTop = contentDiv.scrollHeight;
+    } else {
+        const newChatWindow = createPrivateChatWindow(sender);
+        const contentDiv = newChatWindow.querySelector('.content');
+        const messageElement = document.createElement('div');
+        messageElement.textContent = `${sender}: ${content}`;
+        contentDiv.appendChild(messageElement);
+        contentDiv.scrollTop = contentDiv.scrollHeight;
+        newChatWindow.style.display = 'block'; // Make sure the new chat window is visible
+    }
+}
+
+        function handlePublicMessage(data) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `${data.sender}: ${data.content}`;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+
+        function displayReaction(type, senderId) {
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `${senderId} a ${type}é vous`;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // Mise à jour des compteurs
+            if (type === 'like') {
+                likes[senderId] = (likes[senderId] || 0) + 1;
+                updateLikeCount();
+            } else if (type === 'unlike') {
+                unlikes[senderId] = (unlikes[senderId] || 0) + 1;
+                updateUnlikeCount();
+            }
+        }
+        function displayNotification(content) {
+            notificationDiv.textContent = content;
+            setTimeout(() => {
+                notificationDiv.textContent = '';
+            }, 5000);
+        }
+
+        emojiButton.onclick = () => {
+            emojiContainer.style.display = emojiContainer.style.display === 'block' ? 'none' : 'block';
+        };
+      
+        function updateLikeCount() {
+            const totalLikes = Object.values(likes).reduce((sum, count) => sum + count, 0);
+            likeCountDiv.textContent = `Likes: ${totalLikes}`;
+
+        const notification1 = document.getElementById('notification1');
+        if (totalLikes > 0) {
+            notification1.style.display = 'block';
+            likeCountDiv.style.display = 'block'; // Affiche le compteur de likes
+        } else {
+            notification1.style.display = 'none';
+            likeCountDiv.style.display = 'none'; // Masque le compteur de likes
+        }
+            }
+
+        function updateUnlikeCount() {
+            const totalUnlikes = Object.values(unlikes).reduce((sum, count) => sum + count, 0);
+            unlikeCountDiv.textContent = `Unlikes: ${totalUnlikes}`;
+              localStorage.setItem("excludedUsers", JSON.stringify(unlikes));
+
+        const notification2 = document.getElementById('notification2');
+        if (totalUnlikes > 0) {
+            notification2.style.display = 'block';
+            unlikeCountDiv.style.display = 'block'; // Affiche le compteur d'unlikes
+        } else {
+            notification2.style.display = 'none';
+            unlikeCountDiv.style.display = 'none'; // Masque le compteur d'unlikes
+        }
+            checkExclusion();
+        }
+
+const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾", "🙈", "🙉", "🙊", "💥", "💫", "💦", "💨", "🐶", "🐺", "🦊", "🦝", "🐱", "🐭", "🐹", "🐰", "🦇", "🐻", "🐨", "🐼", "🦃", "🦆", "🦢", "🦉", "🦩", "🦚", "🦜", "🦔", "🦡", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌", "🐞", "🐜", "🦗", "🕷️", "🕸️", "🦂", "🦟", "🦠", "🐢", "🐍", "🦎", "🦖", "🦕", "🐙", "🦑", "🦐", "🦞", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🐋", "🦈", "🐊", "🐅", "🐆", "🦓", "🦍", "🦧", "🦣", "🐘", "🦛", "🦏", "🐪", "🐫", "🦒", "🦘", "🦬", "🐃", "🐂", "🐄", "🐎", "🐖", "🦙", "🦌", "🦛", "🦘", "🦡", "🦇", "🦦", "🦥", "🦨", "🦝", "🦥", "🦦", "🦨", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦤", "🦧", "🦨", "🦩", "🦚", "🦜", "🦛", "🦝", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦦", "🦧", "🦨", "🦩", "🦚", "🦜", "🦝", "🦧", "🦨", "⚡", "🌩️"];
+        emojis.forEach(emoji => {
+            const span = document.createElement('span');
+            span.textContent = emoji;
+            span.classList.add('emoji');
+            span.onclick = () => {
+                messageInput.value += emoji;
+                emojiContainer.style.display = 'none';
+            };
+            emojiList.appendChild(span);
+        });
+
+        likeButton.onclick = () => {
+            const peerId = userSelect.value;
+            if (peerId) {
+                ws.send(JSON.stringify({ type: 'like', peerId: peerId }));
+            }
+        };
+
+        unlikeButton.onclick = () => {
+            const peerId = userSelect.value;
+            if (peerId) {
+                ws.send(JSON.stringify({ type: 'unlike', peerId: peerId }));
+                handleUnlike(peerId);
+            }
+        };
+
+  // Fonction pour initialiser l'affichage en fonction du nom d'utilisateur stocké
+function initializePage() {
+    const storedUsername = localStorage.getItem('chatUsername'); // Récupérer le nom d'utilisateur stocké
+
+    if (storedUsername) {
+        usernameInput.value = storedUsername; // Initialiser le champ de texte avec le nom d'utilisateur stocké
+      chatSection.style.display = 'block';
+        usernameSection.style.display = 'none';
+        changeUsernameButton.style.display = 'block'; // Afficher le bouton pour changer le nom d'utilisateur
+        pictureprofile.style.display = 'block';
+        pictureprofilesection.style.display = 'none';
+        // Envoyer le nom d'utilisateur au serveur WebSocket
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'setUsername', username: storedUsername }));
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+            // Gérer la situation où WebSocket n'est pas ouvert
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ type: 'setUsername', username: storedUsername }));
+            };
+        }
+
+    } else {
+        usernameSection.style.display = 'block';
+        chatSection.style.display = 'none';
+        changeUsernameButton.style.display = 'none'; // Cacher le bouton pour changer le nom d'utilisateur
+              pictureprofile.style.display = 'none';
+
+    }
+}       
+        // Fonction pour définir le nom d'utilisateur
+        setUsernameButton.onclick = () => {
+            const newUsername = usernameInput.value; // Obtenir le nom d'utilisateur saisi
+            if (newUsername) {
+                localStorage.setItem('chatUsername', newUsername); // Enregistrer le nouveau nom d'utilisateur
+                username = newUsername; // Mettre à jour la variable username
+                chatSection.style.display = 'block';
+                usernameSection.style.display = 'none';
+                changeUsernameButton.style.display = 'block'; // Afficher le bouton pour changer le nom d'utilisateur
+                // Exemple de connexion WebSocket (ajoutez votre propre code pour gérer la connexion)
+                ws.send(JSON.stringify({ type: 'setUsername', username: newUsername })); // Envoyer le nom d'utilisateur au serveur
+            }
+        };
+        pictureprofile.onclick = () => {
+      if (pictureprofilesection.style.display === 'none' || pictureprofilesection.style.display === '') {
+                pictureprofilesection.style.display = 'block'; // Afficher la section
+                //pictureprofile.style.display = 'none'; // Cacher le bouton
+            } else {
+                pictureprofilesection.style.display = 'none'; // Cacher la section
+                //pictureprofile.style.display = 'block'; // Réafficher le bouton
+            }
+        };
+        
+        // Fonction pour afficher la section du nom d'utilisateur
+        changeUsernameButton.onclick = () => {
+            localStorage.removeItem('chatUsername'); // Supprimer le nom d'utilisateur stocké
+            usernameInput.value = ''; // Effacer le champ de texte
+            usernameSection.style.display = 'block';
+            chatSection.style.display = 'none';
+            changeUsernameButton.style.display = 'none'; // Cacher le bouton pour changer le nom d'utilisateur
+        };
+        
+        initializePage();
+
+      
+        messageInput.addEventListener('input', () => {
+            if (messageInput.value.trim().startsWith(secretWord)) {
+                unlikeButton.style.display = 'block';
+            } else {
+                unlikeButton.style.display = 'none';
+            }
+        });
+
+        messageInput.addEventListener('keypress', (event) => {
+
+            if (event.key === 'Enter') {
+
+                  const message = messageInput.value.trim();
+
+            ws.send(JSON.stringify({
+                type: 'message',
+                content: message,
+                sender: username
+            }));
+               messageInput.value = '';
+               event.preventDefault();
+            }
+        });
+        // Réinitialisation du localStorage avec F8
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'F8') {
+                localStorage.clear();
+                location.reload();
+            }
+        });
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const app = document.getElementById('app');
+            const colorPicker = document.getElementById('color-picker');
+
+            const CONFIG_KEY = 'appConfig';
+
+            function saveConfig() {
+                const config = {
+                    width: app.style.width.replace('px', ''),
+                    height: app.style.height.replace('px', ''),
+                    color: app.style.backgroundColor,
+                    position: {
+                        x: app.style.left.replace('px', ''),
+                        y: app.style.top.replace('px', '')
+                    }
+                };
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+            }
+
+            function loadConfig() {
+                const configStr = localStorage.getItem(CONFIG_KEY);
+                if (configStr) {
+                    const config = JSON.parse(configStr);
+                    app.style.width = `${config.width}px`;
+                    app.style.height = `${config.height}px`;
+                    app.style.backgroundColor = config.color;
+                    app.style.left = `${config.position.x}px`;
+                    app.style.top = `${config.position.y}px`;
+                }
+            }
+
+            function onColorChange(event) {
+                app.style.backgroundColor = event.target.value;
+                saveConfig();
+            }
+
+            colorPicker.addEventListener('input', onColorChange);
+
+            loadConfig();
+// Ajoutez un gestionnaire d'événements pour ouvrir la fenêtre de chat
+document.getElementById('openPrivateChatButton').onclick = function() {
+  const userId = this.dataset.userId || userSelect.value;
+  openPrivateChat(userId);
+};
+
+// Fonction pour ouvrir une fenêtre de chat privé
+function openPrivateChat(userId) {
+        privateChats[userId] = true;
+    // Créez la fenêtre de chat si elle n'existe pas encore
+    const chatWindow = chatWindows[userId] || createPrivateChatWindow(userId);    
+    // Rendez la fenêtre de chat visible
+    chatWindow.style.display = 'block';
+}
+function closePrivateChat(userId) {
+    privateChats[userId] = false;
+}
+            // Dragging functionality
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+
+            app.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = parseInt(app.style.left || 0, 10);
+                startTop = parseInt(app.style.top || 0, 10);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+
+            function onMouseMove(e) {
+                if (isDragging) {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    app.style.left = `${startLeft + dx}px`;
+                    app.style.top = `${startTop + dy}px`;
+                }
+            }
+
+            function onMouseUp() {
+                if (isDragging) {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    saveConfig();
+                }
+            }
+        });
+        function fetchUserList() {
+            ws.send(JSON.stringify({ type: 'getUserList' }));
+        }
+        // Met à jour la liste des utilisateurs toutes les 5 secondes
+        setInterval(() => {
+            fetchUserList();
+        }, 5000);
+
+        function handlePlayerClick(playerId) {
+            document.querySelectorAll('.player').forEach(player => {
+                player.classList.remove('active');
+            });
+            document.getElementById(playerId).classList.add('active');
+        }
+
+        function handlePlayerSwitch(direction) {
+            const playersArray = Array.from(playerContainer.children);
+            const activePlayerIndex = playersArray.findIndex(player => player.classList.contains('active'));
+            let newIndex = activePlayerIndex + direction;
+
+            if (newIndex < 0) newIndex = playersArray.length - 1;
+            if (newIndex >= playersArray.length) newIndex = 0;
+
+            handlePlayerClick(playersArray[newIndex].id);
+        }
+
+        function addPlayer(playerId, stream) {
+            if (players[playerId]) return; // Ne pas ajouter un joueur existant
+
+            const player = document.createElement('video');
+            player.id = playerId;
+            player.className = 'player';
+            player.autoplay = true;
+            player.srcObject = stream;
+            playerContainer.appendChild(player);
+
+            player.onclick = () => handlePlayerClick(playerId);
+
+            // Ajouter les boutons de minimisation et fermeture
+            const controls = document.createElement('div');
+            controls.className = 'window-controls';
+      controls.innerHTML = `
+        <button onclick="toggleMinimize('${playerId}')">-</button>
+        <button onclick="removePlayer('${playerId}')">X</button>
+    `;
+            playerContainer.appendChild(controls);
+
+            players[playerId] = player;
+        }
+function toggleMinimize(playerId) {
+    const player = document.getElementById(playerId);
+    player.classList.toggle('minimized');
+}
+
+function removePlayer(playerId) {
+    document.getElementById(playerId).remove();
+    delete players[playerId];
+}
+        function handleScreenShare(stream) {
+            screenSharePlayer.srcObject = stream;
+            screenSharePlayer.style.display = 'block';
+        }
+
+        async function startScreenShare() {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                handleScreenShare(stream);
+            } catch (error) {
+                console.error('Erreur lors du partage d\'écran:', error);
+            }
+        }
+
+    function shareMedia(type) {
+            navigator.mediaDevices[type === 'camera' ? 'getUserMedia' : 'getDisplayMedia']({ video: true })
+                .then(stream => {
+                    const mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = event => {
+                        if (event.data.size > 0) {
+                            // Envoyer le flux au serveur WebSocket
+                            ws.send(JSON.stringify({
+                                type: 'videoShare',
+                                content: URL.createObjectURL(event.data), // Envoie l'URL du blob
+                                sender: 'username' // Remplace par le nom d'utilisateur approprié
+                            }));
+                        }
+                    };
+                    mediaRecorder.start(1000);
+
+                    // Arrêter l'enregistrement lorsque le flux est arrêté
+                    stream.getTracks().forEach(track => {
+                        track.onended = () => {
+                            mediaRecorder.stop();
+                        };
+                    });
+                })
+                .catch(error => console.error('Erreur de partage média:', error));
+        }
+
+        shareCameraCheckbox.onchange = () => {
+            if (shareCameraCheckbox.checked) {
+                shareMedia('camera');
+            }
+        };
+
+        shareScreenCheckbox.onchange = () => {
+            if (shareScreenCheckbox.checked) {
+                shareMedia('screen');
+            }
+        };
+
+        // Afficher les vidéos reçues
+        function handleVideoShare(message) {
+            const videoElement = document.createElement('video');
+            videoElement.srcObject = new MediaStream([message.content]);
+            videoElement.autoplay = true;
+            videoElement.className = 'video-player';
+            videoElement.onclick = () => toggleFullscreen(videoElement);
+            videoContainer.appendChild(videoElement);
+        }
+
+        function toggleFullscreen(videoElement) {
+            videoElement.classList.toggle('fullscreen');
+        }
+
+// Save the selected camera ID to localStorage
+function saveSelectedCamera() {
+    localStorage.setItem('selectedCameraId', cameraSelect.value);
+}
+
+// Update the camera based on the selected ID and change the local stream
+async function changeCamera() {
+    const constraints = await updateCameraSelect();
+    
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop()); // Stop the current stream
+    }
+    
+    try {
+        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        localStream = newStream;
+        localVideo.srcObject = newStream;
+        applyMicMute(); // Ensure mic mute is applied
+    } catch (error) {
+        console.error('Error changing camera:', error);
+    }
+}
+
+// Add a remote video element to the DOM
+function addRemoteVideo(peerId, remoteStream) {
+    const existingWrapper = document.getElementById(peerId + '-wrapper');
+    if (existingWrapper) {
+        existingWrapper.querySelector('video').srcObject = remoteStream;
+        return;
+    }
+
+    const videoWrapper = document.createElement('div');
+    videoWrapper.classList.add('video-wrapper');
+    videoWrapper.id = peerId + '-wrapper';
+
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    video.srcObject = remoteStream;
+
+    const controls = document.createElement('div');
+    controls.classList.add('controls');
+
+    const likeButton = document.createElement('button');
+    likeButton.classList.add('like-button');
+    likeButton.textContent = '❤️';
+    likeButton.addEventListener('click', () => {
+        sendLike(peerId);
+    });
+
+    const unlikeButton = document.createElement('button');
+    unlikeButton.classList.add('unlike-button');
+    unlikeButton.textContent = '⚡';
+    unlikeButton.style.display = 'none';
+    unlikeButton.addEventListener('click', () => {
+        sendUnlike(peerId);
+    });
+
+    const likesCount = document.createElement('p');
+    likesCount.classList.add('likes-count');
+    likesCount.textContent = 'Likes reçus: 0';
+
+    const unlikesCount = document.createElement('p');
+    unlikesCount.classList.add('unlikes-count');
+    unlikesCount.textContent = 'Unlikes reçus: 0';
+    unlikesCount.style.display = 'none';
+
+    controls.appendChild(likeButton);
+    controls.appendChild(unlikeButton);
+    controls.appendChild(likesCount);
+    controls.appendChild(unlikesCount);
+
+    videoWrapper.appendChild(video);
+    videoWrapper.appendChild(controls);
+    videoContainer.appendChild(videoWrapper);
+}
+
+// Remove a remote video element from the DOM
+function removeRemoteVideo(peerId) {
+    const videoWrapper = document.getElementById(peerId + '-wrapper');
+    if (videoWrapper) {
+        videoWrapper.remove();
+    }
+}
+
+// Event listener for camera selection change
+cameraSelect.addEventListener('change', async () => {
+    saveSelectedCamera();
+    await changeCamera(); // Ensure camera change is complete before updating video
+});
+
+// Function to get local stream with the updated camera
+async function getLocalStream() {
+    const constraints = await updateCameraSelect();
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        localStream = stream;
+        localVideo.srcObject = stream;
+    } catch (error) {
+        console.error('Error getting local stream:', error);
+    }
+}
+// Variable to keep track of the media connection
+let mediaConn = null;
+
+// Variable to keep track of the screen stream
+let screenStream = null;
+
+// Function to share the screen
+async function shareScreen() {
+    try {
+        // Request screen and audio streams
+        const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const audio = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Combine video and audio tracks into a single stream
+        const combinedStream = new MediaStream([
+            ...screen.getVideoTracks(),
+            ...audio.getAudioTracks()
+        ]);
+        
+        screenStream = combinedStream;
+
+        // Display the shared screen if the checkbox is checked
+        if ($("#show-my-share").is(":checked")) {
+            displayVideoStream('my-shared-screen', screenStream);
+        }
+
+        // Send the screen stream to the peer
+        sendScreenStreamToPeer();
+    } catch (err) {
+        console.error("Erreur lors du partage d'écran:", err);
+    }
+}
+
+// Function to send the screen stream to a peer
+function sendScreenStreamToPeer() {
+    const peerIdToConnect = document.getElementById('usernameInput').value;
+    const isP2PChecked = document.getElementById('p2pCheckbox').checked;
+
+    if (peerIdToConnect) {
+        if (isP2PChecked) {
+            // Utilisez peerIdToConnect comme pair pour P2P
+            sendScreenStreamToUserP2P(peerIdToConnect);
+        } else {
+            // Envoyer le flux via la méthode standard
+            sendScreenStreamToUser(peerIdToConnect);
+        }
+    } else {
+        console.warn("Peer ID is missing.");
+    }
+}
+
+// Function to display a video stream
+function displayVideoStream(videoId, stream) {
+    const video = document.getElementById(videoId);
+    video.srcObject = stream;
+    video.play();
+    video.style.display = "block";
+}
+
+// Event listener for the checkbox to show or hide the shared screen
+$("#show-my-share").change(function() {
+    const myVideo = document.getElementById("my-shared-screen");
+    if (this.checked && screenStream) {
+        displayVideoStream('my-shared-screen', screenStream);
+    } else {
+        myVideo.style.display = "none";
+    }
+});
+
+// Handle incoming calls and answer with the screen stream if available
+peer.on('call', function(incomingCall) {
+    if (screenStream) {
+        incomingCall.answer(screenStream);
+    } else {
+        incomingCall.answer(null);
+    }
+    
+    // Handle remote stream
+    incomingCall.on('stream', function(remoteStream) {
+        displayVideoStream('shared-screen', remoteStream);
+    });
+});
+
+// Variable to manage microphone state
+let isMicrophoneMuted = true;
+let currentAudioStream = null;
+
+// Toggle microphone state
+function toggleMicrophone() {
+    if (isMicrophoneMuted) {
+        unmuteMicrophone();
+        document.getElementById("toggleMicrophoneBtn").innerText = "Désactiver le micro";
+    } else {
+        muteMicrophone();
+        document.getElementById("toggleMicrophoneBtn").innerText = "Activer le micro";
+    }
+    isMicrophoneMuted = !isMicrophoneMuted;
+}
+
+// Mute the microphone
+function muteMicrophone() {
+    if (currentAudioStream) {
+        const audioTracks = currentAudioStream.getAudioTracks();
+        audioTracks.forEach(track => track.enabled = false);
+    }
+}
+
+// Unmute the microphone
+async function unmuteMicrophone() {
+    try {
+        if (!currentAudioStream) {
+            currentAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } else {
+            const audioTracks = currentAudioStream.getAudioTracks();
+            audioTracks.forEach(track => track.enabled = true);
+        }
+    } catch (err) {
+        console.error("Erreur lors de l'activation du micro:", err);
+    }
+}
+// Récupérer l'URL de la photo de profil depuis le localStorage
+function getProfileImageUrl() {
+    return localStorage.getItem('profileImageUrl') || 'https://twet.glitch.me'; // URL par défaut
+}
+
+// Enregistrer l'URL de la photo de profil dans le localStorage
+function setProfileImageUrl(url) {
+    localStorage.setItem('profileImageUrl', url);
+}
+// Fonction pour créer le menu d'emoji
+function createEmojiMenu() {
+    return emojis.map(emoji => 
+        `<span class="emoji" data-emoji="${emoji}">${emoji}</span>`
+    ).join('');
+}
+// Function to create a private chat window
+function createPrivateChatWindow(userId) {
+  
+    const chatWindow = document.createElement('div');
+    chatWindow.className = 'chat-window';
+    chatWindow.dataset.userId = userId;
+    chatWindow.dataset.isPrivate = true; // Mark as private
+    chatWindow.style.display = 'none'; // Initially hidden
+
+    const header = document.createElement('div');
+    header.className = 'header';
+    header.innerHTML = `<span>Chat avec ${userId}</span><span class="close-button">X</span>`;
+
+    header.querySelector('.close-button').onclick = () => {
+        chatWindow.remove();
+        delete chatWindows[userId];
+        updateChatWindowsBar();
+    };
+
+    const content = document.createElement('div');
+    content.className = 'content';
+
+    const footer = document.createElement('div');
+    footer.className = 'footer';
+    footer.innerHTML = `
+    <div>
+    <input type="text" class="chat-input" placeholder="Tapez votre message...">
+    <button class="chat-send-button">Envoyer</button>
+    <div>
+    <button class="share-camera-button">Partager la caméra</button>
+    <button class="share-screen-button">Partager l'écran</button>
+    <label>
+    <input type="checkbox" id="p2pCheckbox"> <span id="connectionLabel">p2p</span>
+    </label>
+        <label>
+    <input type="checkbox" id="qualityCheckbox"> <span id="connectionLabel1">1080</span>
+    </label>
+
+        <button id="emoji-button">Emojis</button>
+        <div id="emoji-container">
+            <div id="emoji-list"></div>
+        </div>
+    </div>
+  </div>
+    `;
+      
+                  const newUsername = usernameInput.value; // Obtenir le nom d'utilisateur saisi
+            if (newUsername) {
+                localStorage.setItem('chatUsername', newUsername); // Enregistrer le nouveau nom d'utilisateur
+                username = newUsername; // Mettre à jour la variable username
+            }
+  
+    const input = footer.querySelector('.chat-input');
+    const sendButton = footer.querySelector('.chat-send-button');
+    const shareScreenButton = footer.querySelector('.share-screen-button');
+    const shareCameraButton = footer.querySelector('.share-camera-button');
+    const p2pCheckbox = footer.querySelector(`#p2pCheckbox-${userId}`);
+    const qualityCheckbox = footer.querySelector(`#qualityCheckbox-${userId}`);
+    const connectionLabel = footer.querySelector(`#connectionLabel-${userId}`);
+    const connectionLabel1 = footer.querySelector(`#connectionLabel1-${userId}`);
+
+const emojiButton = footer.querySelector('#emoji-button');
+const emojiContainer = footer.querySelector('#emoji-container');
+const emojiList = footer.querySelector('#emoji-list');
+const messageInput = document.querySelector('.chat-input'); // Assuming your chat input element is correctly selected
+
+emojiButton.onclick = () => {
+            emojiContainer.style.display = emojiContainer.style.display === 'block' ? 'none' : 'block';
+        };
+
+const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾", "🙈", "🙉", "🙊", "💥", "💫", "💦", "💨", "🐶", "🐺", "🦊", "🦝", "🐱", "🐭", "🐹", "🐰", "🦇", "🐻", "🐨", "🐼", "🦃", "🦆", "🦢", "🦉", "🦩", "🦚", "🦜", "🦔", "🦡", "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌", "🐞", "🐜", "🦗", "🕷️", "🕸️", "🦂", "🦟", "🦠", "🐢", "🐍", "🦎", "🦖", "🦕", "🐙", "🦑", "🦐", "🦞", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🐋", "🦈", "🐊", "🐅", "🐆", "🦓", "🦍", "🦧", "🦣", "🐘", "🦛", "🦏", "🐪", "🐫", "🦒", "🦘", "🦬", "🐃", "🐂", "🐄", "🐎", "🐖", "🦙", "🦌", "🦛", "🦘", "🦡", "🦇", "🦦", "🦥", "🦨", "🦝", "🦥", "🦦", "🦨", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦤", "🦧", "🦨", "🦩", "🦚", "🦜", "🦛", "🦝", "🦣", "🦤", "🦥", "🦦", "🦧", "🦥", "🦦", "🦧", "🦨", "🦩", "🦚", "🦜", "🦝", "🦧", "🦨", "⚡", "🌩️"];
+
+// Populate the emoji list
+emojis.forEach(emoji => {
+  const span = document.createElement('span');
+  span.textContent = emoji;
+  span.classList.add('emoji');
+  span.style.cursor = 'pointer'; // Make cursor pointer to indicate it's clickable
+  span.style.margin = '2px'; // Adjust margin as needed
+  span.onclick = () => {
+    input.value += emoji; // Add selected emoji to the input field
+    emojiContainer.style.display = 'none'; // Hide the emoji container
+  };
+  emojiList.appendChild(span);
+});
+
+
+    sendButton.onclick = () => {
+    sendMessage();
+    };
+
+    // Handle Enter key for sending messages
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+
+    function sendMessage() {
+        const message = input.value.trim();
+        if (message) {
+            ws.send(JSON.stringify({
+                type: 'privateMessage',
+                recipient: userId,
+                sender: username,
+                isPrivate: true,
+                content: message
+            }));
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `${username}: ${message}`;
+            content.appendChild(messageElement);
+            content.scrollTop = content.scrollHeight;
+            input.value = '';
+          
+        }
+    }
+
+ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+
+    switch (message.type) {
+        case 'offer':
+            handleOffer(message);
+            break;
+        case 'answer':
+            handleAnswer(message);
+            break;
+        case 'iceCandidate':
+            handleIceCandidate(message);
+            break;
+        case 'screenData':
+        handleScreenData(message.data, message.userId);
+            break;
+        case 'privateMessage':
+            handlePrivateMessage(message);
+            break;
+                case 'message':
+            handlePublicMessage(message);
+            break;
+    }
+};
+
+// Gestion des messages privés
+function handlePrivateMessage(message) {
+    if (message.isPrivate) {
+        const chatWindow = document.querySelector(`.chat-window[data-user-id="${message.sender}"]`);
+        if (chatWindow) {
+            const content = chatWindow.querySelector('.content');
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `${message.sender}: ${message.content}`;
+            content.appendChild(messageElement);
+            content.scrollTop = content.scrollHeight;
+        }
+    }
+}
+
+function handleOffer(message) {
+    const peerConnection = peerConnections[message.userId] || setupPeerConnection(message.userId);
+
+    peerConnection.setRemoteDescription(new RTCSessionDescription(message.offer))
+        .then(() => peerConnection.createAnswer())
+        .then(answer => peerConnection.setLocalDescription(answer))
+        .then(() => {
+            ws.send(JSON.stringify({
+                type: 'answer',
+                answer,
+                userId: message.userId
+            }));
+        })
+        .catch(error => console.error('Error handling offer:', error));
+}
+
+function handleAnswer(message) {
+    const peerConnection = peerConnections[message.userId];
+    if (peerConnection) {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(message.answer))
+            .catch(error => console.error('Error handling answer:', error));
+    }
+}
+
+function handleIceCandidate(message) {
+    const peerConnection = peerConnections[message.userId];
+    if (peerConnection) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate))
+            .catch(error => console.error('Error adding ICE candidate:', error));
+    }
+}
+function handleScreenData(data, userId) {
+        const videoPlayer = document.getElementById(`video-player-${userId}`);
+        if (videoPlayer) {
+            videoPlayer.srcObject = data;
+            videoPlayer.style.display = 'block'; // Display the video player when screen sharing starts
+        } else {
+            console.error(`Video player for ${userId} not found`);
+        }
+    }
+
+    function sendScreenStreamToUserP2P(userId, screenStream) {
+        console.log(`Sending screen stream to ${userId} using P2P connection.`);
+        const peerConnection = new RTCPeerConnection();
+        screenStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, screenStream);
+        });
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                ws.send(JSON.stringify({
+                    type: 'iceCandidate',
+                    candidate: event.candidate,
+                    userId
+                }));
+            }
+        };
+
+        peerConnection.ontrack = (event) => {
+            console.log('ontrack event:', event);
+            const remoteStream = event.streams[0];
+            const videoPlayer = createVideoPlayer(userId, remoteStream);
+            videoPlayer.srcObject = remoteStream;
+            displayVideoStream('shared-screen', remoteStream);
+        };
+
+        peerConnection.createOffer().then(offer => {
+            return peerConnection.setLocalDescription(offer);
+        }).then(() => {
+            ws.send(JSON.stringify({
+                type: 'offer',
+                offer,
+                userId
+            }));
+        });
+
+        peerConnections[userId] = peerConnection;
+    }
+
+    function sendScreenStreamToUserWebSocket(userId, screenStream) {
+        console.log(`Sending screen stream to ${userId} using WebSocket.`);
+        const videoPlayer = createVideoPlayer(userId, screenStream);
+        videoPlayer.srcObject = screenStream;
+        document.body.appendChild(videoPlayer);
+        const screenStreamRecorder = new MediaRecorder(screenStream);
+        screenStreamRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                ws.send(JSON.stringify({ type: 'screenData', data: event.data, userId }));
+            }
+        };
+        screenStreamRecorder.start(100);
+    }
+
+// Function to stop screen sharing
+function stopScreenShare(userId) {
+    console.log(`Stopping screen share for ${userId}`);
+    if (peerConnections[userId]) {
+        peerConnections[userId].close();
+        delete peerConnections[userId];
+    }
+    ws.send(JSON.stringify({ type: 'stopScreenShare', userId }));
+
+    const videoPlayer = document.getElementById(`video-player-${userId}`);
+    if (videoPlayer) {
+        videoPlayer.remove();
+    }
+}
+
+// Function to create a video player for each user
+function createVideoPlayer(userId, stream) {
+      // Vérifiez si le player vidéo existe déjà
+    let videoPlayer = document.getElementById(`video-player-${userId}`);
+    
+    if (!videoPlayer) {
+        // Créez un nouveau player vidéo si il n'existe pas déjà
+    const videoPlayer = document.createElement('video');
+    videoPlayer.id = `video-player-${userId}`;
+    videoPlayer.autoplay = true;
+    videoPlayer.controls = true;
+
+    // Determine the video player width based on the selected connection type and resolution
+    const p2pCheckbox = document.getElementById('p2pCheckbox');
+    const qualityCheckbox = document.getElementById('qualityCheckbox');
+
+    const connectionType = p2pCheckbox.checked ? 'p2p' : 'websocket';
+    const resolution = qualityCheckbox.checked ? { width: 1920, height: 1080 } : { width: 1280, height: 720 };
+
+    // Adjust the video player width based on resolution
+    videoPlayer.style.width = resolution.width === 1920 ? '640px' : '320px'; // Tailles pour 1080p et 720p
+    videoPlayer.style.height = resolution.height === 1080 ? '360px' : '180px'; // Maintenir le ratio
+
+    videoPlayer.style.margin = '5px'; // Style for spacing
+    const container = document.createElement('div');
+    container.classList.add('video-container');
+    container.appendChild(videoPlayer);
+
+    document.body.appendChild(container);
+
+    // Rendez le conteneur déplaçable et redimensionnable
+    makeDraggable(container);
+    makeResizable(container);
+    }
+
+    // Associez le flux au player vidéo
+    videoPlayer.srcObject = stream;
+    return videoPlayer;
+}
+
+
+// Function to handle starting the screen sharing
+function startScreenShare(userId) {
+    const p2pCheckbox = document.getElementById('p2pCheckbox');
+    const connectionType = p2pCheckbox.checked ? 'p2p' : 'websocket'; // Determine connection type
+    const qualityCheckbox = document.getElementById('qualityCheckbox');
+    const resolution = qualityCheckbox.checked ? { width: 1920, height: 1080 } : { width: 1280, height: 720 }; // Determine resolution
+
+    navigator.mediaDevices.getDisplayMedia({ video: resolution })
+        .then(screenStream => {
+            if (connectionType === 'p2p') {
+                sendScreenStreamToUserP2P(userId, screenStream); // Use P2P
+            } else {
+                sendScreenStreamToUserWebSocket(userId, screenStream); // Use WebSocket
+            }
+        })
+        .catch(error => {
+            console.error('Error sharing the screen:', error);
+        });
+}
+// Gestionnaire de click pour le bouton de partage d'écran
+shareScreenButton.onclick = async () => {
+    const p2pCheckbox = document.getElementById('p2pCheckbox');
+    const connectionType = p2pCheckbox.checked ? 'p2p' : 'websocket'; // Détermine le type de connexion
+    const qualityCheckbox = footer.querySelector('#qualityCheckbox');
+    const resolution = qualityCheckbox.checked ? { width: 1920, height: 1080 } : { width: 1280, height: 720 }; // Détermine la résolution
+
+    if (shareScreenButton.textContent === 'Partager l\'écran') {
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: resolution });
+            
+            if (connectionType === 'p2p') {
+                sendScreenStreamToUserP2P(userId, screenStream); // Envoi P2P
+            } else {
+                sendScreenStreamToUserWebSocket(userId, screenStream); // Envoi via WebSocket
+            }
+            shareScreenButton.textContent = 'Arrêter le partage';
+        } catch (error) {
+            console.error('Erreur lors du partage d\'écran:', error);
+        }
+    } else {
+        stopScreenShare(userId);
+        shareScreenButton.textContent = 'Partager l\'écran';
+    }
+};
+    shareCameraButton.onclick = async () => {
+        if (!userId) {
+            alert('Veuillez sélectionner un destinataire pour partager la caméra.');
+            return;
+        }
+
+        try {
+            const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (p2pCheckbox.checked) {
+                sendScreenStreamToUserP2P(userId, cameraStream);
+            } else {
+                sendScreenStreamToUserWebSocket(userId, cameraStream);
+            }
+        } catch (error) {
+            console.error('Erreur lors du partage de la caméra:', error);
+        }
+    };
+        // Function to update the connection type text
+    function updateConnectionType() {
+        const p2pCheckbox = document.getElementById('p2pCheckbox');
+        const connectionLabel = document.getElementById('connectionLabel');
+        connectionLabel.textContent = p2pCheckbox.checked ? 'p2p' : 'websocket'; 
+    }
+    function updateQualityType() {
+        const qualityCheckbox = document.getElementById('qualityCheckbox');
+        const connectionLabel1 = document.getElementById('connectionLabel1');
+        connectionLabel1.textContent = qualityCheckbox.checked ? '1080' : '720';      
+    }
+
+
+// Update connection type text when checkbox state changes
+    footer.querySelector('#p2pCheckbox').addEventListener('change', updateConnectionType);
+    footer.querySelector('#qualityCheckbox').addEventListener('change', updateQualityType);
+  
+    chatWindow.appendChild(header);
+    chatWindow.appendChild(content);
+    chatWindow.appendChild(footer);
+    privateChatWindowsDiv.appendChild(chatWindow);
+
+    makeDraggable(chatWindow, header);
+
+    chatWindows[userId] = chatWindow;
+    updateChatWindowsBar();
+
+  
+
+    return chatWindow;
+}
+
+        function updateChatWindowsBar() {
+            const bar = document.getElementById('chatWindowsBar');
+            bar.innerHTML = '';
+            Object.keys(chatWindows).forEach(userId => {
+                const userButton = document.createElement('div');
+                userButton.textContent = `Chat avec ${userId}`;
+                userButton.onclick = () => {
+                    chatWindows[userId].style.display = 'block';
+                };
+                bar.appendChild(userButton);
+            });
+        }
+        function makeDraggable(element, handle) {
+            let offsetX = 0, offsetY = 0, isDragging = false;
+
+            handle.onmousedown = (e) => {
+                isDragging = true;
+                offsetX = e.clientX - element.offsetLeft;
+                offsetY = e.clientY - element.offsetTop;
+            };
+
+            document.onmousemove = (e) => {
+                if (isDragging) {
+                    element.style.left = `${e.clientX - offsetX}px`;
+                    element.style.top = `${e.clientY - offsetY}px`;
+                }
+            };
+
+            document.onmouseup = () => {
+                isDragging = false;
+            };
+        }
+
+        checkExclusion(); // Vérifie l'exclusion à l'initialisation
+    </script>
+</body>
+</html>
