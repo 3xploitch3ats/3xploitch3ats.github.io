@@ -360,12 +360,29 @@ function updateImageDisplay(url) {
 // Function to delete the old image from the server
 function deleteOldImage(url) {
     if (url) {
-        console.log('Deleting old image at URL:', url);
+        // Extract the filename from the URL
+        const filename = url.substring(url.lastIndexOf('/') + 1);
+        console.log('Deleting old image with filename:', filename);
+
+        // Create and send the DELETE request
         const xhrDelete = new XMLHttpRequest();
-        xhrDelete.open('DELETE', url, true); // DELETE request to remove the old image
+        xhrDelete.open('DELETE', `/${filename}`, true); // DELETE request to remove the old image
         xhrDelete.send();
+        
+        xhrDelete.onload = function() {
+            if (xhrDelete.status === 200) {
+                console.log('Old image deleted successfully.');
+            } else {
+                console.error('Failed to delete old image:', xhrDelete.responseText);
+            }
+        };
+
+        xhrDelete.onerror = function() {
+            console.error('Request error.');
+        };
     }
 }
+
 
 // Load profile image from localStorage on page load
 window.onload = function() {
