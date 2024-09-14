@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MP4 to WMA Converter</title>
+  <style>
+    #progressBar {
+      width: 100%;
+      background-color: #f3f3f3;
+    }
+    #progressBar div {
+      height: 30px;
+      width: 0%;
+      background-color: #4caf50;
+      text-align: center;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h1>Convert MP4 to WMA</h1>
+  <form id="uploadForm" action="https://mp4-to-wma.glitch.me/convert" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" accept="video/mp4" required>
+    <button type="submit">Convert</button>
+  </form>
+  <br>
+  <div id="progressBar"><div id="progress"></div></div>
+  <br>
+  <a id="downloadLink" style="display:none;">Download WMA</a>
+  <div id="errorMessage" style="color: red; display: none;"></div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const progressDiv = document.getElementById('progress');
+    const downloadLink = document.getElementById('downloadLink');
+    const errorMessage = document.getElementById('errorMessage');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const xhr = new XMLHttpRequest();
+
+      xhr.open('POST', form.action, true);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          progressDiv.style.width = percentComplete + '%';
+          progressDiv.textContent = percentComplete + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          // Assume the response contains a URL to download
+          const blob = new Blob([xhr.response], { type: 'audio/wma' });
+          const url = URL.createObjectURL(blob);
+          downloadLink.href = url;
+          downloadLink.download = 'converted.wma';
+          downloadLink.style.display = 'block';
+          downloadLink.textContent = 'Download WMA';
+          progressDiv.style.width = '100%';
+          progressDiv.textContent = 'Conversion Complete';
+        } else {
+          errorMessage.textContent = `Conversion failed. Server returned status ${xhr.status}`;
+          errorMessage.style.display = 'block';
+        }
+      };
+
+      xhr.onerror = () => {
+        errorMessage.textContent = 'Conversion failed. An error occurred.';
+        errorMessage.style.display = 'block';
+      };
+
+      xhr.responseType = 'blob';
+      xhr.send(formData);
+    });
+  </script>
+</body>
+</html>
