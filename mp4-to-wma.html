@@ -53,7 +53,7 @@
 
       xhr.onload = () => {
         if (xhr.status === 200) {
-          // Assume the response contains a URL to download
+          // Create a download link
           const blob = new Blob([xhr.response], { type: 'audio/wma' });
           const url = URL.createObjectURL(blob);
           downloadLink.href = url;
