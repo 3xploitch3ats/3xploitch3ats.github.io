@@ -53,15 +53,24 @@
 
       xhr.onload = () => {
         if (xhr.status === 200) {
-          // Create a download link
-          const blob = new Blob([xhr.response], { type: 'audio/wma' });
-          const url = URL.createObjectURL(blob);
-          downloadLink.href = url;
-          downloadLink.download = 'converted.wma';
-          downloadLink.style.display = 'block';
-          downloadLink.textContent = 'Download WMA';
-          progressDiv.style.width = '100%';
-          progressDiv.textContent = 'Conversion Complete';
+          // Check if the response is a Blob or an error message
+          const contentType = xhr.getResponseHeader('Content-Type');
+          if (contentType === 'audio/wma') {
+            // If the response is audio/wma, create a download link
+            const blob = new Blob([xhr.response], { type: 'audio/wma' });
+            const url = URL.createObjectURL(blob);
+            downloadLink.href = url;
+            downloadLink.download = 'converted.wma';
+            downloadLink.style.display = 'block';
+            downloadLink.textContent = 'Download WMA';
+            progressDiv.style.width = '100%';
+            progressDiv.textContent = 'Conversion Complete';
+          } else {
+            // Handle the case where the response might be an error message or something else
+            errorMessage.textContent = xhr.responseText || 'Conversion failed. Unexpected response from the server.';
+            errorMessage.style.display = 'block';
+            progressDiv.style.width = '0%';
+          }
         } else {
           errorMessage.textContent = `Conversion failed. Server returned status ${xhr.status}`;
           errorMessage.style.display = 'block';
