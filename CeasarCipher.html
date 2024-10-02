@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Glitch Server from Localhost</title>
+    <style>
+        #dropZone {
+            width: 100%;
+            height: 100px;
+            border: 2px dashed #ccc;
+            line-height: 100px;
+            text-align: center;
+            color: #aaa;
+            margin-top: 20px;
+        }
+        #dropZone.dragover {
+            border-color: #000;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Encode and Decode with Glitch Server</h1>
+
+    <!-- File Input -->
+    <div>
+        <label>Open File:</label>
+        <input type="file" id="fileInput">
+    </div>
+
+    <!-- Text Area for File Content -->
+    <textarea id="fileContent" rows="10" cols="50" placeholder="File content or enter some text..."></textarea>
+
+    <!-- Drop Zone for Drag & Drop -->
+    <div id="dropZone">Drag & Drop files here</div>
+
+    <!-- Encoding Options -->
+    <div>
+        <label>Choose Encoding:</label>
+        <select id="encodingSelect">
+            <option value="base64">Base64</option>
+            <option value="hex">Hex</option>
+            <option value="ceasar">Ceasar Cipher</option>
+            <option value="hexbase64ceasarresult">Hex -> Base64 -> Ceasar Cipher</option>
+        </select>
+    </div>
+
+    <!-- Ceasar Key -->
+    <div id="ceasarKeyContainer" style="display: none;">
+        <label>Ceasar Cipher Key:</label>
+        <input type="number" id="ceasarKey" value="3">
+    </div>
+
+    <!-- Buttons for Encoding/Decoding -->
+    <button id="encodeBtn">Encode</button>
+    <button id="decodeBtn">Decode</button>
+
+    <!-- Result Text Area -->
+    <h3>Result:</h3>
+    <textarea id="resultContent" rows="10" cols="50" placeholder="The result will appear here..."></textarea>
+
+    <!-- Save File Button -->
+    <div>
+        <button id="saveFileBtn">Save File</button>
+    </div>
+
+    <script>
+        const fileContent = document.getElementById('fileContent');
+        const encodingSelect = document.getElementById('encodingSelect');
+        const ceasarKeyContainer = document.getElementById('ceasarKeyContainer');
+        const ceasarKeyInput = document.getElementById('ceasarKey');
+        const resultContent = document.getElementById('resultContent');
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const saveFileBtn = document.getElementById('saveFileBtn');
+
+        // Show or hide Ceasar Cipher key input depending on encoding type
+        encodingSelect.addEventListener('change', function () {
+            if (this.value === 'ceasar' || this.value === 'hexbase64ceasarresult') {
+                ceasarKeyContainer.style.display = 'block';
+            } else {
+                ceasarKeyContainer.style.display = 'none';
+            }
+        });
+
+        // Function to process file (encode/decode)
+        function processFile(operation) {
+            const content = fileContent.value;
+            const encoding = encodingSelect.value;
+            const cipherKey = ceasarKeyInput.value;
+
+            fetch('https://ceasarcipher.glitch.me/process-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content, encoding, operation, cipherKey })
+            })
+            .then(response => response.json())
+            .then(data => {
+                resultContent.value = data.result;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Encode
+        document.getElementById('encodeBtn').addEventListener('click', () => processFile('encode'));
+
+        // Decode
+        document.getElementById('decodeBtn').addEventListener('click', () => processFile('decode'));
+
+        // Handle file input for loading file content
+        fileInput.addEventListener('change', function () {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    fileContent.value = e.target.result;
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Drag & Drop functionality
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    fileContent.value = e.target.result;
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Save file functionality
+        saveFileBtn.addEventListener('click', () => {
+            const content = resultContent.value;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'encoded_decoded_file.txt';
+            link.click();
+        });
+    </script>
+</body>
+</html>
