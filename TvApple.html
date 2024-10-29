@@ -57,6 +57,16 @@
         <input type="range" id="heightSlider" min="100" max="1080" value="360">
         <span id="heightValue">360</span> px
     </div>
+      <h1>Liste de chaînes IPTV ca</h1>
+
+    <label for="iptv-channels">Choisissez une chaîne :</label>
+    <select id="iptv-channels" onchange="updateUrl()">
+        <option value="">Sélectionnez une chaîne...</option>
+    </select>
+
+    <br><br>
+    <label for="channel-url">URL de la chaîne :</label>
+    <input type="text" id="channel-url" readonly />
     <script>
         let mediaRecorder;
         let recordedChunks = [];
@@ -255,6 +265,7 @@ function loadM3uDetails2() {
         document.getElementById('m3uUrl').value = ''; // Clear the input if no valid selection
     }
 }
+   
              function removeM3uUrl() {
             const select = document.getElementById('m3uList');
             const selectedIndex = select.selectedIndex;
@@ -290,6 +301,72 @@ function loadM3uDetails2() {
             }
         }
 loadM3uList();
+        // Fonction pour charger les chaînes IPTV depuis l'URL
+        async function loadIPTVChannels() {
+            const url = 'https://raw.githubusercontent.com/iptv-org/iptv/master/streams/ca.m3u';
+            const response = await fetch(url);
+            const data = await response.text();
+
+            // Diviser les lignes du fichier M3U
+            const lines = data.split('\n');
+            const select = document.getElementById('iptv-channels');
+
+            let currentChannelName = '';
+
+            lines.forEach((line) => {
+                // Ignorer les lignes vides
+                if (line.trim() === '') return;
+
+                // Vérifier si la ligne commence par un commentaire (#EXTINF)
+                if (line.startsWith('#EXTINF:')) {
+                    // Extraire le nom de la chaîne entre les guillemets dans l'attribut tvg-id
+                    const nameMatch = line.match(/tvg-id="([^"]+)"/);
+                    if (nameMatch) {
+                        currentChannelName = nameMatch[1].trim(); // Le nom de la chaîne
+                    } else {
+                        // Si aucun nom trouvé, essayer d'extraire le nom après une virgule
+                        const fallbackMatch = line.match(/#EXTINF:\d+,(.*)/);
+                        if (fallbackMatch) {
+                            currentChannelName = fallbackMatch[1].trim();
+                        }
+                    }
+                } else if (line.startsWith('http')) {
+                    // Ligne d'URL
+                    const url = line.trim();
+
+                    // Vérifier que le nom de la chaîne a été trouvé avant d'ajouter l'option
+                    if (currentChannelName) {
+                        // Créer une option et l'ajouter au ComboBox
+                        const option = document.createElement('option');
+                        option.value = url; // Assurez-vous que l'URL est la valeur
+                        option.textContent = currentChannelName; // Affiche le nom de la chaîne
+                        select.appendChild(option);
+
+                        // Réinitialiser le nom de la chaîne pour la prochaine entrée
+                        currentChannelName = '';
+                    }
+                }
+            });
+        }
+
+        // Fonction pour mettre à jour l'URL lorsque l'utilisateur sélectionne une chaîne
+        function updateUrl() {
+            const select = document.getElementById('iptv-channels');
+            const selectedUrl = select.value;
+            const urlInput = document.getElementById('channel-url');
+            // Mettre l'URL dans le champ de texte
+            urlInput.value = selectedUrl;          
+              const selectedIndex = select.selectedIndex;
+    if (selectedIndex > 0) { // Ignore the first option (placeholder)
+         const m3uUrl = select.value; // Directly get the value from the select element
+         document.getElementById('m3uUrl').value = urlInput.value; // Set the URL in the input
+        document.getElementById('newM3uName').value = select.options[selectedIndex].text; // Set the name from the selected option            
+      } else {
+        document.getElementById('m3uUrl').value = ''; // Clear the input if no valid selection
+    }          
+}     
+        // Charger les chaînes IPTV au chargement de la page
+        window.onload = loadIPTVChannels;
 </script>
 </body>
 </html>
