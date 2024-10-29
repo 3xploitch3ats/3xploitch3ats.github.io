@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enregistrer M3U en direct</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        #video {
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Enregistrer M3U en direct</h1>
+    <form id="recordForm">
+        <select id="m3uList" onchange="loadM3uDetails()"></select>
+              <select id="m3uList2" onchange="loadM3uDetails2()">
+            <option value="https://rcavlive-dai.akamaized.net/hls/live/696614/cancbftprem/master.m3u8">Radio Canada - Toronto</option>
+            <option value="https://rcavlive-dai.akamaized.net/hls/live/696614/cancbftprem/master.m3u8">RDI - Montreal</option>
+            <option value="https://rcavlive.akamaized.net/hls/live/664045/cancbvt/master.m3u8">Quebec TV - Quebec</option>
+            <option value="https://raw.githubusercontent.com/iptv-org/iptv/master/streams/fr.m3u">France</option>
+            <option value="https://raw.githubusercontent.com/iptv-org/iptv/master/streams/us.m3u">États-Unis</option>
+            <option value="https://raw.githubusercontent.com/iptv-org/iptv/master/streams/uk.m3u">Royaume-Uni</option>
+            <option value="https://raw.githubusercontent.com/iptv-org/iptv/master/streams/ca.m3u">Canada</option>
+        </select>
+        <br>
+        <label for="newM3uName">Nom du nouveau flux M3U:</label>
+        <input type="text" id="newM3uName" name="newM3uName">
+        <br>
+        <label for="m3uUrl">URL M3U:</label>
+        <input type="text" id="m3uUrl" name="m3uUrl" required>
+        <br>
+        <label for="outputName">Nom du fichier de sortie:</label>
+        <input type="text" id="outputName" name="outputName" required>
+        <br>
+        <button type="button" onclick="addM3uUrl()">Ajouter</button>
+        <button type="button" onclick="removeM3uUrl()">Supprimer</button>
+        <br>
+        <label for="recordCheckbox">Enregistrer:</label>
+        <input type="checkbox" id="recordCheckbox" name="recordCheckbox">
+        <br>
+        <label for="playerCheckbox">Afficher le lecteur:</label>
+        <input type="checkbox" id="playerCheckbox" name="playerCheckbox" checked>
+        <br>
+        <button type="button" onclick="start()">Démarrer</button>
+        <button type="button" onclick="stop()">Arrêter</button>
+    </form>
+    <p id="status"></p>
+    <video id="video" controls></video>
+    <div>
+        <label for="widthSlider">Largeur: </label>
+        <input type="range" id="widthSlider" min="100" max="1920" value="640">
+        <span id="widthValue">640</span> px
+        <br>
+        <label for="heightSlider">Hauteur: </label>
+        <input type="range" id="heightSlider" min="100" max="1080" value="360">
+        <span id="heightValue">360</span> px
+    </div>
+    <script>
+        let mediaRecorder;
+        let recordedChunks = [];
+        let video = document.getElementById('video');
+        let hls;
+        let isRecording = false;
+
+        // Device type detection and display message
+        const userAgent = navigator.userAgent;
+        let deviceType = "Unknown";
+
+        if (/android/i.test(userAgent)) {
+            deviceType = "Android";
+        } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            deviceType = "iOS";
+        } else if (/Windows/.test(userAgent)) {
+            deviceType = "Windows";
+        }
+
+        document.getElementById('status').innerText = `Appareil détecté: ${deviceType}`;
+
+        // Load saved settings from localStorage
+        document.getElementById('recordCheckbox').checked = JSON.parse(localStorage.getItem('recordCheckbox')) || false;
+        document.getElementById('playerCheckbox').checked = JSON.parse(localStorage.getItem('playerCheckbox')) || false;
+        const savedWidth = localStorage.getItem('videoWidth');
+        const savedHeight = localStorage.getItem('videoHeight');
+        if (savedWidth) {
+            video.style.width = `${savedWidth}px`;
+            document.getElementById('widthSlider').value = savedWidth;
+            document.getElementById('widthValue').innerText = savedWidth;
+        }
+        if (savedHeight) {
+            video.style.height = `${savedHeight}px`;
+            document.getElementById('heightSlider').value = savedHeight;
+            document.getElementById('heightValue').innerText = savedHeight;
+        }
+
+        // Update width and save to localStorage
+        document.getElementById('widthSlider').addEventListener('input', function() {
+            const width = this.value;
+            video.style.width = `${width}px`;
+            document.getElementById('widthValue').innerText = width;
+            localStorage.setItem('videoWidth', width);
+        });
+
+        // Update height and save to localStorage
+        document.getElementById('heightSlider').addEventListener('input', function() {
+            const height = this.value;
+            video.style.height = `${height}px`;
+            document.getElementById('heightValue').innerText = height;
+            localStorage.setItem('videoHeight', height);
+        });
+
+        // Save checkbox states to localStorage
+        document.getElementById('recordCheckbox').addEventListener('change', function() {
+            localStorage.setItem('recordCheckbox', this.checked);
+        });
+
+        document.getElementById('playerCheckbox').addEventListener('change', function() {
+            localStorage.setItem('playerCheckbox', this.checked);
+            video.style.display = this.checked ? 'block' : 'none';
+            if (!this.checked) {
+                video.pause();
+                video.volume = 0;
+            }
+        });
+
+        // Initialize playerCheckbox display setting
+        if (document.getElementById('playerCheckbox').checked) {
+            video.style.display = 'block';
+        }
+
+
+      
+        function start() {
+            const select = document.getElementById('m3uList');
+            const select2 = document.getElementById('m3uList2');
+            const selectedIndex = select.selectedIndex;
+            const selectedIndex2 = select2.selectedIndex;
+            if (selectedIndex < 0 && selectedIndex2 < 0) {
+                document.getElementById('status').innerText = 'Veuillez sélectionner un flux M3U.';
+                return;
+            }
+            const m3uUrl = document.getElementById('m3uUrl').value;
+            const recordCheckbox = document.getElementById('recordCheckbox').checked;
+            const playerCheckbox = document.getElementById('playerCheckbox').checked;
+            const outputName = document.getElementById('outputName').value;
+
+            document.getElementById('status').innerText = 'Chargement du flux...';
+            recordedChunks = []; // Reset recorded chunks for new recording
+
+            if (Hls.isSupported()) {
+                if (hls) {
+                    hls.destroy();
+                }
+                hls = new Hls();
+                hls.loadSource(m3uUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    document.getElementById('status').innerText = 'Lecture du flux...';
+                    if (playerCheckbox) {
+                        video.play();
+                    }
+                });
+
+                if (recordCheckbox) {
+                    video.addEventListener('canplay', startRecording);
+                    isRecording = true;
+                }
+
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = m3uUrl;
+                video.addEventListener('loadedmetadata', function() {
+                    document.getElementById('status').innerText = 'Lecture du flux...';
+                    if (playerCheckbox) {
+                        video.play();
+                    }
+                });
+                document.getElementById('status').innerText = 'HLS non supporté dans ce navigateur.';
+            } else {
+                document.getElementById('status').innerText = 'HLS non supporté dans ce navigateur.';
+            }
+        }
+
+        function startRecording() {
+            const stream = video.captureStream();
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = function(event) {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = saveRecording;
+            mediaRecorder.start();
+
+            document.getElementById('status').innerText = 'Enregistrement en cours...';
+            video.removeEventListener('canplay', startRecording);
+        }
+
+        function stop() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            video.pause();
+            if (hls) {
+                hls.destroy();
+            }
+            document.getElementById('status').innerText = 'Arrêté.';
+        }
+
+        function saveRecording() {
+            const blob = new Blob(recordedChunks, { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = document.getElementById('outputName').value + '.mp4';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            document.getElementById('status').innerText = 'Enregistrement terminé.';
+        }
+
+        function loadM3uList() {
+            const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+            const select = document.getElementById('m3uList');
+            select.innerHTML = '';
+            m3uList.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.url;
+                option.textContent = item.name;
+                select.appendChild(option);
+            });
+        }
+
+        function loadM3uDetails() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                const m3uUrl = m3uList[selectedIndex].url;
+                document.getElementById('m3uUrl').value = m3uUrl;
+            }
+        }
+function loadM3uDetails2() {
+    const select = document.getElementById('m3uList2');
+    const selectedIndex = select.selectedIndex;
+
+    if (selectedIndex > 0) { // Ignore the first option (placeholder)
+        const m3uUrl = select.value; // Directly get the value from the select element
+        document.getElementById('m3uUrl').value = m3uUrl; // Set the URL in the input
+    } else {
+        document.getElementById('m3uUrl').value = ''; // Clear the input if no valid selection
+    }
+}
+             function removeM3uUrl() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                m3uList.splice(selectedIndex, 1);
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+                loadM3uList();
+            }
+            saveCheckboxStates();
+        }
+        function saveCheckboxStates() {
+            const select = document.getElementById('m3uList');
+            const selectedIndex = select.selectedIndex;
+            if (selectedIndex >= 0) {
+                let m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+                //m3uList[selectedIndex].recordCheckbox = document.getElementById('recordCheckbox').checked;
+                //m3uList[selectedIndex].playerCheckbox = document.getElementById('playerCheckbox').checked;
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+            }
+        }
+
+        function addM3uUrl() {
+            const m3uUrl = document.getElementById('m3uUrl').value;
+            const newM3uName = document.getElementById('newM3uName').value;
+            const m3uList = JSON.parse(localStorage.getItem('m3uList')) || [];
+            if (m3uUrl && newM3uName) {
+                m3uList.push({ name: newM3uName, url: m3uUrl });
+                localStorage.setItem('m3uList', JSON.stringify(m3uList));
+                loadM3uList();
+                document.getElementById('newM3uName').value = '';
+                document.getElementById('m3uUrl').value = '';
+            }
+        }
+loadM3uList();
+</script>
+</body>
+</html>
