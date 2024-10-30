@@ -67,13 +67,63 @@
     <br><br>
     <label for="channel-url">URL de la chaîne :</label>
     <input type="text" id="channel-url" readonly />
+
+    
+        <h2>All Liste de chaînes IPTV</h2>
+<select id="m3u-selector" onclick="fetchM3uFiles()">
+    <option value="">Sélectionnez une chaîne...</option>
+</select>
+
+    <label for="Alliptvchannels">Choisissez une chaîne :</label>
+    <select id="Alliptvchannels" onchange="AllupdateUrl()">
+        <option value="">Sélectionnez une chaîne...</option>
+    </select>
+
+    <br><br>
+    <label for="Allchannelurl">URL de la chaîne :</label>
+    <input type="text" id="Allchannelurl" readonly />
     <script>
+
+
+              // Constantes pour les URLs de base
+        const githubApiUrl = 'https://api.github.com/repos/iptv-org/iptv/contents/streams';
+        const iptvFiles = []; // Tableau pour stocker les noms des fichiers M3U
+
+                    // Fonction pour récupérer les fichiers M3U depuis GitHub
+         async function fetchM3uFiles() {
+            try {
+                const response = await fetch(githubApiUrl);
+                const data = await response.json();
+
+                // Filtrer et stocker les fichiers .m3u
+                data.forEach(file => {
+                    if (file.name.endsWith('.m3u')) {
+                        iptvFiles.push(file.name); // Ajouter le nom du fichier au tableau
+                    }
+                });
+                populateComboBox2(); // Appeler la fonction pour mettre à jour la liste
+            } catch (error) {
+                console.error('Erreur lors de la récupération des fichiers M3U:', error);
+            }
+        }
+
+        // Fonction pour remplir la ComboBox avec les noms de fichiers M3U
+        function populateComboBox2() {
+            const select = document.getElementById('m3u-selector');
+            iptvFiles.forEach(file => {
+                const option = document.createElement('option');
+                option.value = file;
+                option.textContent = file;
+                select.appendChild(option);
+            });
+        }
+      
         let mediaRecorder;
         let recordedChunks = [];
         let video = document.getElementById('video');
         let hls;
         let isRecording = false;
-
+      
         // Device type detection and display message
         const userAgent = navigator.userAgent;
         let deviceType = "Unknown";
@@ -365,8 +415,109 @@ loadM3uList();
         document.getElementById('m3uUrl').value = ''; // Clear the input if no valid selection
     }          
 }     
+      
+                 
         // Charger les chaînes IPTV au chargement de la page
         window.onload = loadIPTVChannels;
+
+async function loadIPTVChannels2() {
+    const allChannelsSelect = document.getElementById('Alliptvchannels');
+    const select = document.getElementById('m3u-selector');
+    const selectedIndex = select.selectedIndex;
+
+    // Vérifiez la sélection valide
+    if (selectedIndex <= 0) {
+        console.log("Aucune sélection valide effectuée.");
+        return;
+    }
+
+    // Obtenez le texte sélectionné et supprimez les espaces
+    const selectedText = select.options[selectedIndex].text.trim();
+    console.log("Texte sélectionné :", selectedText); // Sortie de débogage
+
+    // Construisez l'URL
+    const url = `https://raw.githubusercontent.com/iptv-org/iptv/master/streams/${encodeURIComponent(selectedText)}`;
+    console.log("URL construite :", url); // Sortie de débogage
+
+    try {
+        // Récupérez les données M3U à partir de l'URL construite
+        const response = await fetch(url);
+
+        // Vérifiez la réponse réussie
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP ! Statut : ${response.status}`);
+        }
+
+        const data = await response.text();
+        console.log("Données récupérées :", data); // Sortie de débogage
+
+        const lines = data.split('\n'); // Diviser les données en lignes
+        let currentChannelName = '';
+
+        // Effacez les options précédentes dans le ComboBox des chaînes
+        allChannelsSelect.innerHTML = ''; // Effacez le ComboBox des chaînes
+
+        lines.forEach((line) => {
+            // Ignorez les lignes vides
+            if (line.trim() === '') return;
+
+            // Vérifiez si la ligne commence par #EXTINF
+            if (line.startsWith('#EXTINF:')) {
+                // Extraire le nom de la chaîne
+                const nameMatch = line.match(/tvg-id="([^"]+)"/);
+                if (nameMatch) {
+                    currentChannelName = nameMatch[1].trim();
+                } else {
+                    const fallbackMatch = line.match(/#EXTINF:\d+,(.*)/);
+                    if (fallbackMatch) {
+                        currentChannelName = fallbackMatch[1].trim();
+                    }
+                }
+            } else if (line.startsWith('http')) {
+                // Ligne contenant l'URL
+                const channelUrl = line.trim();
+
+                // Assurez-vous qu'un nom de chaîne a été trouvé avant d'ajouter au ComboBox
+                if (currentChannelName) {
+                    // Créez une option pour le ComboBox Alliptvchannels
+                    const option = document.createElement('option');
+                    option.value = channelUrl; // Définir l'URL comme valeur de l'option
+                    option.textContent = currentChannelName; // Afficher le nom de la chaîne
+                    allChannelsSelect.appendChild(option);
+
+                    // Réinitialisez le nom de la chaîne pour l'entrée suivante
+                    currentChannelName = '';
+                }
+            }
+        });
+
+        console.log("Chaînes chargées avec succès dans Alliptvchannels."); // Sortie de débogage
+    } catch (error) {
+        console.error("Erreur lors du chargement des chaînes IPTV :", error);
+    }
+}
+
+       // Add event listener for change on the ComboBox to load channels based on selection
+document.getElementById('m3u-selector').addEventListener('change', loadIPTVChannels2);
+        // Fonction pour mettre à jour l'URL lorsque l'utilisateur sélectionne une chaîne
+        function AllupdateUrl() { 
+            const select = document.getElementById('Alliptvchannels');
+            const selectedUrl = select.value;
+            const urlInput = document.getElementById('Allchannelurl');
+            // Mettre l'URL dans le champ de texte
+            urlInput.value = selectedUrl;          
+              const selectedIndex = select.selectedIndex;
+    if (selectedIndex > 0) { // Ignore the first option (placeholder)
+         const m3uUrl = select.value; // Directly get the value from the select element
+         document.getElementById('m3uUrl').value = urlInput.value; // Set the URL in the input
+        document.getElementById('newM3uName').value = select.options[selectedIndex].text; // Set the name from the selected option            
+      } else {
+        document.getElementById('m3uUrl').value = ''; // Clear the input if no valid selection
+    }   
+          
+}  
+
+   
 </script>
 </body>
 </html>
