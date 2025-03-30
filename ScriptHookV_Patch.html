@@ -25,8 +25,9 @@
             reader.onload = function(event) {
                 const arrayBuffer = event.target.result;
                 const uint8Array = new Uint8Array(arrayBuffer);
-                const hexPattern = [0x74, 0x3A, 0x48, 0x8D, 0x0D];
-                const replacementPattern = [0xEB, 0x3A, 0x48, 0x8D, 0x0D];
+                
+                const hexPattern = [0x74, 0x2D, 0x4C, 0x8D, 0x4D];    <!-- [0x74, 0x3A, 0x48, 0x8D, 0x0D]; -->
+                const replacementPattern = [0xEB, 0x2D, 0x4C, 0x8D, 0x4D];     <!-- [0xEB, 0x3A, 0x48, 0x8D, 0x0D]; -->
 
                 for (let i = 0; i < uint8Array.length - hexPattern.length; i++) {
                     let match = true;
