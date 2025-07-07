@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Convertisseur Image vers HTML</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #222;
+    color: #eee;
+    padding: 20px;
+  }
+  label {
+    display: block;
+    margin-top: 10px;
+  }
+  input[type="range"] {
+    width: 300px;
+  }
+  pre {
+    background: black;
+    color: white;
+    font-family: "Lucida Console", monospace;
+    font-weight: bold;
+    line-height: 9px;
+    font-size: 9px;
+    overflow-x: auto;
+    max-height: 400px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  button {
+    margin-top: 15px;
+    padding: 8px 15px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .inline-buttons button {
+    width: 30px;
+    padding: 4px;
+  }
+  input[type="text"] {
+    width: 300px;
+    padding: 5px;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Convertisseur Image vers HTML</h1>
+
+<label for="imageInput">Sélectionner une image :</label>
+<input type="file" id="imageInput" accept="image/*" />
+
+<label>
+  <input type="checkbox" id="autoSize" /> Taille réelle de l'image (Auto Size)
+</label>
+
+<label>Largeur :</label>
+<div class="inline-buttons">
+  <button id="widthMinus">-</button>
+  <input type="range" id="widthRange" min="10" max="1000" value="100" />
+  <button id="widthPlus">+</button>
+  <span id="widthValue">100</span>
+</div>
+
+<label>Hauteur :</label>
+<div class="inline-buttons">
+  <button id="heightMinus">-</button>
+  <input type="range" id="heightRange" min="10" max="1000" value="100" />
+  <button id="heightPlus">+</button>
+  <span id="heightValue">100</span>
+</div>
+
+<label for="outputFilename">Nom du fichier HTML :</label>
+<input type="text" id="outputFilename" value="output.html" />
+
+<button id="convertBtn">Convertir en HTML</button>
+
+<h2>Aperçu HTML généré :</h2>
+<pre id="htmlOutput"></pre>
+<button id="copyBtn">Copier dans le presse-papiers</button>
+
+<script>
+  const imageInput = document.getElementById("imageInput");
+  const autoSizeCheckbox = document.getElementById("autoSize");
+
+  const widthRange = document.getElementById("widthRange");
+  const widthValue = document.getElementById("widthValue");
+  const widthMinus = document.getElementById("widthMinus");
+  const widthPlus = document.getElementById("widthPlus");
+
+  const heightRange = document.getElementById("heightRange");
+  const heightValue = document.getElementById("heightValue");
+  const heightMinus = document.getElementById("heightMinus");
+  const heightPlus = document.getElementById("heightPlus");
+
+  const outputFilenameInput = document.getElementById("outputFilename");
+  const convertBtn = document.getElementById("convertBtn");
+  const htmlOutput = document.getElementById("htmlOutput");
+
+  const copyBtn = document.getElementById("copyBtn");
+
+  let img = null;
+
+  function updateWidthValue() {
+    widthValue.textContent = widthRange.value;
+  }
+  function updateHeightValue() {
+    heightValue.textContent = heightRange.value;
+  }
+
+  updateWidthValue();
+  updateHeightValue();
+
+  widthRange.addEventListener("input", () => {
+    updateWidthValue();
+  });
+  heightRange.addEventListener("input", () => {
+    updateHeightValue();
+  });
+
+  widthMinus.addEventListener("click", () => {
+    widthRange.value = Math.max(10, Number(widthRange.value) - 1);
+    updateWidthValue();
+  });
+  widthPlus.addEventListener("click", () => {
+    widthRange.value = Math.min(1000, Number(widthRange.value) + 1);
+    updateWidthValue();
+  });
+
+  heightMinus.addEventListener("click", () => {
+    heightRange.value = Math.max(10, Number(heightRange.value) - 1);
+    updateHeightValue();
+  });
+  heightPlus.addEventListener("click", () => {
+    heightRange.value = Math.min(1000, Number(heightRange.value) + 1);
+    updateHeightValue();
+  });
+
+  autoSizeCheckbox.addEventListener("change", () => {
+    if(autoSizeCheckbox.checked) {
+      widthRange.disabled = true;
+      widthMinus.disabled = true;
+      widthPlus.disabled = true;
+      heightRange.disabled = true;
+      heightMinus.disabled = true;
+      heightPlus.disabled = true;
+
+      if(img) {
+        widthRange.value = img.width;
+        heightRange.value = img.height;
+        updateWidthValue();
+        updateHeightValue();
+      }
+    } else {
+      widthRange.disabled = false;
+      widthMinus.disabled = false;
+      widthPlus.disabled = false;
+      heightRange.disabled = false;
+      heightMinus.disabled = false;
+      heightPlus.disabled = false;
+    }
+  });
+
+  imageInput.addEventListener("change", () => {
+    if(imageInput.files && imageInput.files[0]) {
+      const file = imageInput.files[0];
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        img = image;
+        if(autoSizeCheckbox.checked) {
+          widthRange.value = img.width;
+          heightRange.value = img.height;
+          updateWidthValue();
+          updateHeightValue();
+        }
+      };
+      image.src = url;
+    }
+  });
+
+  function brightness(r, g, b) {
+    return Math.floor((r + g + b) / 3);
+  }
+
+  function generateHtmlFromImage(img, width, height) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(img, 0, 0, width, height);
+
+    let htmlLines = [];
+    htmlLines.push('<html><head><meta charset="utf-8">');
+    htmlLines.push('<style>body{background:#000}pre{font-size:9px;font-weight:bold;line-height:9px;}</style>');
+    htmlLines.push('</head><body><pre>');
+
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    for(let y = 0; y < height; y++) {
+      let line = "";
+      for(let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const hexColor = "#" + [r,g,b].map(c => c.toString(16).padStart(2, '0')).join('').toUpperCase();
+        const bright = brightness(r, g, b);
+        const char = bright < 128 ? '1' : '0';
+        line += `<b style="color:${hexColor}">${char}</b>`;
+      }
+      htmlLines.push(line);
+    }
+
+    htmlLines.push('</pre></body></html>');
+    return htmlLines.join('\n');
+  }
+
+  function downloadHtmlFile(filename, content) {
+    const blob = new Blob([content], {type: 'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  convertBtn.addEventListener("click", () => {
+    if(!img) {
+      alert("❌ Veuillez sélectionner une image d'abord !");
+      return;
+    }
+
+    let w = parseInt(widthRange.value);
+    let h = parseInt(heightRange.value);
+
+    if(autoSizeCheckbox.checked) {
+      w = img.width;
+      h = img.height;
+    }
+
+    const filename = outputFilenameInput.value.trim() || "output.html";
+    const outputFile = filename.toLowerCase().endsWith(".html") ? filename : filename + ".html";
+
+    const htmlContent = generateHtmlFromImage(img, w, h);
+    htmlOutput.textContent = htmlContent;
+    downloadHtmlFile(outputFile, htmlContent);
+  });
+
+  copyBtn.addEventListener("click", () => {
+    const text = htmlOutput.textContent;
+    if(!text) {
+      alert("Rien à copier !");
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Contenu copié dans le presse-papiers !");
+    }).catch(() => {
+      alert("Erreur lors de la copie.");
+    });
+  });
+</script>
+
+</body>
+</html>
