@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>BayLife Image Viewer - Scroll horizontal + vertical</title>
+<style>
+  body {
+    font-family: "Lucida Console", monospace;
+    background: black;
+    color: white;
+    margin: 20px;
+  }
+  #image-container {
+    white-space: pre;
+    font-family: monospace;
+    background: black;
+    color: white;
+    width: 640px;        /* Largeur visible */
+    height: 320px;       /* Hauteur visible */
+    border: 1px solid #444;
+    overflow: auto;      /* Scroll vertical ET horizontal natifs */
+  }
+  #controls {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type=range] {
+    flex-grow: 1;
+  }
+  button {
+    background-color: #222;
+    color: white;
+    border: 1px solid #555;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #555;
+  }
+  #file-input {
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<h1>BayLife Image Viewer (Scroll horizontal + vertical natifs)</h1>
+
+<input type="file" id="file-input" accept=".html,.txt" />
+<div id="image-container"></div>
+
+<div id="controls">
+  <label for="scroll-slider">Scroll horizontal :</label>
+  <input type="range" id="scroll-slider" min="0" max="0" value="0" />
+  <button id="copy-btn">📋 Copier dans le presse-papiers</button>
+</div>
+
+<script>
+const BayLife = {
+  html_content: "",
+  image_data: [],
+  buffer_width: 0,
+  buffer_height: 0,
+  char_width_px: 8,
+  char_height_px: 16,
+  horizontal_scroll_pos: 0,
+  first_launch: true,
+  show_console: true,
+  visible_width: 80,
+  visible_height: 20,
+};
+
+// Convertit un hex couleur (ex: "FF00FF") en rgb CSS
+function hexToRGBA(hex) {
+  const r = parseInt(hex.substring(0,2),16);
+  const g = parseInt(hex.substring(2,4),16);
+  const b = parseInt(hex.substring(4,6),16);
+  return `rgb(${r},${g},${b})`;
+}
+
+// Parse html_content en image_data (tableau de lignes de {c, color})
+function parseHtmlToImageData() {
+  BayLife.image_data = [];
+  const lines = BayLife.html_content.split('\n');
+  let maxWidth = 0;
+
+  for(let line of lines) {
+    let currentLine = [];
+    const regex = /<b style="color:#([0-9A-Fa-f]{6})">([01]+)<\/b>/g;
+    let match;
+    while((match = regex.exec(line)) !== null) {
+      const color = hexToRGBA(match[1]);
+      const chars = match[2];
+      for(let c of chars) {
+        currentLine.push({c, color});
+      }
+    }
+    BayLife.image_data.push(currentLine);
+    if(currentLine.length > maxWidth) maxWidth = currentLine.length;
+  }
+
+  BayLife.buffer_width = maxWidth;
+  BayLife.buffer_height = BayLife.image_data.length;
+}
+
+// Affiche image_data dans #image-container avec scroll horizontal appliqué
+function displayImageData() {
+  const container = document.getElementById("image-container");
+  const scrollX = BayLife.horizontal_scroll_pos;
+
+  let html = "";
+
+  // Afficher **toutes les lignes** (pas de limite verticale ici)
+  for(let y=0; y < BayLife.buffer_height; y++) {
+    let line = BayLife.image_data[y] || [];
+    let lineSegment = line.slice(scrollX, scrollX + BayLife.visible_width);
+
+    let currentColor = null;
+    for(let cell of lineSegment) {
+      if(cell.color !== currentColor) {
+        if(currentColor !== null) html += "</span>";
+        currentColor = cell.color;
+        html += `<span style="color:${currentColor}">`;
+      }
+      html += cell.c;
+    }
+    if(currentColor !== null) html += "</span>";
+    html += "\n";
+  }
+  container.innerHTML = html;
+}
+
+// Copie les 0 et 1 dans le presse-papiers
+function copyToClipboard() {
+  let output = "";
+  for(let line of BayLife.image_data) {
+    output += line.map(c => c.c).join('') + "\n";
+  }
+  navigator.clipboard.writeText(output).then(() => {
+    alert("Copié dans le presse-papiers !");
+  }).catch(() => {
+    alert("Erreur lors de la copie !");
+  });
+}
+
+// Met à jour la limite max du slider horizontal selon largeur buffer
+function updateSliderLimits() {
+  const slider = document.getElementById("scroll-slider");
+  slider.max = Math.max(0, BayLife.buffer_width - BayLife.visible_width);
+  if(BayLife.horizontal_scroll_pos > slider.max) BayLife.horizontal_scroll_pos = slider.max;
+  slider.value = BayLife.horizontal_scroll_pos;
+}
+
+// Lors du changement du slider horizontal
+function onSliderChange(val) {
+  BayLife.horizontal_scroll_pos = parseInt(val);
+  displayImageData();
+}
+
+// Chargement du fichier .html ou .txt via input file
+function loadHtmlFromFile(fileContent) {
+  BayLife.html_content = fileContent;
+  parseHtmlToImageData();
+  updateSliderLimits();
+  displayImageData();
+}
+
+// Initialisation (simulée)
+function initializeConsole() {
+  console.log("Initialisation BayLife HTML");
+}
+
+// Démarre l'affichage
+function baylifeImage() {
+  if(BayLife.first_launch) {
+    initializeConsole();
+    BayLife.first_launch = false;
+  }
+  if(BayLife.show_console) {
+    displayImageData();
+  }
+}
+
+// Événements
+document.getElementById("scroll-slider").addEventListener("input", e => {
+  onSliderChange(e.target.value);
+});
+
+document.getElementById("copy-btn").addEventListener("click", () => {
+  copyToClipboard();
+});
+
+document.getElementById("file-input").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const text = await file.text();
+  loadHtmlFromFile(text);
+});
+
+// Démarrage
+window.onload = () => {
+  baylifeImage();
+};
+</script>
+
+</body>
+</html>
