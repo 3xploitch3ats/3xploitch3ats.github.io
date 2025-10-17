@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
+<title>Capture & Décodage - Camera → Recadrage Perspective</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Helvetica Neue", Arial; margin:0; padding:0; display:flex; flex-direction:column; height:100vh; background:#f7f7f7; }
+  header { padding:10px; background:#0a74da; color:white; text-align:center; }
+  main { display:flex; flex:1; gap:10px; padding:10px; box-sizing:border-box; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .col { flex:1 1 320px; min-width:280px; max-width:720px; display:flex; flex-direction:column; gap:8px; }
+  video, canvas { width:100%; height:auto; border-radius:8px; background:#111; }
+  button { padding:10px 14px; border-radius:8px; border:0; background:#0a74da; color:white; font-weight:600; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; }
+  .info { font-size:0.9rem; color:#333; }
+  footer { padding:8px; text-align:center; font-size:0.9rem; color:#666; }
+  #loader { font-size:0.9rem; color:#444; }
+  .small { font-size:0.85rem; color:#444; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Capture & Recadrage Perspective (OpenCV.js)</h1>
+  <div class="small">Détecte une zone quadrilatérale ou la plus colorée, l’aplatie, et permet le téléchargement / décodage.</div>
+</header>
+
+<main>
+  <div class="col">
+    <video id="video" autoplay playsinline></video>
+    <div class="controls">
+      <button id="startBtn">Démarrer caméra</button>
+      <button id="captureBtn" disabled>Capturer</button>
+      <button id="toggleCamBtn" disabled>Changer caméra</button>
+      <button id="downloadWarpBtn" disabled>Télécharger recadré</button>
+    </div>
+    <div id="loader">Chargement OpenCV...</div>
+    <div class="info" id="status">Statut : prêt</div>
+  </div>
+
+  <div class="col">
+    <canvas id="canvasCapture"></canvas>
+    <canvas id="canvasWarp"></canvas>
+    <div class="controls">
+      <button id="manualCropBtn" disabled>Forcer découpe manuelle</button>
+      <button id="decodeQRBtn" disabled>Scanner QR (jsQR)</button>
+      <button id="downloadRawBtn" disabled>Télécharger PNG</button>
+    </div>
+    <div class="info" id="result">Résultat : —</div>
+  </div>
+</main>
+
+<footer>
+  Fonctionne mieux sur HTTPS (GitHub Pages, localhost...). OpenCV peut prendre quelques secondes à charger.
+</footer>
+
+<!-- OpenCV.js -->
+<script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+<script>
+let video = document.getElementById('video');
+let canvasCapture = document.getElementById('canvasCapture');
+let canvasWarp = document.getElementById('canvasWarp');
+let ctxCap = canvasCapture.getContext('2d');
+let ctxWarp = canvasWarp.getContext('2d');
+
+let startBtn = document.getElementById('startBtn');
+let captureBtn = document.getElementById('captureBtn');
+let toggleCamBtn = document.getElementById('toggleCamBtn');
+let manualCropBtn = document.getElementById('manualCropBtn');
+let decodeQRBtn = document.getElementById('decodeQRBtn');
+let downloadWarpBtn = document.getElementById('downloadWarpBtn');
+let downloadRawBtn = document.getElementById('downloadRawBtn');
+
+let statusEl = document.getElementById('status');
+let resultEl = document.getElementById('result');
+let loader = document.getElementById('loader');
+
+let stream = null;
+let useFront = false;
+let cvReady = false;
+
+function onOpenCvReady() {
+  loader.innerText = 'OpenCV prêt.';
+  cvReady = true;
+  startBtn.disabled = false;
+}
+
+startBtn.addEventListener('click', async () => {
+  startBtn.disabled = true;
+  status('Demande d’accès caméra...');
+  await startCamera();
+});
+
+toggleCamBtn.addEventListener('click', async () => {
+  useFront = !useFront;
+  await startCamera();
+});
+
+async function startCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  const constraints = {
+    audio: false,
+    video: {
+      facingMode: useFront ? 'user' : 'environment',
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    }
+  };
+  try {
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = stream;
+    await video.play();
+    status('Caméra active.');
+    captureBtn.disabled = false;
+    toggleCamBtn.disabled = false;
+    manualCropBtn.disabled = false;
+  } catch (err) {
+    status('Erreur caméra: ' + err.message);
+    startBtn.disabled = false;
+  }
+}
+
+captureBtn.addEventListener('click', async () => {
+  if (!cvReady) return status('OpenCV pas prêt.');
+
+  let w = video.videoWidth, h = video.videoHeight;
+  canvasCapture.width = w; canvasCapture.height = h;
+  ctxCap.drawImage(video, 0, 0, w, h);
+
+  status('Analyse couleur et détection de zone...');
+  let src = cv.imread(canvasCapture);
+  try {
+    let dst = new cv.Mat();
+    let gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+    cv.GaussianBlur(gray, gray, new cv.Size(5,5), 0);
+    cv.Canny(gray, dst, 50, 150);
+
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+    cv.findContours(dst, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+    let maxArea = 0, bestCurve = null;
+
+    for (let i = 0; i < contours.size(); ++i) {
+      let cnt = contours.get(i);
+      let peri = cv.arcLength(cnt, true);
+      let approx = new cv.Mat();
+      cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+      if (approx.rows === 4) {
+        let area = cv.contourArea(approx);
+        if (area > maxArea) {
+          maxArea = area;
+          bestCurve = approx.clone();
+        }
+      }
+      approx.delete(); cnt.delete();
+    }
+
+    // Si aucun quadrilatère trouvé, prend la zone la plus colorée
+    if (!bestCurve) {
+      status('Aucun contour net trouvé, recherche de la zone la plus colorée...');
+      let maxColor = 0;
+      let region = {x:0,y:0,w:w,h:h};
+      const step = 50;
+      for (let y=0; y<h; y+=step) {
+        for (let x=0; x<w; x+=step) {
+          let roi = src.roi(new cv.Rect(x, y, Math.min(step, w-x), Math.min(step, h-y)));
+          let mean = cv.mean(roi);
+          let colorVal = mean[0] + mean[1] + mean[2];
+          roi.delete();
+          if (colorVal > maxColor) {
+            maxColor = colorVal;
+            region = {x,y,w:step,h:step};
+          }
+        }
+      }
+      let crop = src.roi(new cv.Rect(region.x, region.y, region.w, region.h));
+      cv.imshow('canvasWarp', crop);
+      crop.delete();
+      status('Zone la plus colorée extraite.');
+      downloadWarpBtn.disabled = false;
+      downloadRawBtn.disabled = false;
+      decodeQRBtn.disabled = false;
+      return;
+    }
+
+    // Traitement warp si quadrilatère
+    if (bestCurve && maxArea > 1000) {
+      let pts = [];
+      for (let i=0;i<4;i++){
+        let x = bestCurve.intPtr(i,0)[0];
+        let y = bestCurve.intPtr(i,0)[1];
+        pts.push({x,y});
+      }
+      let ordered = orderQuadPoints(pts);
+      let widthA = dist(ordered[2], ordered[3]);
+      let widthB = dist(ordered[1], ordered[0]);
+      let heightA = dist(ordered[1], ordered[2]);
+      let heightB = dist(ordered[0], ordered[3]);
+      let maxW = Math.round(Math.max(widthA, widthB));
+      let maxH = Math.round(Math.max(heightA, heightB));
+
+      let srcTri = cv.matFromArray(4,1,cv.CV_32FC2,[ ordered[0].x, ordered[0].y, ordered[1].x, ordered[1].y, ordered[2].x, ordered[2].y, ordered[3].x, ordered[3].y ]);
+      let dstTri = cv.matFromArray(4,1,cv.CV_32FC2,[ 0,0, maxW-1,0, maxW-1,maxH-1, 0,maxH-1 ]);
+      let M = cv.getPerspectiveTransform(srcTri, dstTri);
+      let warped = new cv.Mat();
+      cv.warpPerspective(src, warped, M, new cv.Size(maxW, maxH));
+
+      cv.imshow('canvasWarp', warped);
+      downloadWarpBtn.disabled = false;
+      downloadRawBtn.disabled = false;
+      decodeQRBtn.disabled = false;
+      resultEl.innerText = `Zone extraite (${maxW}x${maxH})`;
+      warped.delete(); M.delete(); dstTri.delete(); srcTri.delete();
+    }
+
+    dst.delete(); gray.delete(); contours.delete(); hierarchy.delete(); src.delete();
+  } catch (e) {
+    console.error(e);
+    status('Erreur : ' + e);
+    src.delete();
+  }
+});
+
+function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+function orderQuadPoints(pts){
+  let cx = (pts[0].x+pts[1].x+pts[2].x+pts[3].x)/4;
+  let cy = (pts[0].y+pts[1].y+pts[2].y+pts[3].y)/4;
+  pts.sort((a,b)=>Math.atan2(a.y-cy,a.x-cx)-Math.atan2(b.y-cy,b.x-cx));
+  return pts;
+}
+
+// --- Téléchargement direct compatible iPhone ---
+function saveCanvas(canvas, filename){
+  canvas.toBlob((blob)=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    setTimeout(()=>{ a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); },100);
+  }, "image/png");
+}
+
+downloadWarpBtn.addEventListener('click', ()=> saveCanvas(canvasWarp, 'extrait.png'));
+downloadRawBtn.addEventListener('click', ()=> saveCanvas(canvasCapture, 'capture.png'));
+
+// Décodage QR
+decodeQRBtn.addEventListener('click', ()=>{
+  if (canvasWarp.width === 0) return status('Rien à scanner.');
+  let imgData = ctxWarp.getImageData(0,0,canvasWarp.width,canvasWarp.height);
+  let code = jsQR(imgData.data,imgData.width,imgData.height);
+  if (code) {
+    resultEl.innerText = 'QR décodé : ' + code.data;
+    status('QR trouvé.');
+  } else {
+    resultEl.innerText = 'Aucun QR détecté.';
+    status('Aucun QR.');
+  }
+});
+
+function status(t){ statusEl.innerText = 'Statut : ' + t; }
+</script>
+</body>
+</html>
