@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
+<title>Recadrage Exact - Sans Contour Noir</title>
+<style>
+body { font-family: system-ui, -apple-system, "Helvetica Neue", Arial; margin:0; padding:0; display:flex; flex-direction:column; height:100vh; background:#f7f7f7; }
+header { padding:10px; background:#0a74da; color:white; text-align:center; }
+main { display:flex; flex:1; gap:10px; padding:10px; box-sizing:border-box; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+.col { flex:1 1 320px; min-width:280px; max-width:720px; display:flex; flex-direction:column; gap:8px; }
+img, canvas { width:100%; height:auto; border-radius:8px; background:#111; object-fit:contain; }
+button { padding:10px 14px; border-radius:8px; border:0; background:#0a74da; color:white; font-weight:600; cursor:pointer; }
+.controls { display:flex; gap:8px; flex-wrap:wrap; }
+.info { font-size:0.9rem; color:#333; }
+footer { padding:8px; text-align:center; font-size:0.9rem; color:#666; }
+#loader { font-size:0.9rem; color:#444; }
+.small { font-size:0.85rem; color:#444; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Recadrage Exact - Sans Contour Noir</h1>
+  <div class="small">Ajoute une image, recadre exactement la zone colorée et télécharge en PNG.</div>
+</header>
+
+<main>
+  <div class="col">
+    <img id="image" />
+    <div class="controls">
+      <button id="selectImageBtn">Ajouter Image (PNG/JPG)</button>
+      <input type="file" id="imageInput" accept="image/png, image/jpeg" style="display:none">
+      <button id="captureBtn" disabled>Recadrer</button>
+      <button id="downloadWarpBtn" disabled>Télécharger recadré</button>
+    </div>
+    <div id="loader">Chargement OpenCV...</div>
+    <div class="info" id="status">Statut : prêt</div>
+  </div>
+
+  <div class="col">
+    <canvas id="canvasCapture"></canvas>
+    <canvas id="canvasWarp"></canvas>
+    <div class="controls">
+      <button id="decodeQRBtn" disabled>Scanner QR (jsQR)</button>
+      <button id="downloadRawBtn" disabled>Télécharger PNG</button>
+    </div>
+    <div class="info" id="result">Résultat : —</div>
+  </div>
+</main>
+
+<footer>
+  OpenCV et jsQR utilisés pour recadrage et QR code.
+</footer>
+
+<script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+<script>
+let imageEl = document.getElementById('image');
+let canvasCapture = document.getElementById('canvasCapture');
+let canvasWarp = document.getElementById('canvasWarp');
+let ctxCap = canvasCapture.getContext('2d');
+let ctxWarp = canvasWarp.getContext('2d');
+
+let selectImageBtn = document.getElementById('selectImageBtn');
+let imageInput = document.getElementById('imageInput');
+let captureBtn = document.getElementById('captureBtn');
+let decodeQRBtn = document.getElementById('decodeQRBtn');
+let downloadWarpBtn = document.getElementById('downloadWarpBtn');
+let downloadRawBtn = document.getElementById('downloadRawBtn');
+
+let statusEl = document.getElementById('status');
+let resultEl = document.getElementById('result');
+let loader = document.getElementById('loader');
+
+let cvReady = false;
+
+function onOpenCvReady() {
+  loader.innerText = 'OpenCV prêt.';
+  cvReady = true;
+  selectImageBtn.disabled = false;
+}
+
+// --- Sélection d'image ---
+selectImageBtn.addEventListener('click', ()=> imageInput.click());
+imageInput.addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  imageEl.src = url;
+  imageEl.onload = ()=>{
+    status('Image chargée.');
+    captureBtn.disabled = false;
+  };
+});
+
+// --- Recadrage exact sans contour noir ---
+captureBtn.addEventListener('click', ()=>{
+  if(!cvReady) return status('OpenCV pas prêt.');
+  if(!imageEl.complete) return status('Image non chargée.');
+
+  let w = imageEl.naturalWidth;
+  let h = imageEl.naturalHeight;
+  canvasCapture.width = w;
+  canvasCapture.height = h;
+  ctxCap.drawImage(imageEl, 0,0,w,h);
+  let src = cv.imread(canvasCapture);
+
+  try {
+    // Conversion en gris
+    let gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+    // Masque pixels réellement colorés (ignore flux < 30%)
+    let mask = new cv.Mat.zeros(gray.rows, gray.cols, cv.CV_8UC1);
+    let threshold = 30; // ignore flux faibles
+    for(let y=0; y<gray.rows; y++){
+      for(let x=0; x<gray.cols; x++){
+        let val = gray.ucharPtr(y,x)[0];
+        if(val > threshold){
+          mask.ucharPtr(y,x)[0] = 255;
+        }
+      }
+    }
+
+    // Contours
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+    cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    if(contours.size() === 0){
+      status('Aucune zone colorée détectée.');
+      src.delete(); gray.delete(); mask.delete(); contours.delete(); hierarchy.delete();
+      return;
+    }
+
+    // Plus grand contour
+    let maxArea = 0, maxCnt = null;
+    for(let i=0;i<contours.size();i++){
+      let cnt = contours.get(i);
+      let area = cv.contourArea(cnt);
+      if(area > maxArea){
+        if(maxCnt) maxCnt.delete();
+        maxArea = area;
+        maxCnt = cnt;
+      } else cnt.delete();
+    }
+
+    // Rectangle orienté minimal
+    let rotRect = cv.minAreaRect(maxCnt);
+    let box = cv.RotatedRect.points(rotRect);
+    let srcPts = cv.matFromArray(4,1,cv.CV_32FC2, [
+      box[0].x, box[0].y,
+      box[1].x, box[1].y,
+      box[2].x, box[2].y,
+      box[3].x, box[3].y
+    ]);
+
+    let width = Math.round(rotRect.size.width);
+    let height = Math.round(rotRect.size.height);
+    let dstPts = cv.matFromArray(4,1,cv.CV_32FC2, [0,0, width-1,0, width-1,height-1, 0,height-1]);
+
+    let M = cv.getPerspectiveTransform(srcPts, dstPts);
+    let warped = new cv.Mat();
+    cv.warpPerspective(src, warped, M, new cv.Size(width, height));
+
+    canvasWarp.width = width;
+    canvasWarp.height = height;
+    cv.imshow('canvasWarp', warped);
+
+    downloadWarpBtn.disabled = false;
+    downloadRawBtn.disabled = false;
+    decodeQRBtn.disabled = false;
+    resultEl.innerText = `Zone extraite (${width}x${height})`;
+
+    // Libération
+    warped.delete(); M.delete(); srcPts.delete(); dstPts.delete();
+    maxCnt.delete(); contours.delete(); hierarchy.delete(); src.delete(); gray.delete(); mask.delete();
+  } catch(e){
+    console.error(e);
+    status('Erreur: '+e);
+    src.delete();
+  }
+});
+
+// --- QR ---
+decodeQRBtn.addEventListener('click', ()=>{
+  if(canvasWarp.width===0) return status('Rien à scanner.');
+  let imgData = ctxWarp.getImageData(0,0,canvasWarp.width,canvasWarp.height);
+  let code = jsQR(imgData.data,imgData.width,imgData.height);
+  if(code){
+    resultEl.innerText = 'QR décodé : ' + code.data;
+    status('QR trouvé.');
+  } else {
+    resultEl.innerText = 'Aucun QR détecté.';
+    status('Aucun QR.');
+  }
+});
+
+// --- Téléchargement ---
+function saveCanvas(canvas, filename){
+  canvas.toBlob(blob=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    setTimeout(()=>{ a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); },100);
+  }, "image/png");
+}
+
+downloadWarpBtn.addEventListener('click', ()=> saveCanvas(canvasWarp,'extrait.png'));
+downloadRawBtn.addEventListener('click', ()=> saveCanvas(canvasCapture,'capture.png'));
+
+function status(t){ statusEl.innerText = 'Statut : ' + t; }
+</script>
+</body>
+</html>
