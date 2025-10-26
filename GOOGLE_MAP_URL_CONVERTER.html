@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>GPS Converter — DMS copier</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{--bg:#0b0b0b;--panel:#0f0f0f;--accent:#00ff66;--muted:#9fdab0}
+  body{background:var(--bg);color:var(--accent);font-family:Consolas,monospace,monospace;margin:0;display:flex;align-items:center;justify-content:center;height:100vh}
+  .card{width:760px;max-width:95%;background:var(--panel);padding:18px;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.6)}
+  h1{margin:0 0 10px 0;font-size:18px;color:var(--accent)}
+  label{color:var(--muted);font-size:13px}
+  input[type="text"]{width:100%;padding:10px;border-radius:6px;border:1px solid #222;background:#070707;color:var(--accent);margin-top:6px;box-sizing:border-box}
+  .row{display:flex;gap:10px;margin-top:12px}
+  button{background:#111;border:1px solid #222;color:var(--accent);padding:8px 12px;border-radius:8px;cursor:pointer}
+  button.primary{background:var(--accent);color:#000;border:none}
+  .result{margin-top:14px;padding:12px;border-radius:8px;background:#060606;border:1px solid #151515;min-height:48px;display:flex;flex-direction:column;justify-content:center}
+  .result .dms{font-size:16px}
+  .status{margin-top:8px;color:var(--muted);font-size:13px}
+  .small{font-size:12px;color:#8fbda0;margin-top:8px}
+  .example{margin-top:8px;color:#8fbda0;font-size:12px}
+</style>
+</head>
+<body>
+  <div class="card" role="main">
+    <h1>GPS Converter — décimal → DMS (entier)</h1>
+
+    <label for="url">Lien Google Maps :</label>
+    <input id="url" type="text"
+      value="https://www.google.com/maps/place/Santa+Claus+Village/@66.5441421,25.8476229,186m/data=!3m1!1e3" />
+
+    <div class="row">
+      <button id="extract">Extraire Coordonnées</button>
+      <button id="copy" class="primary">📋 Copier (format DMS)</button>
+    </div>
+
+    <div class="result" aria-live="polite">
+      <div class="dms" id="dms">Coordonnées : —</div>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="small">Format de sortie exact : <strong>37°48'17"N 122°22'16"W</strong></div>
+    <div class="example">Exemples d'URL acceptés : lien avec <code>@lat,lon</code> (Google Maps), p.ex. <em>.../@66.5441421,25.8476229,...</em></div>
+  </div>
+
+<script>
+/* Extraire lat/lon depuis une URL Google Maps
+   On recherche la première occurrence de @lat,lon
+*/
+function extractCoordsFromUrl(url) {
+  // recherche @lat,lon (ex: @66.5441421,25.8476229,186m or @37.8014,-122.3697,15z)
+  const m = url.match(/@(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  if (m) {
+    return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) };
+  }
+  // parfois google maps utilise "ll=" ou "q=" mais on garde d'abord @ version
+  const m2 = url.match(/[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m2) return { lat: parseFloat(m2[1]), lon: parseFloat(m2[2]) };
+  throw new Error("Aucune coordonnée trouvée dans l'URL (attend une portion '@lat,lon').");
+}
+
+/* Conversion décimal -> DMS (secondes entières comme ton script Python)
+   seconds are integer truncation (Python int -> truncate)
+*/
+function decimalToDmsParts(coord) {
+  const absc = Math.abs(coord);
+  const deg = Math.floor(absc);
+  const minutesFloat = (absc - deg) * 60;
+  const minutes = Math.floor(minutesFloat);
+  const seconds = Math.floor((minutesFloat - minutes) * 60); // entier comme in Python int(...)
+  return { deg, minutes, seconds };
+}
+
+function formatDms(lat, lon) {
+  const latParts = decimalToDmsParts(lat);
+  const lonParts = decimalToDmsParts(lon);
+  const latDir = lat >= 0 ? "N" : "S";
+  const lonDir = lon >= 0 ? "E" : "W";
+  function two(n){ return String(n).padStart(2,"0"); }
+  return `${latParts.deg}°${two(latParts.minutes)}'${two(latParts.seconds)}"${latDir} ${lonParts.deg}°${two(lonParts.minutes)}'${two(lonParts.seconds)}"${lonDir}`;
+}
+
+/* DOM & actions */
+const urlInput = document.getElementById('url');
+const extractBtn = document.getElementById('extract');
+const copyBtn = document.getElementById('copy');
+const dmsEl = document.getElementById('dms');
+const statusEl = document.getElementById('status');
+
+let lastDms = "";
+
+extractBtn.addEventListener('click', () => {
+  statusEl.textContent = "";
+  try {
+    const url = urlInput.value.trim();
+    if (!url) throw new Error("Entre une URL Google Maps.");
+    const { lat, lon } = extractCoordsFromUrl(url);
+    const dms = formatDms(lat, lon);
+    lastDms = dms;
+    dmsEl.textContent = dms;
+    statusEl.textContent = `Décimal: ${lat.toFixed(6)}, ${lon.toFixed(6)}  ✅`;
+  } catch (err) {
+    lastDms = "";
+    dmsEl.textContent = "Erreur : —";
+    statusEl.textContent = "⚠️ " + (err && err.message ? err.message : String(err));
+  }
+});
+
+copyBtn.addEventListener('click', async () => {
+  if (!lastDms) {
+    statusEl.textContent = "⚠️ Aucune donnée à copier. Clique sur « Extraire Coordonnées » d'abord.";
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(lastDms);
+    statusEl.textContent = `📋 Copié : ${lastDms}`;
+  } catch (e) {
+    // Fallback : create a temporary textarea
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = lastDms;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      statusEl.textContent = `📋 Copié (fallback) : ${lastDms}`;
+    } catch (e2) {
+      statusEl.textContent = "❌ Échec du copier — ton navigateur bloque le presse-papiers.";
+    }
+  }
+});
+
+/* Permettre Enter sur le champ pour lancer l'extraction */
+urlInput.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter') {
+    extractBtn.click();
+    ev.preventDefault();
+  }
+});
+</script>
+</body>
+</html>
