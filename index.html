@@ -43,6 +43,15 @@
             text-decoration: none;
             color: inherit;
         }
+        .video-container {
+            display: inline-block;
+        }
+        .video-container video {
+            width: auto;       /* taille originale */
+            height: auto;      /* taille originale */
+            max-width: 100%;   /* empêche débordement horizontal sur mobile */
+            max-height: 100vh; /* empêche la vidéo de dépasser l'écran verticalement */
+        }
     </style>
 </head>
 <body>
@@ -154,7 +163,13 @@
     </li>
 </ul>
 -->
-    
+
+<div class="video-container">
+<video controls playsinline webkit-playsinline>
+    <source src="http://3xploitch3ats.github.io/3xploitch3ats.mp4" type="video/mp4">
+    Votre navigateur ne supporte pas la lecture de vidéos HTML5.
+</video>
+            
 <script>
     document.querySelectorAll('.tree-view .folder').forEach(function(folder) {
         folder.addEventListener('click', function() {
