@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Extraction images uniques vidéo par chunks</title>
+<style>
+body { font-family:sans-serif; margin:20px; }
+button { padding:10px 15px; margin:5px; cursor:pointer; }
+canvas { display:none; }
+#frames { display:flex; flex-wrap:wrap; gap:5px; }
+#frames img { max-width:200px; border:1px solid #ccc; }
+</style>
+</head>
+<body>
+
+<h2>Extraction images uniques d'une vidéo (chunks 5MB)</h2>
+<input type="file" id="videoInput" accept="video/*">
+<button id="startBtn" disabled>Extraire images uniques</button>
+<div id="status"></div>
+<div id="frames"></div>
+
+<video id="video" style="display:none"></video>
+<canvas id="canvas"></canvas>
+
+<script>
+const videoInput = document.getElementById('videoInput');
+const startBtn = document.getElementById('startBtn');
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+const framesDiv = document.getElementById('frames');
+
+let videoURL;
+let lastHash = null;
+
+videoInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  videoURL = URL.createObjectURL(file);
+  video.src = videoURL;
+  video.load();
+  startBtn.disabled = false;
+});
+
+function getImageHash(imageData) {
+  const data = imageData.data;
+  let hash = 0;
+  for(let i=0;i<data.length;i+=4){
+    const gray = 0.3*data[i]+0.59*data[i+1]+0.11*data[i+2];
+    hash += gray;
+  }
+  return hash;
+}
+
+function isDifferent(hash1, hash2, threshold=1000) {
+  if(hash2===null) return true;
+  return Math.abs(hash1-hash2) > threshold;
+}
+
+function dataURLSizeMB(dataURL) {
+  // approx taille en MB
+  return (dataURL.length * 3/4) / (1024*1024);
+}
+
+startBtn.addEventListener('click', async () => {
+  if(!video.src) return;
+  startBtn.disabled = true;
+  framesDiv.innerHTML = '';
+  status.innerText = 'Extraction en cours...';
+
+  await video.play();
+  video.pause();
+
+  const fps = 10;
+  const totalFrames = Math.floor(video.duration * fps);
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  lastHash = null;
+  let count = 0;
+  let chunk = [];
+  let chunkSize = 0;
+  const CHUNK_LIMIT = 5; // en MB
+  let chunkIndex = 1;
+
+  for(let i=0;i<totalFrames;i++){
+    video.currentTime = i/fps;
+    await new Promise(resolve => video.onseeked = resolve);
+
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const hash = getImageHash(imageData);
+
+    if(isDifferent(hash,lastHash)){
+      lastHash = hash;
+      count++;
+      const imgURL = canvas.toDataURL('image/png');
+      chunk.push({url: imgURL, name:`unique_${count}.png`});
+      chunkSize += dataURLSizeMB(imgURL);
+
+      // affichage
+      const img = document.createElement('img');
+      img.src = imgURL;
+      img.title = `Image unique ${count} (${canvas.width}x${canvas.height})`;
+      framesDiv.appendChild(img);
+
+      // si on atteint le chunk de 5MB
+      if(chunkSize >= CHUNK_LIMIT){
+        downloadChunk(chunk, chunkIndex);
+        chunk = [];
+        chunkSize = 0;
+        chunkIndex++;
+      }
+    }
+    status.innerText = `Extraction en cours: ${count} images uniques`;
+    await new Promise(r=>setTimeout(r,20));
+  }
+
+  // télécharger le dernier chunk
+  if(chunk.length>0){
+    downloadChunk(chunk, chunkIndex);
+  }
+
+  status.innerText = `Extraction terminée: ${count} images uniques, ${chunkIndex} chunks`;
+  startBtn.disabled = false;
+});
+
+function downloadChunk(chunk, index){
+  chunk.forEach(item => {
+    const a = document.createElement('a');
+    a.href = item.url;
+    a.download = `chunk${index}_${item.name}`;
+    a.click();
+  });
+}
+</script>
+</body>
+</html>
