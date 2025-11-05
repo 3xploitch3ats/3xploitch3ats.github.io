@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>FFmpeg Auto-Build Downloader</title>
+</head>
+<body>
+    <h1>FFmpeg Auto-Build Downloader</h1>
+    <button id="fetchButton">Récupérer le deuxième asset Auto-Build</button>
+    <div id="log" style="white-space: pre-wrap; margin-top: 10px;"></div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        function log(msg) {
+            logDiv.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        async function fetchReleases() {
+            const url = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases";
+            log("Téléchargement de la liste des releases...");
+            try {
+                const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                if (!response.ok) {
+                    log(`Erreur HTTP: ${response.status}`);
+                    return;
+                }
+                const releases = await response.json();
+                log(`${releases.length} releases trouvées.`);
+
+                // Filtrer la dernière release Auto-Build
+                const autoBuildReleases = releases.filter(r => r.name.toLowerCase().includes("auto-build"));
+                if (autoBuildReleases.length === 0) {
+                    log("Aucune release Auto-Build trouvée.");
+                    return;
+                }
+
+                const latestRelease = autoBuildReleases[0]; // La plus récente
+                log(`Dernière release Auto-Build : ${latestRelease.name}`);
+
+                // Filtrer les assets contenant "ffmpeg-n", "win64-gpl" et ".zip", exclure "shared" ou "dev"
+                const filteredAssets = latestRelease.assets.filter(asset => {
+                    const name = asset.name.toLowerCase();
+                    return name.includes("ffmpeg-n") &&
+                           name.includes("win64-gpl") &&
+                           name.endsWith(".zip") &&
+                           !name.includes("shared") &&
+                           !name.includes("dev");
+                });
+
+                if (filteredAssets.length < 2) {
+                    log("Moins de deux assets valides trouvés dans cette release.");
+                    return;
+                }
+
+                const secondAsset = filteredAssets[1];
+                log(`Deuxième asset trouvé : ${secondAsset.name}`);
+                log(`Lien de téléchargement : ${secondAsset.browser_download_url}`);
+
+                // Créer un lien cliquable pour le téléchargement
+                const link = document.createElement("a");
+                link.href = secondAsset.browser_download_url;
+                link.textContent = `Télécharger ${secondAsset.name}`;
+                link.download = secondAsset.name;
+                link.style.display = "block";
+                document.body.appendChild(link);
+
+            } catch (err) {
+                log("Erreur lors de la récupération des releases : " + err);
+            }
+        }
+
+        document.getElementById('fetchButton').addEventListener('click', fetchReleases);
+    </script>
+</body>
+</html>
