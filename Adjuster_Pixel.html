@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ajusteur Pixel Pair/Impair</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 20px;
+        background: #f5f5f5;
+    }
+    h1 {
+        color: #333;
+    }
+    #preview {
+        margin-top: 15px;
+        max-width: 100%;
+        border: 1px solid #ccc;
+        background: white;
+    }
+    .controls {
+        margin-top: 15px;
+    }
+    input[type="radio"] {
+        margin: 0 5px;
+    }
+    button {
+        padding: 10px 18px;
+        margin-top: 20px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        font-size: 15px;
+    }
+    button:hover {
+        background: #45a049;
+    }
+    #status, #dimensions {
+        margin-top: 10px;
+        color: #333;
+        font-style: italic;
+    }
+</style>
+</head>
+<body>
+
+<h1>Ajusteur Pixel Pair/Impair</h1>
+
+<p><b>Image :</b></p>
+<input type="file" id="fileInput" accept="image/*">
+<p id="fileName">Aucune image sélectionnée</p>
+
+<img id="preview" alt="Aperçu" hidden>
+<p id="dimensions"></p>
+
+<div class="controls">
+    <p>Ajuster largeur et hauteur en :</p>
+    <label><input type="radio" name="mode" value="pair" checked> Pair</label>
+    <label><input type="radio" name="mode" value="impair"> Impair</label>
+</div>
+
+<button id="applyBtn">Appliquer</button>
+<p id="status"></p>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const preview = document.getElementById('preview');
+const fileName = document.getElementById('fileName');
+const applyBtn = document.getElementById('applyBtn');
+const statusText = document.getElementById('status');
+const dimText = document.getElementById('dimensions');
+
+let image = new Image();
+let mode = "pair";
+
+document.querySelectorAll('input[name="mode"]').forEach(radio => {
+    radio.addEventListener('change', () => mode = radio.value);
+});
+
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    fileName.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        image.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+image.onload = () => {
+    preview.src = image.src;
+    preview.hidden = false;
+    dimText.textContent = `🖼️ Taille originale : ${image.width} × ${image.height}px`;
+    statusText.textContent = "";
+};
+
+applyBtn.addEventListener('click', () => {
+    if (!image.src) {
+        alert("Veuillez choisir une image d'abord.");
+        return;
+    }
+
+    const adjust = (value) => {
+        if (mode === "pair") return value + (value % 2); // ajoute 1 si impair
+        else return value - (value % 2 === 0 ? 1 : 0);   // enlève 1 si pair
+    };
+
+    const newWidth = adjust(image.width);
+    const newHeight = adjust(image.height);
+
+    if (newWidth === image.width && newHeight === image.height) {
+        alert("L'image a déjà la dimension désirée !");
+        return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0);
+
+    // Téléchargement automatique
+    const link = document.createElement('a');
+    link.download = "image_ajustee.png";
+    link.href = canvas.toDataURL("image/png");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    statusText.textContent = `✅ Image ajustée téléchargée (${newWidth}×${newHeight})`;
+});
+</script>
+
+</body>
+</html>
