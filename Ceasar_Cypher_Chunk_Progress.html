@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encodeur / Décodeur Binaire</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+#dropZone { width: 100%; height: 100px; border: 2px dashed #ccc; line-height: 100px; text-align: center; color: #aaa; margin-top: 20px; transition: 0.2s;}
+#dropZone.dragover { border-color: #000; color: #000; }
+textarea { width: 100%; box-sizing: border-box; font-family: monospace; margin-bottom:10px;}
+button { margin: 5px; }
+#progressContainer { display:none; width:100%; background:#eee; height:20px; margin-top:10px; }
+#progressBar { width:0%; height:100%; background:#4caf50; text-align:center; color:white; line-height:20px; }
+</style>
+</head>
+<body>
+
+<h1>Encodeur / Décodeur (texte & fichiers)</h1>
+
+<div>
+  <label>Nom du fichier pour sauvegarde :</label>
+  <input type="text" id="fileName" placeholder="result.bin">
+</div>
+
+<div>
+  <label>Ouvrir un fichier :</label>
+  <input type="file" id="fileInput">
+</div>
+
+<h3>Texte / Fichier original :</h3>
+<textarea id="originalContent" rows="10" placeholder="Tapez du texte ici ou chargez un fichier..."></textarea>
+
+<div id="progressContainer">
+  <div id="progressBar">0%</div>
+</div>
+
+<div id="dropZone">Glissez un fichier ici</div>
+
+<div>
+  <label>Type d'encodage :</label>
+  <select id="encodingSelect">
+    <option value="base64">Base64</option>
+    <option value="hex">Hexadécimal</option>
+    <option value="ceasar">César</option>
+    <option value="hexbase64ceasarresult">Hex → Base64 → César</option>
+  </select>
+</div>
+
+<div id="ceasarKeyContainer" style="display:none;">
+  <label>Clé César :</label>
+  <input type="number" id="ceasarKey" value="3">
+</div>
+
+<button id="encodeBtn">Encoder</button>
+<button id="decodeBtn">Décoder</button>
+
+<h3>Résultat :</h3>
+<textarea id="resultContent" rows="10" placeholder="Le résultat apparaîtra ici..."></textarea>
+
+<div>
+  <button id="saveFileBtn">Sauvegarder le résultat</button>
+</div>
+
+<script>
+// --- Variables DOM ---
+const originalContent = document.getElementById('originalContent');
+const resultContent = document.getElementById('resultContent');
+const fileNameInput = document.getElementById('fileName');
+const encodingSelect = document.getElementById('encodingSelect');
+const ceasarKeyInput = document.getElementById('ceasarKey');
+const ceasarKeyContainer = document.getElementById('ceasarKeyContainer');
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const saveFileBtn = document.getElementById('saveFileBtn');
+const progressContainer = document.getElementById('progressContainer');
+const progressBar = document.getElementById('progressBar');
+
+let loadedBuffer = null;
+let lastBinaryResult = null;
+
+// --- Utilitaires ---
+async function readBinaryFileInChunks(file, chunkSize = 64*1024) {
+  let offset = 0;
+  const total = file.size;
+  const chunks = [];
+
+  originalContent.value = "";
+  progressContainer.style.display = "block";
+
+  while(offset < total) {
+    const slice = file.slice(offset, offset + chunkSize);
+    const buffer = await slice.arrayBuffer();
+    chunks.push(new Uint8Array(buffer));
+
+    // Ajout progressif du texte
+    const textPart = new TextDecoder().decode(buffer);
+    originalContent.value += textPart;
+    originalContent.scrollTop = originalContent.scrollHeight;
+
+    const percent = Math.floor(((offset + chunkSize) / total) * 100);
+    progressBar.style.width = Math.min(percent,100) + "%";
+    progressBar.textContent = Math.min(percent,100) + "%";
+
+    offset += chunkSize;
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  progressBar.style.width = "100%";
+  progressBar.textContent = "Terminé";
+  await new Promise(r=>setTimeout(r,300));
+  progressContainer.style.display = "none";
+
+  // Reconstituer tout le buffer
+  const full = new Uint8Array(total);
+  let pos = 0;
+  for(const c of chunks){ full.set(c, pos); pos += c.length; }
+  return full.buffer;
+}
+
+function arrayBufferToHex(buffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map(b=>b.toString(16).padStart(2,'0'))
+    .join('');
+}
+
+function hexToArrayBuffer(hex) {
+  if(!hex) return new ArrayBuffer(0);
+  const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b=>parseInt(b,16)));
+  return bytes.buffer;
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for(let i=0;i<bytes.length;i+=chunkSize){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunkSize));
+  }
+  return btoa(binary);
+}
+
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function caesarShift(str, shift){
+  const a='a'.charCodeAt(0), A='A'.charCodeAt(0);
+  return str.split('').map(ch=>{
+    if(/[a-z]/.test(ch)) return String.fromCharCode((ch.charCodeAt(0)-a+shift+26)%26 + a);
+    if(/[A-Z]/.test(ch)) return String.fromCharCode((ch.charCodeAt(0)-A+shift+26)%26 + A);
+    return ch;
+  }).join('');
+}
+
+function textToUint8Array(str) { return new Uint8Array(new TextEncoder().encode(str)); }
+function uint8ArrayToText(arr) { return new TextDecoder().decode(arr); }
+
+function generateRandomFilename(base) {
+  const rand = Math.floor(Math.random()*100000);
+  const parts = base.split('.');
+  if(parts.length > 1) return parts[0] + "_" + rand + "." + parts.slice(1).join('.');
+  return base + "_" + rand;
+}
+
+// --- Lecture fichier avec chunks et barre ---
+async function handleFile(file){
+  originalContent.value = "Chargement du fichier...";
+  const buffer = await readBinaryFileInChunks(file);
+  loadedBuffer = buffer;
+  console.log("Fichier chargé :", file.name, "-", file.size, "octets");
+}
+
+// --- Encode / Decode ---
+function processFile(operation){
+  const encoding = encodingSelect.value;
+  const key = parseInt(ceasarKeyInput.value) || 0;
+  let result = "";
+  lastBinaryResult = null;
+
+  try{
+    let inputBuffer;
+    if(loadedBuffer) inputBuffer = new Uint8Array(loadedBuffer);
+    else inputBuffer = textToUint8Array(originalContent.value);
+
+    if(operation==='encode'){
+      if(encoding==='base64'){
+        result = arrayBufferToBase64(inputBuffer.buffer);
+        lastBinaryResult = textToUint8Array(result);
+      } else if(encoding==='hex'){
+        result = arrayBufferToHex(inputBuffer.buffer);
+        lastBinaryResult = inputBuffer;
+      } else if(encoding==='ceasar'){
+        const text = uint8ArrayToText(inputBuffer);
+        result = caesarShift(text,key);
+        lastBinaryResult = textToUint8Array(result);
+      } else if(encoding==='hexbase64ceasarresult'){
+        const hex = arrayBufferToHex(inputBuffer.buffer);
+        const base64 = btoa(hex);
+        result = caesarShift(base64,key);
+        lastBinaryResult = textToUint8Array(result);
+      }
+    } else { // decode
+      const text = uint8ArrayToText(inputBuffer);
+      if(encoding==='base64'){
+        lastBinaryResult = new Uint8Array(base64ToArrayBuffer(text));
+        result = uint8ArrayToText(lastBinaryResult);
+      } else if(encoding==='hex'){
+        lastBinaryResult = new Uint8Array(hexToArrayBuffer(text));
+        result = uint8ArrayToText(lastBinaryResult);
+      } else if(encoding==='ceasar'){
+        result = caesarShift(text,-key);
+        lastBinaryResult = textToUint8Array(result);
+      } else if(encoding==='hexbase64ceasarresult'){
+        const step1 = caesarShift(text,-key);
+        const step2 = atob(step1);
+        lastBinaryResult = new Uint8Array(hexToArrayBuffer(step2));
+        result = uint8ArrayToText(lastBinaryResult);
+      }
+    }
+  } catch(e){
+    console.error(e);
+    result = "Erreur : "+e.message;
+    lastBinaryResult = null;
+  }
+
+  // Afficher le résultat entier d’un coup
+  resultContent.value = result;
+  resultContent.scrollTop = resultContent.scrollHeight;
+}
+
+// --- Sauvegarde ---
+function saveBinaryFile(){
+  if(!lastBinaryResult) {
+    alert("Rien à sauvegarder !");
+    return;
+  }
+  let filename = fileNameInput.value || "result.bin";
+  filename = generateRandomFilename(filename);
+  const blob = new Blob([lastBinaryResult], {type:"application/octet-stream"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+// --- UI ---
+encodingSelect.addEventListener("change",()=>{
+  ceasarKeyContainer.style.display = encodingSelect.value.includes("ceasar") ? "block" : "none";
+});
+document.getElementById("encodeBtn").addEventListener("click",()=>processFile("encode"));
+document.getElementById("decodeBtn").addEventListener("click",()=>processFile("decode"));
+fileInput.addEventListener("change", e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+dropZone.addEventListener("dragover", e=>{ e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", ()=>dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e=>{
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+saveFileBtn.addEventListener("click", saveBinaryFile);
+</script>
+
+</body>
+</html>
