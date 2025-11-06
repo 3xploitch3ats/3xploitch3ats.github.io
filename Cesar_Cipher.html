@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encodeur / Décodeur local</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #dropZone {
+            width: 100%;
+            height: 100px;
+            border: 2px dashed #ccc;
+            line-height: 100px;
+            text-align: center;
+            color: #aaa;
+            margin-top: 20px;
+        }
+        #dropZone.dragover {
+            border-color: #000;
+            color: #000;
+        }
+        textarea {
+            width: 100%;
+        }
+        button {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Encodeur / Décodeur (Local, sans serveur)</h1>
+
+    <div>
+        <label>Ouvrir un fichier :</label>
+        <input type="file" id="fileInput">
+    </div>
+
+    <textarea id="fileContent" rows="10" placeholder="Contenu du fichier ou texte à traiter..."></textarea>
+
+    <div id="dropZone">Glissez un fichier ici</div>
+
+    <div>
+        <label>Type d'encodage :</label>
+        <select id="encodingSelect">
+            <option value="base64">Base64</option>
+            <option value="hex">Hexadécimal</option>
+            <option value="ceasar">Chiffre de César</option>
+            <option value="hexbase64ceasarresult">Hex → Base64 → César</option>
+        </select>
+    </div>
+
+    <div id="ceasarKeyContainer" style="display: none;">
+        <label>Clé César :</label>
+        <input type="number" id="ceasarKey" value="3">
+    </div>
+
+    <button id="encodeBtn">Encoder</button>
+    <button id="decodeBtn">Décoder</button>
+
+    <h3>Résultat :</h3>
+    <textarea id="resultContent" rows="10" placeholder="Le résultat apparaîtra ici..."></textarea>
+
+    <div>
+        <button id="saveFileBtn">Sauvegarder le résultat</button>
+    </div>
+
+    <script>
+        const fileContent = document.getElementById('fileContent');
+        const encodingSelect = document.getElementById('encodingSelect');
+        const ceasarKeyContainer = document.getElementById('ceasarKeyContainer');
+        const ceasarKeyInput = document.getElementById('ceasarKey');
+        const resultContent = document.getElementById('resultContent');
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const saveFileBtn = document.getElementById('saveFileBtn');
+
+        // Fonctions utilitaires
+
+        // Base64
+        function base64Encode(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+        function base64Decode(str) {
+            try {
+                return decodeURIComponent(escape(atob(str)));
+            } catch (e) {
+                return "Erreur : contenu Base64 invalide.";
+            }
+        }
+
+        // Hex
+        function hexEncode(str) {
+            return Array.from(str).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+        }
+        function hexDecode(str) {
+            try {
+                return str.match(/.{1,2}/g).map(byte => String.fromCharCode(parseInt(byte, 16))).join('');
+            } catch (e) {
+                return "Erreur : contenu hexadécimal invalide.";
+            }
+        }
+
+        // César
+        function caesarShift(str, shift) {
+            const a = 'a'.charCodeAt(0);
+            const A = 'A'.charCodeAt(0);
+            return str.split('').map(ch => {
+                if (/[a-z]/.test(ch)) {
+                    return String.fromCharCode((ch.charCodeAt(0) - a + shift + 26) % 26 + a);
+                } else if (/[A-Z]/.test(ch)) {
+                    return String.fromCharCode((ch.charCodeAt(0) - A + shift + 26) % 26 + A);
+                }
+                return ch;
+            }).join('');
+        }
+
+        // Traitement principal
+        function processFile(operation) {
+            const content = fileContent.value;
+            const encoding = encodingSelect.value;
+            const cipherKey = parseInt(ceasarKeyInput.value) || 0;
+            let result = "";
+
+            try {
+                if (operation === 'encode') {
+                    switch (encoding) {
+                        case 'base64':
+                            result = base64Encode(content);
+                            break;
+                        case 'hex':
+                            result = hexEncode(content);
+                            break;
+                        case 'ceasar':
+                            result = caesarShift(content, cipherKey);
+                            break;
+                        case 'hexbase64ceasarresult':
+                            result = caesarShift(base64Encode(hexEncode(content)), cipherKey);
+                            break;
+                    }
+                } else {
+                    switch (encoding) {
+                        case 'base64':
+                            result = base64Decode(content);
+                            break;
+                        case 'hex':
+                            result = hexDecode(content);
+                            break;
+                        case 'ceasar':
+                            result = caesarShift(content, -cipherKey);
+                            break;
+                        case 'hexbase64ceasarresult':
+                            result = hexDecode(base64Decode(caesarShift(content, -cipherKey)));
+                            break;
+                    }
+                }
+            } catch (err) {
+                result = "Erreur pendant le traitement : " + err.message;
+            }
+
+            resultContent.value = result;
+        }
+
+        // Afficher / cacher la clé César
+        encodingSelect.addEventListener('change', function () {
+            if (this.value.includes('ceasar')) {
+                ceasarKeyContainer.style.display = 'block';
+            } else {
+                ceasarKeyContainer.style.display = 'none';
+            }
+        });
+
+        // Boutons encode / decode
+        document.getElementById('encodeBtn').addEventListener('click', () => processFile('encode'));
+        document.getElementById('decodeBtn').addEventListener('click', () => processFile('decode'));
+
+        // Charger un fichier
+        fileInput.addEventListener('change', function () {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => fileContent.value = e.target.result;
+                reader.readAsText(file);
+            }
+        });
+
+        // Glisser-déposer
+        dropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => fileContent.value = e.target.result;
+                reader.readAsText(file);
+            }
+        });
+
+        // Sauvegarde
+        saveFileBtn.addEventListener('click', () => {
+            const content = resultContent.value;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'resultat.txt';
+            link.click();
+        });
+    </script>
+</body>
+</html>
