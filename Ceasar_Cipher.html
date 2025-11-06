@@ -1,217 +1,238 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Encodeur / Décodeur local</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        #dropZone {
-            width: 100%;
-            height: 100px;
-            border: 2px dashed #ccc;
-            line-height: 100px;
-            text-align: center;
-            color: #aaa;
-            margin-top: 20px;
-        }
-        #dropZone.dragover {
-            border-color: #000;
-            color: #000;
-        }
-        textarea {
-            width: 100%;
-        }
-        button {
-            margin: 5px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encodeur / Décodeur Binaire</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+#dropZone { width: 100%; height: 100px; border: 2px dashed #ccc; line-height: 100px; text-align: center; color: #aaa; margin-top: 20px; transition: 0.2s;}
+#dropZone.dragover { border-color: #000; color: #000; }
+textarea { width: 100%; box-sizing: border-box; font-family: monospace; margin-bottom:10px;}
+button { margin: 5px; }
+</style>
 </head>
 <body>
-    <h1>Encodeur / Décodeur (Local, sans serveur)</h1>
 
-    <div>
-        <label>Ouvrir un fichier :</label>
-        <input type="file" id="fileInput">
-    </div>
+<h1>Encodeur / Décodeur (texte & fichiers)</h1>
 
-    <textarea id="fileContent" rows="10" placeholder="Contenu du fichier ou texte à traiter..."></textarea>
+<div>
+  <label>Nom du fichier pour sauvegarde :</label>
+  <input type="text" id="fileName" placeholder="result.bin">
+</div>
 
-    <div id="dropZone">Glissez un fichier ici</div>
+<div>
+  <label>Ouvrir un fichier :</label>
+  <input type="file" id="fileInput">
+</div>
 
-    <div>
-        <label>Type d'encodage :</label>
-        <select id="encodingSelect">
-            <option value="base64">Base64</option>
-            <option value="hex">Hexadécimal</option>
-            <option value="ceasar">Chiffre de César</option>
-            <option value="hexbase64ceasarresult">Hex → Base64 → César</option>
-        </select>
-    </div>
+<h3>Texte / Fichier original :</h3>
+<textarea id="originalContent" rows="10" placeholder="Tapez du texte ici ou chargez un fichier..."></textarea>
 
-    <div id="ceasarKeyContainer" style="display: none;">
-        <label>Clé César :</label>
-        <input type="number" id="ceasarKey" value="3">
-    </div>
+<div id="dropZone">Glissez un fichier ici</div>
 
-    <button id="encodeBtn">Encoder</button>
-    <button id="decodeBtn">Décoder</button>
+<div>
+  <label>Type d'encodage :</label>
+  <select id="encodingSelect">
+    <option value="base64">Base64</option>
+    <option value="hex">Hexadécimal</option>
+    <option value="ceasar">César</option>
+    <option value="hexbase64ceasarresult">Hex → Base64 → César</option>
+  </select>
+</div>
 
-    <h3>Résultat :</h3>
-    <textarea id="resultContent" rows="10" placeholder="Le résultat apparaîtra ici..."></textarea>
+<div id="ceasarKeyContainer" style="display:none;">
+  <label>Clé César :</label>
+  <input type="number" id="ceasarKey" value="3">
+</div>
 
-    <div>
-        <button id="saveFileBtn">Sauvegarder le résultat</button>
-    </div>
+<button id="encodeBtn">Encoder</button>
+<button id="decodeBtn">Décoder</button>
 
-    <script>
-        const fileContent = document.getElementById('fileContent');
-        const encodingSelect = document.getElementById('encodingSelect');
-        const ceasarKeyContainer = document.getElementById('ceasarKeyContainer');
-        const ceasarKeyInput = document.getElementById('ceasarKey');
-        const resultContent = document.getElementById('resultContent');
-        const fileInput = document.getElementById('fileInput');
-        const dropZone = document.getElementById('dropZone');
-        const saveFileBtn = document.getElementById('saveFileBtn');
+<h3>Résultat :</h3>
+<textarea id="resultContent" rows="10" placeholder="Le résultat apparaîtra ici..."></textarea>
 
-        // Fonctions utilitaires
+<div>
+  <button id="saveFileBtn">Sauvegarder le résultat</button>
+</div>
 
-        // Base64
-        function base64Encode(str) {
-            return btoa(unescape(encodeURIComponent(str)));
-        }
-        function base64Decode(str) {
-            try {
-                return decodeURIComponent(escape(atob(str)));
-            } catch (e) {
-                return "Erreur : contenu Base64 invalide.";
-            }
-        }
+<script>
+// --- Variables DOM ---
+const originalContent = document.getElementById('originalContent');
+const resultContent = document.getElementById('resultContent');
+const fileNameInput = document.getElementById('fileName');
+const encodingSelect = document.getElementById('encodingSelect');
+const ceasarKeyInput = document.getElementById('ceasarKey');
+const ceasarKeyContainer = document.getElementById('ceasarKeyContainer');
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const saveFileBtn = document.getElementById('saveFileBtn');
 
-        // Hex
-        function hexEncode(str) {
-            return Array.from(str).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
-        }
-        function hexDecode(str) {
-            try {
-                return str.match(/.{1,2}/g).map(byte => String.fromCharCode(parseInt(byte, 16))).join('');
-            } catch (e) {
-                return "Erreur : contenu hexadécimal invalide.";
-            }
-        }
+let loadedBuffer = null;      // Uint8Array du fichier chargé
+let lastBinaryResult = null;  // Uint8Array du résultat pour sauvegarde
 
-        // César
-        function caesarShift(str, shift) {
-            const a = 'a'.charCodeAt(0);
-            const A = 'A'.charCodeAt(0);
-            return str.split('').map(ch => {
-                if (/[a-z]/.test(ch)) {
-                    return String.fromCharCode((ch.charCodeAt(0) - a + shift + 26) % 26 + a);
-                } else if (/[A-Z]/.test(ch)) {
-                    return String.fromCharCode((ch.charCodeAt(0) - A + shift + 26) % 26 + A);
-                }
-                return ch;
-            }).join('');
-        }
+// --- Utilitaires ---
+async function readBinaryFileInChunks(file, chunkSize = 50*1024) {
+  let offset = 0;
+  const chunks = [];
+  while(offset < file.size) {
+    const slice = file.slice(offset, offset + chunkSize);
+    const buffer = await slice.arrayBuffer();
+    chunks.push(new Uint8Array(buffer));
+    offset += chunkSize;
+  }
+  const full = new Uint8Array(file.size);
+  let pos = 0;
+  for(const c of chunks){ full.set(c, pos); pos += c.length; }
+  return full.buffer;
+}
 
-        // Traitement principal
-        function processFile(operation) {
-            const content = fileContent.value;
-            const encoding = encodingSelect.value;
-            const cipherKey = parseInt(ceasarKeyInput.value) || 0;
-            let result = "";
+function arrayBufferToHex(buffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map(b=>b.toString(16).padStart(2,'0'))
+    .join('');
+}
 
-            try {
-                if (operation === 'encode') {
-                    switch (encoding) {
-                        case 'base64':
-                            result = base64Encode(content);
-                            break;
-                        case 'hex':
-                            result = hexEncode(content);
-                            break;
-                        case 'ceasar':
-                            result = caesarShift(content, cipherKey);
-                            break;
-                        case 'hexbase64ceasarresult':
-                            result = caesarShift(base64Encode(hexEncode(content)), cipherKey);
-                            break;
-                    }
-                } else {
-                    switch (encoding) {
-                        case 'base64':
-                            result = base64Decode(content);
-                            break;
-                        case 'hex':
-                            result = hexDecode(content);
-                            break;
-                        case 'ceasar':
-                            result = caesarShift(content, -cipherKey);
-                            break;
-                        case 'hexbase64ceasarresult':
-                            result = hexDecode(base64Decode(caesarShift(content, -cipherKey)));
-                            break;
-                    }
-                }
-            } catch (err) {
-                result = "Erreur pendant le traitement : " + err.message;
-            }
+function hexToArrayBuffer(hex) {
+  if(!hex) return new ArrayBuffer(0);
+  const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b=>parseInt(b,16)));
+  return bytes.buffer;
+}
 
-            resultContent.value = result;
-        }
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for(let i=0;i<bytes.length;i+=chunkSize){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunkSize));
+  }
+  return btoa(binary);
+}
 
-        // Afficher / cacher la clé César
-        encodingSelect.addEventListener('change', function () {
-            if (this.value.includes('ceasar')) {
-                ceasarKeyContainer.style.display = 'block';
-            } else {
-                ceasarKeyContainer.style.display = 'none';
-            }
-        });
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
 
-        // Boutons encode / decode
-        document.getElementById('encodeBtn').addEventListener('click', () => processFile('encode'));
-        document.getElementById('decodeBtn').addEventListener('click', () => processFile('decode'));
+function caesarShift(str, shift){
+  const a='a'.charCodeAt(0), A='A'.charCodeAt(0);
+  return str.split('').map(ch=>{
+    if(/[a-z]/.test(ch)) return String.fromCharCode((ch.charCodeAt(0)-a+shift+26)%26 + a);
+    if(/[A-Z]/.test(ch)) return String.fromCharCode((ch.charCodeAt(0)-A+shift+26)%26 + A);
+    return ch;
+  }).join('');
+}
 
-        // Charger un fichier
-        fileInput.addEventListener('change', function () {
-            const file = this.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = e => fileContent.value = e.target.result;
-                reader.readAsText(file);
-            }
-        });
+function textToUint8Array(str) { return new Uint8Array(new TextEncoder().encode(str)); }
+function uint8ArrayToText(arr) { return new TextDecoder().decode(arr); }
 
-        // Glisser-déposer
-        dropZone.addEventListener('dragover', e => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-        dropZone.addEventListener('drop', e => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = e => fileContent.value = e.target.result;
-                reader.readAsText(file);
-            }
-        });
+function generateRandomFilename(base) {
+  const rand = Math.floor(Math.random()*100000);
+  const parts = base.split('.');
+  if(parts.length > 1) return parts[0] + "_" + rand + "." + parts.slice(1).join('.');
+  return base + "_" + rand;
+}
 
-        // Sauvegarde
-        saveFileBtn.addEventListener('click', () => {
-            const content = resultContent.value;
-            const blob = new Blob([content], { type: 'text/plain' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'resultat.txt';
-            link.click();
-        });
-    </script>
+// --- Lecture fichier ---
+async function handleFile(file){
+  originalContent.value = "Chargement...";
+  const buffer = await readBinaryFileInChunks(file);
+  loadedBuffer = buffer;
+  originalContent.value = uint8ArrayToText(new Uint8Array(buffer));
+  console.log("Fichier chargé :", file.name, "-", file.size, "octets");
+}
+
+// --- Encode / Decode ---
+function processFile(operation){
+  const encoding = encodingSelect.value;
+  const key = parseInt(ceasarKeyInput.value) || 0;
+  let result = "";
+  lastBinaryResult = null;
+
+  try{
+    let inputBuffer;
+    if(loadedBuffer) inputBuffer = new Uint8Array(loadedBuffer);
+    else inputBuffer = textToUint8Array(originalContent.value);
+
+    if(operation==='encode'){
+      if(encoding==='base64'){
+        result = arrayBufferToBase64(inputBuffer.buffer);
+        lastBinaryResult = textToUint8Array(result);
+      } else if(encoding==='hex'){
+        result = arrayBufferToHex(inputBuffer.buffer);
+        lastBinaryResult = inputBuffer;
+      } else if(encoding==='ceasar'){
+        const text = uint8ArrayToText(inputBuffer);
+        result = caesarShift(text,key);
+        lastBinaryResult = textToUint8Array(result);
+      } else if(encoding==='hexbase64ceasarresult'){
+        const hex = arrayBufferToHex(inputBuffer.buffer);
+        const base64 = btoa(hex);
+        result = caesarShift(base64,key);
+        lastBinaryResult = textToUint8Array(result);
+      }
+    } else { // decode
+      const text = uint8ArrayToText(inputBuffer);
+      if(encoding==='base64'){
+        lastBinaryResult = new Uint8Array(base64ToArrayBuffer(text));
+        result = uint8ArrayToText(lastBinaryResult);
+      } else if(encoding==='hex'){
+        lastBinaryResult = new Uint8Array(hexToArrayBuffer(text));
+        result = uint8ArrayToText(lastBinaryResult);
+      } else if(encoding==='ceasar'){
+        result = caesarShift(text,-key);
+        lastBinaryResult = textToUint8Array(result);
+      } else if(encoding==='hexbase64ceasarresult'){
+        const step1 = caesarShift(text,-key);
+        const step2 = atob(step1);
+        lastBinaryResult = new Uint8Array(hexToArrayBuffer(step2));
+        result = uint8ArrayToText(lastBinaryResult);
+      }
+    }
+  } catch(e){
+    console.error(e);
+    result = "Erreur : "+e.message;
+    lastBinaryResult = null;
+  }
+
+  resultContent.value = result;
+}
+
+// --- Sauvegarde ---
+function saveBinaryFile(){
+  if(!lastBinaryResult) {
+    alert("Rien à sauvegarder !");
+    return;
+  }
+  let filename = fileNameInput.value || "result.bin";
+  filename = generateRandomFilename(filename);
+  const blob = new Blob([lastBinaryResult], {type:"application/octet-stream"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+// --- UI ---
+encodingSelect.addEventListener("change",()=>{
+  ceasarKeyContainer.style.display = encodingSelect.value.includes("ceasar") ? "block" : "none";
+});
+document.getElementById("encodeBtn").addEventListener("click",()=>processFile("encode"));
+document.getElementById("decodeBtn").addEventListener("click",()=>processFile("decode"));
+fileInput.addEventListener("change", e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+dropZone.addEventListener("dragover", e=>{ e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", ()=>dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e=>{
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+saveFileBtn.addEventListener("click", saveBinaryFile);
+</script>
+
 </body>
 </html>
