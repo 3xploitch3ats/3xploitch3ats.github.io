@@ -41,7 +41,7 @@ video { width:45%; margin:5px; border:1px solid #333; }
 <input type="text" id="message">
 <button id="sendBtn">Envoyer</button>
 
-<!-- PeerJS en ligne -->
+<!-- PeerJS -->
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 
 <script>
@@ -59,11 +59,14 @@ const allowControl = document.getElementById("allowControl");
 const chatDiv = document.getElementById("chat");
 const emojiPalette = document.getElementById("emojiPalette");
 
-// --- WebSocket pour liste des utilisateurs et chat ---
+// --- Connexion WebSocket ---
 ws = new WebSocket("wss://3xploitch3ats.github.io/FuserServer.js");
+
 ws.onopen = ()=> {
     ws.send(JSON.stringify({type:"register", userId:myId}));
 };
+
+// --- Réception de messages WebSocket ---
 ws.onmessage = e=>{
     const data = JSON.parse(e.data);
     if(data.type==="userlist"){
@@ -74,6 +77,12 @@ ws.onmessage = e=>{
     }
 };
 
+// --- Rafraîchissement périodique du textarea ---
+setInterval(()=>{
+    ws.send(JSON.stringify({type:"ping"})); // envoie ping au serveur (facultatif)
+    refreshUserArea(); // met à jour la zone utilisateur localement
+}, 3000); // toutes les 3 secondes
+
 // --- PeerJS ---
 peer = new Peer(myId, {host:'0.peerjs.com', secure:true, port:443, path:'/'});
 peer.on('call', c=>{
@@ -82,28 +91,27 @@ peer.on('call', c=>{
     c.on('stream', s=> document.getElementById("remoteVideo").srcObject = s);
 });
 
-// --- Save ID ---
+// --- Sauvegarde ID ---
 document.getElementById("saveIdBtn").onclick = ()=>{
     myId = document.getElementById("userIdInput").value.trim();
     localStorage.setItem("myUserId", myId);
     ws.send(JSON.stringify({type:"register", userId:myId}));
 };
 
-// --- Refresh utilisateur ---
+// --- Rafraîchissement du userArea ---
 function refreshUserArea(){
     userArea.value = users.join("\n");
 }
 
-// --- Cliquer sur un utilisateur ---
+// --- Sélection d’un utilisateur ---
 userArea.addEventListener("click", e=>{
     const lines = userArea.value.split("\n");
-    const lineHeight = userArea.scrollHeight / lines.length;
-    const index = Math.floor(e.offsetY / (userArea.offsetHeight/lines.length));
+    const index = Math.floor(e.offsetY / (userArea.scrollHeight / lines.length));
     const selected = lines[index];
     if(selected && selected!==myId) targetInput.value = selected;
 });
 
-// --- Partage écran ---
+// --- Partage d’écran ---
 document.getElementById("startBtn").onclick = async ()=>{
     const target = targetInput.value.trim();
     if(!target) return alert("Sélectionner un utilisateur");
@@ -123,11 +131,14 @@ function sendMessage(){
     const msg = document.getElementById("message").value.trim();
     if(!msg) return;
     const target = targetInput.value.trim();
-    if(chatPrivate && target) ws.send(JSON.stringify({type:"chat", text:msg, from:myId, target}));
-    else ws.send(JSON.stringify({type:"chat", text:msg, from:myId}));
+    if(chatPrivate && target)
+        ws.send(JSON.stringify({type:"chat", text:msg, from:myId, target}));
+    else
+        ws.send(JSON.stringify({type:"chat", text:msg, from:myId}));
     appendChat(`Moi: ${msg}`);
     document.getElementById("message").value="";
 }
+
 function appendChat(txt){
     chatDiv.innerHTML += txt+"<br>";
     chatDiv.scrollTop = chatDiv.scrollHeight;
@@ -135,10 +146,12 @@ function appendChat(txt){
 
 // --- Emoji ---
 const emojis = ["😀","😂","😎","😍","😢","👍","🎉"];
-document.getElementById("toggleEmoji").onclick = ()=> emojiPalette.style.display = emojiPalette.style.display==="none"?"block":"none";
+document.getElementById("toggleEmoji").onclick = ()=> 
+    emojiPalette.style.display = emojiPalette.style.display==="none"?"block":"none";
 emojiPalette.innerHTML = emojis.map(e=>`<span class="emoji">${e}</span>`).join(" ");
 emojiPalette.addEventListener("click", e=>{
-    if(e.target.classList.contains("emoji")) document.getElementById("message").value += e.target.textContent;
+    if(e.target.classList.contains("emoji")) 
+        document.getElementById("message").value += e.target.textContent;
 });
 
 // --- Contrôle clavier/souris ---
@@ -151,9 +164,13 @@ function sendControl(e){
     if(!allowControl.checked) return;
     const target = targetInput.value.trim();
     if(!target) return;
-    ws.send(JSON.stringify({type:"control", from:myId, to:target, event:{type:e.type,x:e.clientX,y:e.clientY,key:e.key,button:e.button}}));
+    ws.send(JSON.stringify({
+        type:"control",
+        from:myId,
+        to:target,
+        event:{type:e.type,x:e.clientX,y:e.clientY,key:e.key,button:e.button}
+    }));
 }
-
 </script>
 </body>
 </html>
