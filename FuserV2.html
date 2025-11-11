@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mini Fuser P2P — Static (Files, Video, Screenshare)</title>
+
+<style>
+body, input, textarea {
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+#chatWindow, #privateChats {
+    font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+}
+
+:root{--accent:#2b7cff;--muted:#f6f7fb}
+body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial; margin:12px;color:#111}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:18px}
+.muted{color:#666;font-size:13px}
+#wrap{display:flex;gap:12px;flex-wrap:wrap}
+#left{width:280px;min-width:220px}
+input[type="text"], input[type="file"], textarea, select {width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box}
+textarea{height:160px;resize:none}
+button{padding:6px 10px;border-radius:6px;border:1px solid #bbb;background:#fff;cursor:pointer;margin:4px 2px}
+.small{padding:4px 8px;font-size:13px}
+#tabs{margin-top:8px}
+.tabbtn{padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:var(--muted);cursor:pointer;margin-right:6px}
+.active{outline:2px solid var(--accent)}
+#chatArea,#videoArea,#screensArea,#filesArea{display:none;margin-top:10px}
+#chatWindow{border:1px solid #ddd;height:300px;overflow:auto;padding:8px;background:#fff;border-radius:6px}
+.pv-box{border:1px solid #eee;padding:6px;margin-bottom:8px;background:#fafafa;border-radius:6px}
+.emoji{cursor:pointer;padding:4px;font-size:18px}
+.controls-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+video{max-width:100%;border:1px solid #333;margin-top:8px;border-radius:6px}
+.player{width:100%;max-height:360px}
+.listItem{padding:6px;border:1px solid #eee;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;border-radius:6px;background:#fff}
+.label{font-size:13px;color:#333;margin-bottom:4px;display:block}
+.small-muted{font-size:12px;color:#666}
+.progress{height:10px;background:#eee;border-radius:6px;overflow:hidden}
+.progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#5aa2ff);width:0%}
+a.download-link{display:inline-block;margin-top:6px}
+.kv{font-size:12px;color:#666}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mini Fuser P2P — Static</h1>
+  <div class="muted">P2P (PeerJS) • Chat • Files • Video • Screenshare • Auto user discovery (gossip)</div>
+</header>
+
+<div id="wrap">
+  <div id="left">
+    <label class="label">ID utilisateur</label>
+    <input id="userIdInput" type="text" />
+    <div class="controls-row">
+      <button id="saveIdBtn" class="small">Save</button>
+      <button id="randBtn" class="small">Random</button>
+      <button id="deleteBtn" class="small">Delete</button>
+    </div>
+    <button id="clearUsersBtn" class="small">Clear List</button>
+	
+    <label class="label" style="margin-top:8px">Utilisateurs (clic pour remplir target)</label>
+    <textarea id="userArea" readonly></textarea>
+
+    <div style="margin-top:8px">
+      <label class="label">Target / Appel</label>
+      <input id="targetInput" type="text" placeholder="Coller ID ou cliquer un user"/>
+      <div class="controls-row">
+        <button id="connectPeerBtn" class="small">Connect</button>
+        <button id="callBtn" class="small">Call</button>
+        <button id="endCallBtn" class="small">End Call</button>
+      </div>
+    </div>
+
+    <div style="margin-top:8px">
+      <label><input type="checkbox" id="allowControl" /> Autoriser contrôle (souris/clavier)</label>
+    </div>
+
+    <div style="margin-top:8px">
+      <label><input type="checkbox" id="privateMode" checked /> Mode privé par défaut (chat)</label>
+    </div>
+
+    <div style="margin-top:8px">
+      <label class="label">Refresh interval (sec): <span id="intervalDisplay">5</span></label>
+      <input id="intervalRange" type="range" min="2" max="20" value="5" />
+      <div class="kv">La textarea se met à jour automatiquement via gossip P2P.</div>
+    </div>
+
+    <div style="margin-top:8px">
+      <label class="label">Status</label>
+      <div id="status" class="small-muted">Initializing...</div>
+    </div>
+  </div>
+
+  <div id="main" style="flex:1;min-width:320px">
+    <div id="tabs">
+      <button class="tabbtn active" data-tab="chatArea">Chat</button>
+      <button class="tabbtn" data-tab="videoArea">Videos</button>
+      <button class="tabbtn" data-tab="screensArea">Screenshare</button>
+      <button class="tabbtn" data-tab="filesArea">Files</button>
+    </div>
+
+    <!-- CHAT TAB -->
+    <div id="chatArea">
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1">
+          <div id="chatWindow"></div>
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+            <input id="msgInput" type="text" placeholder="Message..."/>
+            <button id="sendBtn">Send</button>
+            <button id="emojiBtn">Emoji</button>
+            <div id="emojiPalette" style="display:none"></div>
+          </div>
+        </div>
+
+        <div style="width:320px">
+          <div class="muted">Private chats</div>
+          <div id="privateChats"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIDEO TAB -->
+    <div id="videoArea">
+      <div style="display:flex;gap:12px;flex-direction:column">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <input id="openFile" type="file" accept="video/*" />
+          <div>
+            <button id="streamBtn" class="small">Start P2P Stream (player → peers)</button>
+            <button id="stopStreamBtn" class="small">Stop Stream</button>
+          </div>
+        </div>
+
+        <div id="playlist"></div>
+
+        <video id="mainPlayer" class="player" controls playsinline></video>
+      </div>
+    </div>
+
+    <!-- SCREENSHARE TAB -->
+    <div id="screensArea">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="shareScreenBtn" class="small">Share Screen</button>
+        <button id="stopShareBtn" class="small">Stop Share</button>
+        <label class="muted" style="margin-left:10px">(Share → Call to target)</label>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <div class="muted">Local</div>
+          <video id="localVideo" autoplay muted playsinline style="width:100%;height:auto;border-radius:6px"></video>
+        </div>
+        <div style="flex:1;min-width:260px">
+          <div class="muted">Remote</div>
+          <video id="remoteVideo" autoplay playsinline style="width:100%;height:auto;border-radius:6px"></video>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILES TAB -->
+    <div id="filesArea">
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <label class="label">Choisir fichier</label>
+          <input id="fileInput" type="file" />
+          <div class="controls-row">
+            <button id="sendFileBtn" class="small">Envoyer au target</button>
+            <button id="broadcastFileBtn" class="small">Broadcast to all</button>
+          </div>
+          <div style="margin-top:8px">
+            <div class="label">Envois en cours</div>
+            <div id="transfers"></div>
+          </div>
+        </div>
+
+        <div style="flex:1;min-width:260px">
+          <div class="label">Fichiers reçus</div>
+          <div id="receivedFiles"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PeerJS -->
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
+<script>
+/* ============================
+   CONFIG & STATE
+   ============================ */
+const conf = {
+  peerServer: { host: '0.peerjs.com', secure: true, port: 443, path: '/' },
+  refreshIntervalSec: 5,
+  fileChunkSize: 64 * 1024  // 64KB
+};
+
+let peer = null;
+let myId = localStorage.getItem('myUserId') || 'User' + Math.floor(Math.random()*90000);
+let connections = {};    // data connections: peerId -> conn
+let calls = {};          // media calls: peerId -> call
+let knownUsers = new Set([myId]); // gossip-discovered users
+let privateChats = {};   // peerId -> [{from,text}]
+let localStream = null;
+let playerStream = null;
+let streamingCalls = {}; // peerId -> call
+let refreshInterval = conf.refreshIntervalSec;
+
+/* ========= DOM ========= */
+const userIdInput = document.getElementById('userIdInput');
+const saveIdBtn = document.getElementById('saveIdBtn');
+const randBtn = document.getElementById('randBtn');
+const deleteBtn = document.getElementById('deleteBtn');
+const userArea = document.getElementById('userArea');
+const targetInput = document.getElementById('targetInput');
+const connectPeerBtn = document.getElementById('connectPeerBtn');
+const callBtn = document.getElementById('callBtn');
+const endCallBtn = document.getElementById('endCallBtn');
+const allowControl = document.getElementById('allowControl');
+const privateModeCheckbox = document.getElementById('privateMode');
+const intervalRange = document.getElementById('intervalRange');
+const intervalDisplay = document.getElementById('intervalDisplay');
+const statusDiv = document.getElementById('status');
+
+const chatWindow = document.getElementById('chatWindow');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const emojiBtn = document.getElementById('emojiBtn');
+const emojiPalette = document.getElementById('emojiPalette');
+const privateChatsDiv = document.getElementById('privateChats');
+
+const tabs = document.querySelectorAll('.tabbtn');
+
+const openFile = document.getElementById('openFile'); // video tab
+const playlist = document.getElementById('playlist');
+const mainPlayer = document.getElementById('mainPlayer');
+const streamBtn = document.getElementById('streamBtn');
+const stopStreamBtn = document.getElementById('stopStreamBtn');
+
+const shareScreenBtn = document.getElementById('shareScreenBtn');
+const stopShareBtn = document.getElementById('stopShareBtn');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+
+const fileInput = document.getElementById('fileInput');
+const sendFileBtn = document.getElementById('sendFileBtn');
+const broadcastFileBtn = document.getElementById('broadcastFileBtn');
+const transfersDiv = document.getElementById('transfers');
+const receivedFilesDiv = document.getElementById('receivedFiles');
+
+/* ========= Init UI ========= */
+userIdInput.value = myId;
+intervalRange.value = conf.refreshIntervalSec;
+intervalDisplay.textContent = conf.refreshIntervalSec;
+
+/* ========= Helpers ========= */
+function logStatus(s){ statusDiv.textContent = s; }
+function escapeHtml(s){ return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function addKnownUser(id){ if(!id) return; if(!knownUsers.has(id)){ knownUsers.add(id); renderUserArea(); } }
+function renderUserArea() {
+    const arr = Array.from(knownUsers); // show connected first
+    const connected = Object.keys(connections);
+    const combined = Array.from(new Set([...connected, ...arr]));
+    userArea.value = combined.join('\n'); // chaque user sur une ligne
+}
+
+// Pour le chat public
+function appendPublic(from, text){
+  const decoded = decodeURIComponent(text);
+  const el = document.createElement('div');
+  el.innerHTML = `<strong>${escapeHtml(from)}</strong>: ${escapeHtml(decoded)}`;
+  chatWindow.appendChild(el);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+// Pour le chat privé
+function appendPrivate(peerId, text, from){
+  const decoded = decodeURIComponent(text);
+  if(!privateChats[peerId]) privateChats[peerId] = [];
+  privateChats[peerId].push({from, text: decoded});
+  renderPrivateWindows();
+}
+
+function renderPrivateWindows(){ privateChatsDiv.innerHTML=''; Object.keys(privateChats).forEach(pid=>{ const box=document.createElement('div'); box.className='pv-box'; const msgs=privateChats[pid]; const inner = msgs.map(m=>`<div><strong>${escapeHtml(m.from)}</strong>: ${escapeHtml(m.text)}</div>`).join(''); box.innerHTML = `<strong>Chat with ${escapeHtml(pid)}</strong><div style="height:120px;overflow:auto;padding:6px;background:#fff;margin-top:6px" id="pv-${pid}">${inner}</div><div style="display:flex;gap:6px;margin-top:6px"><input id="pv-in-${pid}" placeholder="Message to ${escapeHtml(pid)}" style="flex:1"/><button data-user="${pid}" class="pv-send small">Send</button></div>`; privateChatsDiv.appendChild(box); }); privateChatsDiv.querySelectorAll('.pv-send').forEach(btn=>{ btn.onclick=()=>{ const uid=btn.getAttribute('data-user'); const input=document.getElementById('pv-in-'+uid); const text=input.value.trim(); if(!text) return; sendChat(text, uid); appendPrivate(uid, text, 'Me'); input.value=''; }; }); }
+
+/* ========= PeerJS: init ========= */
+function initPeer(){
+  peer = new Peer(myId, conf.peerServer);
+  peer.on('open', id=>{ logStatus('Peer open: '+id); addKnownUser(id); gossipPresence(); });
+  peer.on('error', err=>{ console.warn('Peer error',err); logStatus('Peer error: '+(err && err.type?err.type:err)); });
+  peer.on('connection', conn=> setupConnection(conn));
+  peer.on('call', call=>{ console.log('incoming call from',call.peer); calls[call.peer]=call; try{ if(localStream) call.answer(localStream); else call.answer(); }catch(e){ call.answer(); } call.on('stream', s=> remoteVideo.srcObject = s); call.on('close', ()=>{ delete calls[call.peer]; }); });
+}
+initPeer();
+
+/* ========= Connections (datachannels) ========= */
+function connectToPeer(targetId){
+  if(!targetId) return alert('Enter target id');
+  if(connections[targetId] && connections[targetId].open){ logStatus('Already connected to '+targetId); return; }
+  const conn = peer.connect(targetId, { reliable:true });
+  setupConnection(conn);
+  addKnownUser(targetId);
+}
+
+function setupConnection(conn){
+  const id = conn.peer;
+  connections[id] = conn;
+  conn.on('open', ()=>{
+    logStatus('DataConn open: ' + id);
+    // send presence + request peer list
+    safeSend(conn, { type:'presence', from: myId, known: Array.from(knownUsers) });
+    // request their known users
+    safeSend(conn, { type:'request-known', from: myId });
+    renderUserArea();
+  });
+  conn.on('data', data=> handleDataMessage(conn, data));
+  conn.on('close', ()=>{ delete connections[id]; renderUserArea(); });
+  conn.on('error', e=> console.warn('conn err',e));
+}
+
+/* ========= Messaging & gossip ========= */
+function safeSend(conn, obj){
+  try{ conn.send(obj); }catch(e){ console.warn('send fail',e); }
+}
+function broadcast(obj){
+  Object.values(connections).forEach(c=> { if(c.open) safeSend(c, obj); });
+}
+
+/* handle messages on datachannel */
+function handleDataMessage(conn, data){
+  if(typeof data !== 'object') return;
+  const t = data.type;
+  if(t === 'presence'){
+    addKnownUser(data.from);
+    if(Array.isArray(data.known)){
+      data.known.forEach(u=> addKnownUser(u));
+    }
+  } else if(t === 'request-known'){
+    // reply with our known set
+    safeSend(conn, { type:'known-list', from: myId, known: Array.from(knownUsers) });
+  } else if(t === 'known-list'){
+    if(Array.isArray(data.known)) data.known.forEach(u=> addKnownUser(u));
+  } else if(t === 'chat'){
+    if(data.target && data.target !== myId) return; // not for me
+    if(data.target){ appendPrivate(data.from, data.text, data.from); }
+    else appendPublic(data.from, data.text);
+  } else if(t === 'control'){
+    if(data.to && data.to === myId){
+      // received remote control event
+      // For safety, we only log it; implement custom handling if desired
+      console.log('control event', data.event);
+    }
+  } else if(t === 'file-meta'){
+    // peer wants to send file; prepare receiver
+    const meta = data.meta;
+    prepareReceiveFile(conn.peer, meta);
+  } else if(t === 'file-chunk'){
+    receiveFileChunk(conn.peer, data);
+  } else if(t === 'file-complete'){
+    finalizeReceivedFile(conn.peer, data);
+  } else if(t === 'stream-offer'){
+    // remote announces stream (optional)
+    console.log('stream-offer from', data.from, data.info||'');
+  }
+}
+
+/* gossip presence periodically */
+function gossipPresence(){
+  const payload = { type:'presence', from: myId, known: Array.from(knownUsers) };
+  broadcast(payload);
+}
+
+/* ========= Chat ========= */
+function sendChat(text, target=null){
+  // Encodage pour supporter tous les emojis
+  const payload = { type:'chat', from: myId, text: encodeURIComponent(text) };
+
+  if(target) payload.target = target;
+
+  if(target && connections[target] && connections[target].open){
+    safeSend(connections[target], payload);
+  } else if(!target){
+    // broadcast to connected peers (mesh)
+    broadcast(payload);
+  } else {
+    // try connect then send
+    connectToPeer(target);
+    setTimeout(()=>{
+      if(connections[target] && connections[target].open) 
+        safeSend(connections[target], payload);
+    }, 700);
+  }
+}
+
+
+/* UI: chat send */
+sendBtn.onclick = ()=>{ const text = msgInput.value.trim(); if(!text) return; const priv = privateModeCheckbox.checked; const tgt = priv ? (targetInput.value.trim() || null) : null; sendChat(text, tgt); if(tgt) appendPrivate(tgt, text, 'Me'); else appendPublic('Me', text); msgInput.value=''; };
+msgInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendBtn.click(); } });
+
+/* emoji palette */
+const emojis = ["😀","😂","😎","😍","😢","👍","🎉","🔥","🤝","🙏","🙌"];
+emojiBtn.onclick = ()=>{ emojiPalette.style.display = emojiPalette.style.display === 'block' ? 'none' : 'block'; if(emojiPalette.style.display==='block'){ emojiPalette.innerHTML = emojis.map(em=>`<span class="emoji">${em}</span>`).join(' '); emojiPalette.querySelectorAll('.emoji').forEach(el=> el.onclick = ()=>{ msgInput.value += el.textContent; msgInput.focus(); }); } };
+
+/* ========= Save/random/delete user ========= */
+saveIdBtn.onclick = ()=>{ const v = userIdInput.value.trim(); if(!v) return alert('Enter id'); myId = v; localStorage.setItem('myUserId', myId); try{ peer.disconnect(); peer.destroy(); }catch(e){} setTimeout(()=>initPeer(),200); };
+randBtn.onclick = ()=>{ const r = 'User' + Math.floor(Math.random()*90000+1000); userIdInput.value = r; myId=r; localStorage.setItem('myUserId', r); try{ peer.disconnect(); peer.destroy(); }catch(e){} setTimeout(()=>initPeer(),200); };
+deleteBtn.onclick = ()=>{ localStorage.removeItem('myUserId'); myId = 'User' + Math.floor(Math.random()*90000+1000); userIdInput.value = myId; try{ peer.disconnect(); peer.destroy(); }catch(e){} setTimeout(()=>initPeer(),200); };
+
+/* user area click to choose target */
+userArea.addEventListener('click', e => {
+    const startPos = userArea.selectionStart;
+
+    // Récupère tout le texte
+    const text = userArea.value;
+
+    // Trouve le début et la fin de la ligne cliquée
+    const before = text.lastIndexOf('\n', startPos - 1);
+    const after = text.indexOf('\n', startPos);
+    
+    const lineStart = before + 1;
+    const lineEnd = after === -1 ? text.length : after;
+
+    const selected = text.slice(lineStart, lineEnd).trim();
+    if (selected) targetInput.value = selected;
+});
+
+/* connect/call UI */
+connectPeerBtn.onclick = ()=> connectToPeer(targetInput.value.trim());
+callBtn.onclick = async ()=>{ const target = targetInput.value.trim(); if(!target) return alert('Select a target to call'); if(localStream){ const call = peer.call(target, localStream); calls[target]=call; call.on('stream', s=> remoteVideo.srcObject = s); call.on('close', ()=> delete calls[target]); } else { try{ await startScreenShare(); if(localStream){ const call = peer.call(target, localStream); calls[target]=call; call.on('stream', s=> remoteVideo.srcObject = s); call.on('close', ()=> delete calls[target]); } }catch(e){ alert('Call failed: '+e.message); } } };
+endCallBtn.onclick = ()=>{ const target = targetInput.value.trim(); if(target && calls[target]){ try{ calls[target].close(); }catch(e){} delete calls[target]; } if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; localVideo.srcObject=null; } };
+
+/* ========= Screen share ========= */
+async function startScreenShare(){
+  try{
+    const s = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:false });
+    localStream = s;
+    localVideo.srcObject = s;
+    s.getTracks()[0].addEventListener('ended', ()=>{ localStream=null; localVideo.srcObject=null; });
+    gossipPresence();
+    return s;
+  }catch(e){ throw e; }
+}
+shareScreenBtn.onclick = async ()=>{ try{ await startScreenShare(); alert('Screen ready — use Call to send to target'); }catch(e){ alert('Share failed: '+e.message); } };
+stopShareBtn.onclick = ()=>{ if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; localVideo.srcObject=null; } };
+
+/* control forwarding */
+function sendControl(e){
+  if(!allowControl.checked) return;
+  const tgt = targetInput.value.trim();
+  if(!tgt) return;
+  const payload = { type:'control', from: myId, to: tgt, event: { type:e.type, x:e.clientX||0, y:e.clientY||0, key:e.key||null, button:e.button||null } };
+  if(connections[tgt] && connections[tgt].open) safeSend(connections[tgt], payload);
+}
+['mousemove','click','keydown'].forEach(ev => document.addEventListener(ev, throttle(sendControl, 120), true));
+function throttle(fn, wait){ let last=0; return function(...a){ const now = Date.now(); if(now-last>wait){ last=now; fn.apply(this,a); } } }
+
+/* ========= Video player & streaming ========= */
+openFile.addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const url = URL.createObjectURL(f);
+  const item = document.createElement('div'); item.className='listItem';
+  item.innerHTML = `<div style="flex:1">${escapeHtml(f.name)} <span class="small-muted">(${Math.round(f.size/1024)} KB)</span></div><div><button class="play small" data-url="${url}">Play</button><button class="stream small" data-url="${url}">Stream</button></div>`;
+  playlist.appendChild(item);
+  item.querySelector('.play').onclick = ()=>{ mainPlayer.src = url; mainPlayer.play(); };
+  item.querySelector('.stream').onclick = ()=>{ mainPlayer.src = url; mainPlayer.play(); startStreamingFromPlayer(); };
+});
+
+async function startStreamingFromPlayer(){
+  if(!mainPlayer.src) return alert('Load a video first'); if(!mainPlayer.captureStream) return alert('captureStream not supported');
+  try{
+    playerStream = mainPlayer.captureStream();
+    const target = targetInput.value.trim();
+    if(target){ const call = peer.call(target, playerStream); streamingCalls[target]=call; call.on('close', ()=> delete streamingCalls[target]); } else { Object.keys(connections).forEach(pid=>{ const call = peer.call(pid, playerStream); streamingCalls[pid]=call; call.on('close', ()=> delete streamingCalls[pid]); }); }
+    alert('Streaming started to peers.');
+  }catch(e){ console.error(e); alert('Stream failed: '+e.message); }
+}
+stopStreamBtn.onclick = ()=>{ if(playerStream){ playerStream.getTracks().forEach(t=>t.stop()); playerStream=null; } Object.keys(streamingCalls).forEach(k=>{ try{ streamingCalls[k].close(); }catch(e){} delete streamingCalls[k]; }); };
+
+/* ========= FILE TRANSFER (chunked) ========= */
+
+/*
+ Protocol:
+ - sender sends {type:'file-meta', meta:{name,size,type,id}} to target(s)
+ - then sends chunks: {type:'file-chunk', id, index, total, chunk: ArrayBuffer base64?}
+ - on complete: {type:'file-complete', id}
+ We'll send binary by using conn.send(arraybuffer) only for chunk objects encoded with a small header.
+ But PeerJS datachannel can send objects; we send JSON meta + chunk as ArrayBuffer wrapped in object:
+   {type:'file-chunk', id, index, total, buffer: ArrayBuffer}
+ Receiver reconstructs chunks into array and builds blob.
+*/
+
+function readFileAsArrayBuffer(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload = ()=> res(fr.result); fr.onerror = ()=> rej(fr.error); fr.readAsArrayBuffer(file); }); }
+
+/* ========= FILE TRANSFER CORRIGÉ ========= */
+
+async function sendFileToPeer(file, target){
+  if(!file) return;
+  const targetConn = connections[target];
+  if(!targetConn || !targetConn.open) { alert('Target not connected. Connect first.'); return; }
+  const id = 'file-' + Date.now() + '-' + Math.floor(Math.random()*10000);
+  const meta = { name: file.name, size: file.size, type: file.type, id };
+  safeSend(targetConn, { type:'file-meta', meta, from: myId });
+
+  const transferEl = createTransferElement(id, meta.name, file.size);
+  const buffer = await readFileAsArrayBuffer(file);
+  const total = Math.ceil(buffer.byteLength / conf.fileChunkSize);
+
+  for(let i=0;i<total;i++){
+    const start = i * conf.fileChunkSize;
+    const end = Math.min(buffer.byteLength, start + conf.fileChunkSize);
+    const chunk = new Uint8Array(buffer.slice(start, end)); // force Uint8Array
+    try{
+      targetConn.send({ type:'file-chunk', id, index:i, total, from: myId, chunk });
+    }catch(e){ console.warn('chunk send fail', e); }
+    updateTransferProgress(transferEl, ((i+1)/total)*100);
+    await sleep(15);
+  }
+  safeSend(targetConn, { type:'file-complete', id, from: myId });
+  updateTransferProgress(transferEl, 100, true);
+}
+
+async function broadcastFile(file){
+  if(!file) return;
+  const id = 'file-' + Date.now() + '-' + Math.floor(Math.random()*10000);
+  const meta = { name: file.name, size: file.size, type: file.type, id };
+  const targets = Object.keys(connections).filter(k=> connections[k].open);
+  if(!targets.length) return alert('No connected peers to broadcast');
+
+  targets.forEach(t => safeSend(connections[t], { type:'file-meta', meta, from: myId }));
+
+  const buffer = await readFileAsArrayBuffer(file);
+  const total = Math.ceil(buffer.byteLength / conf.fileChunkSize);
+  const overall = createTransferElement(id, meta.name + ' (broadcast)', file.size);
+
+  for(let i=0;i<total;i++){
+    const start = i * conf.fileChunkSize;
+    const end = Math.min(buffer.byteLength, start + conf.fileChunkSize);
+    const chunk = new Uint8Array(buffer.slice(start, end));
+    for(const t of targets){
+      try{ connections[t].send({ type:'file-chunk', id, index:i, total, from: myId, chunk }); }catch(e){ console.warn('broadcast fail', e); }
+    }
+    updateTransferProgress(overall, ((i+1)/total)*100);
+    await sleep(20);
+  }
+  targets.forEach(t => safeSend(connections[t], { type:'file-complete', id, from: myId }));
+  updateTransferProgress(overall, 100, true);
+}
+
+/* Receiver */
+const incomingFiles = {};
+
+function prepareReceiveFile(peerId, meta){
+  if(!incomingFiles[peerId]) incomingFiles[peerId]={};
+  incomingFiles[peerId][meta.id] = { meta, receivedChunks: [], total: meta.total || null, receivedBytes: 0 };
+  renderReceivedStatus();
+}
+
+function receiveFileChunk(peerId, data){
+  const id = data.id;
+  if(!incomingFiles[peerId]) incomingFiles[peerId]={};
+  if(!incomingFiles[peerId][id]){
+    incomingFiles[peerId][id] = { meta:{name:'unknown',size:0,type:'application/octet-stream',id}, receivedChunks: [], total: data.total, receivedBytes:0 };
+  }
+  const slot = incomingFiles[peerId][id];
+  slot.receivedChunks[data.index] = new Uint8Array(data.chunk); // force Uint8Array
+  slot.total = data.total;
+  slot.receivedBytes += slot.receivedChunks[data.index].byteLength;
+  updateReceivedProgress(peerId, id, slot);
+}
+
+function finalizeReceivedFile(peerId, data){
+  const id = data.id;
+  const slot = incomingFiles[peerId] && incomingFiles[peerId][id];
+  if(!slot) return;
+  const buffers = slot.receivedChunks;
+  const blob = new Blob(buffers, { type: slot.meta.type || 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = slot.meta.name;
+  a.textContent = 'Download ' + slot.meta.name;
+  a.className='download-link';
+  const wrap = document.createElement('div');
+  wrap.appendChild(a);
+  receivedFilesDiv.prepend(wrap);
+  delete incomingFiles[peerId][id];
+  renderReceivedStatus();
+}
+
+/* UI helpers for transfer progress */
+function createTransferElement(id, name, size){
+  const el = document.createElement('div'); el.className='listItem';
+  el.innerHTML = `<div style="flex:1">${escapeHtml(name)} <div class="kv">${Math.round(size/1024)} KB</div></div><div style="width:140px"><div class="progress"><i style="width:0%"></i></div></div>`;
+  transfersDiv.prepend(el);
+  return el;
+}
+function updateTransferProgress(el, percent, done=false){ const bar = el.querySelector('.progress > i'); bar.style.width = percent.toFixed(1) + '%'; if(done) bar.style.background = 'linear-gradient(90deg,#2ecc71,#2ad17a)'; }
+function renderReceivedStatus(){ // show in transfers area small placeholders
+  // simple: list keys pending
+  // (we don't create detailed per-peer UI here)
+}
+
+/* util sleep */
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function updateReceivedProgress(peerId, id, slot){
+  // placeholder: you could render progress UI per-file. For simplicity we update status text.
+  logStatus(`Receiving ${slot.meta.name}: ${Math.round(slot.receivedBytes/1024)} KB / ${Math.round(slot.meta.size/1024)} KB`);
+}
+
+/* Buttons for file send */
+sendFileBtn.onclick = ()=>{ const f = fileInput.files[0]; if(!f) return alert('Choose file'); const tgt = targetInput.value.trim(); if(!tgt) return alert('Select target'); sendFileToPeer(f, tgt); };
+broadcastFileBtn.onclick = ()=>{ const f = fileInput.files[0]; if(!f) return alert('Choose file'); broadcastFile(f); };
+
+/* ========= Periodic gossip & UI refresh ========= */
+intervalRange.oninput = ()=>{ refreshInterval = parseInt(intervalRange.value,10); intervalDisplay.textContent = refreshInterval; };
+setInterval(()=>{ gossipPresence(); renderUserArea(); renderPrivateWindows(); }, 1000 * refreshInterval);
+
+/* ========= Tabs ========= */
+tabs.forEach(b=> b.onclick = ()=>{ tabs.forEach(x=>x.classList.remove('active')); b.classList.add('active'); const tab = b.getAttribute('data-tab'); ['chatArea','videoArea','screensArea','filesArea'].forEach(id=> document.getElementById(id).style.display = id===tab ? 'block' : 'none'); });
+document.querySelector('.tabbtn[data-tab="chatArea"]').click();
+
+/* ========= Utilities & startup ========= */
+function initKnownFromStorage(){ const arr = JSON.parse(localStorage.getItem('knownUsers') || '[]'); arr.forEach(u=> knownUsers.add(u)); renderUserArea(); }
+function persistKnown(){ localStorage.setItem('knownUsers', JSON.stringify(Array.from(knownUsers))); }
+
+window.addEventListener('beforeunload', ()=> persistKnown() );
+initKnownFromStorage();
+gossipPresence();
+logStatus('Ready — static P2P. Share your ID to connect.');
+
+/* keep peer re-init function (safe) */
+function initPeer(){
+  if(peer && peer.destroy) try{ peer.destroy(); }catch(e){/*ignore*/ }
+  peer = new Peer(myId, conf.peerServer);
+  peer.on('open', id=>{ logStatus('Peer open: '+id); addKnownUser(id); gossipPresence(); });
+  peer.on('error', err=>{ console.warn('peer error',err); logStatus('Peer error: '+(err && err.type?err.type:err)); });
+  peer.on('connection', conn=> setupConnection(conn));
+  peer.on('call', call=>{ calls[call.peer]=call; try{ if(localStream) call.answer(localStream); else call.answer(); }catch(e){ call.answer(); } call.on('stream', s=> remoteVideo.srcObject = s); call.on('close', ()=> delete calls[call.peer]); });
+}
+clearUsersBtn.onclick=()=>{knownUsers=new Set([myId]);renderUserArea();};
+initPeer();
+
+/* ========= End ========= */
+</script>
+</body>
+</html>
