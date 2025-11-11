@@ -1,176 +1,604 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Mini Fuser P2P</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mini Fuser P2P — Full</title>
 <style>
-body { font-family:sans-serif; margin:10px; text-align:center; }
-video { width:45%; margin:5px; border:1px solid #333; }
-#userArea { width:200px; height:150px; overflow-y:scroll; cursor:pointer; }
-#chat { width:60%; height:200px; border:1px solid #333; overflow-y:scroll; margin:10px auto; text-align:left; padding:5px; }
-#message { width:70%; }
-#emojiPalette { display:none; border:1px solid #333; width:200px; margin:auto; padding:5px; text-align:left; }
-.emoji { cursor:pointer; padding:2px; }
+  :root{--muted:#f2f2f2;--accent:#2b7cff}
+  body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial; margin:10px; color:#111}
+  header{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  h1{margin:0 10px 4px 0;font-size:18px}
+  .col{display:inline-block;vertical-align:top}
+  #left{width:260px}
+  #main{max-width:980px;display:inline-block;margin-left:12px;vertical-align:top}
+  textarea#userArea{width:100%;height:160px;resize:none;border:1px solid #ccc;padding:6px;cursor:pointer}
+  #controls{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  button{padding:6px 8px;border-radius:6px;border:1px solid #bbb;background:#fff;cursor:pointer}
+  .small{padding:4px 6px;font-size:13px}
+  #tabs{margin-top:10px}
+  .tabbtn{padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:var(--muted);cursor:pointer;margin-right:6px}
+  .active{outline:2px solid var(--accent)}
+  #chatArea, #videoArea{display:none;margin-top:10px}
+  #chatWindow{border:1px solid #ddd;height:300px;overflow:auto;padding:8px;background:#fff}
+  #msgInput{width:calc(100% - 120px);padding:6px;margin-top:6px}
+  #sendBtn{width:100px}
+  .privateWindow{border:1px solid #bbb;padding:6px;margin-top:8px;background:#fafafa}
+  .emoji{cursor:pointer;padding:4px;font-size:18px}
+  #emojiPalette{display:none;border:1px solid #ddd;padding:6px;background:#fff;position:relative;max-width:320px}
+  video{max-width:100%;border:1px solid #333;margin:6px 0}
+  .player{width:100%;max-height:360px}
+  #playlist{margin-top:8px}
+  .listItem{padding:6px;border:1px solid #eee;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+  label{font-size:13px}
+  .muted{font-size:12px;color:#666}
 </style>
 </head>
 <body>
 
-<h1>Mini Fuser P2P</h1>
+<header>
+  <h1>Mini Fuser P2P</h1>
+  <div class="muted">P2P screenshare • public & private chat • video streaming</div>
+</header>
 
-<label>ID utilisateur : <input type="text" id="userIdInput"></label>
-<button id="saveIdBtn">Save</button><br>
+<div id="container">
+  <div id="left" class="col">
+    <label>ID utilisateur:<br><input id="userIdInput" /></label>
+    <div style="margin-top:6px">
+      <button id="saveIdBtn" class="small">Save</button>
+      <button id="randBtn" class="small">Random</button>
+      <button id="deleteBtn" class="small">Delete</button>
+    </div>
 
-<label>Utilisateurs connectés :</label><br>
-<textarea id="userArea" readonly></textarea><br>
+    <div style="margin-top:8px">
+      <label>Utilisateurs connectés:</label><br>
+      <textarea id="userArea" readonly></textarea>
+    </div>
 
-<label>Rejoindre utilisateur :</label>
-<input type="text" id="targetUserInput"><br>
+    <div id="controls">
+      <label>Rejoindre / Appeler:<br><input id="targetInput" /></label>
+      <button id="callBtn" class="small">Call</button>
+      <button id="endCallBtn" class="small">End Call</button>
+    </div>
 
-<label><input type="checkbox" id="allowControl"> Autoriser contrôle</label><br>
+    <div style="margin-top:6px">
+      <label><input type="checkbox" id="allowControl" /> Autoriser contrôle</label>
+    </div>
 
-<button id="startBtn">Partager écran</button>
-<button id="chatTypeBtn">Chat privé/public</button>
-<button id="toggleEmoji">Emoji</button>
+    <div style="margin-top:8px">
+      <label><input type="checkbox" id="privateMode" checked /> Mode privé par défaut (chat)</label>
+    </div>
 
-<div id="emojiPalette"></div>
+    <div style="margin-top:8px">
+      <label>Refresh interval: <span id="intervalDisplay">5</span>s</label><br>
+      <input id="intervalRange" type="range" min="2" max="20" value="5" />
+    </div>
+  </div>
 
-<video id="localVideo" autoplay muted></video>
-<video id="remoteVideo" autoplay></video>
+  <div id="main" class="col">
+    <div id="tabs">
+      <button class="tabbtn active" data-tab="chatArea">Chat</button>
+      <button class="tabbtn" data-tab="videoArea">Videos</button>
+      <button class="tabbtn" data-tab="screensArea">Screenshare</button>
+    </div>
 
-<div id="chat"></div>
-<input type="text" id="message">
-<button id="sendBtn">Envoyer</button>
+    <!-- CHAT TAB -->
+    <div id="chatArea">
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="flex:1">
+          <div id="chatWindow"></div>
+          <div style="margin-top:6px;display:flex;gap:6px;align-items:center">
+            <input id="msgInput" placeholder="Message..." />
+            <button id="sendBtn">Send</button>
+            <button id="emojiBtn">Emoji</button>
+            <div id="emojiPalette"></div>
+          </div>
+        </div>
+
+        <!-- private chats container -->
+        <div style="width:280px">
+          <div class="muted">Private chats</div>
+          <div id="privateChats"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIDEO TAB -->
+    <div id="videoArea">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div>
+          <input type="file" id="openFile" accept="video/*" />
+          <div id="playlist"></div>
+        </div>
+
+        <div style="flex:1">
+          <video id="mainPlayer" class="player" playsinline controls></video>
+          <div style="margin-top:6px">
+            <button id="streamBtn" class="small">Start P2P Stream (from player)</button>
+            <button id="stopStreamBtn" class="small">Stop P2P Stream</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREENSHARE TAB -->
+    <div id="screensArea" style="margin-top:8px">
+      <div>
+        <button id="shareScreenBtn" class="small">Share Screen (call)</button>
+        <button id="stopShareBtn" class="small">Stop Share</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <div style="flex:1">
+          <div class="muted">Local</div>
+          <video id="localVideo" autoplay muted playsinline style="width:100%"></video>
+        </div>
+        <div style="flex:1">
+          <div class="muted">Remote</div>
+          <video id="remoteVideo" autoplay playsinline style="width:100%"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- PeerJS -->
 <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 
 <script>
-// --- Configuration ---
-let myId = localStorage.getItem("myUserId") || "User"+Math.floor(Math.random()*1000);
-document.getElementById("userIdInput").value = myId;
+/* ----------------------------
+  Configuration & state
+   ---------------------------- */
+const wsUrl = (() => {
+  // change to your WebSocket server address (use wss in production)
+  const host = location.origin.replace(/^http/, 'ws');
+  return host + '/ws'; // if server routes ws at /ws
+})();
+let ws;
+let peer;
+let myId = localStorage.getItem('myUserId') || 'User' + Math.floor(Math.random()*10000);
+const userArea = document.getElementById('userArea');
+const userIdInput = document.getElementById('userIdInput');
+userIdInput.value = myId;
+const targetInput = document.getElementById('targetInput');
+const allowControl = document.getElementById('allowControl');
+const chatWindow = document.getElementById('chatWindow');
+const privateChatsDiv = document.getElementById('privateChats');
+const emojiPalette = document.getElementById('emojiPalette');
+const msgInput = document.getElementById('msgInput');
+const intervalRange = document.getElementById('intervalRange');
+const intervalDisplay = document.getElementById('intervalDisplay');
 
-let peer, localStream, calls={}, connections={};
-let ws, users = [];
-let chatPrivate = true;
+let users = [];                 // current list from server
+let privateChats = {};          // {userId: [messages]}
+let calls = {};                 // active PeerJS calls
+let localStream = null;
+let mainPlayerStream = null;
+let streamCallRefs = {};        // references to streams started from mainPlayer (mediaStream -> calls)
+let refreshInterval = parseInt(intervalRange.value,10) || 5;
 
-const userArea = document.getElementById("userArea");
-const targetInput = document.getElementById("targetUserInput");
-const allowControl = document.getElementById("allowControl");
-const chatDiv = document.getElementById("chat");
-const emojiPalette = document.getElementById("emojiPalette");
+/* Emoji set */
+const emojis = ["😀","😂","😎","😍","😢","👍","🎉","🔥","🤝","🙏","🙌"];
 
-// --- Connexion WebSocket ---
-ws = new WebSocket("wss://3xploitch3ats.github.io/FuserServer.js");
+/* ----------------------------
+  Utilitaires DOM
+   ---------------------------- */
+function appendPublic(msg){
+  const el = document.createElement('div');
+  el.innerHTML = `<strong>${escapeHtml(msg.from||'')}</strong>: ${escapeHtml(msg.text)}`;
+  chatWindow.appendChild(el);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+function appendPrivate(user, text, from){
+  if(!privateChats[user]) privateChats[user] = [];
+  privateChats[user].push({from,text});
+  renderPrivateWindows();
+}
+function renderUserArea(){
+  userArea.value = users.join('\\n');
+}
+function renderPrivateWindows(){
+  privateChatsDiv.innerHTML = '';
+  Object.keys(privateChats).forEach(uid=>{
+    const box = document.createElement('div');
+    box.className='privateWindow';
+    const msgs = privateChats[uid];
+    box.innerHTML = `<strong>Chat with ${uid}</strong><div style="height:120px;overflow:auto;padding:4px;background:#fff;margin:6px 0" id="pv-${uid}"></div>
+      <input id="pv-in-${uid}" placeholder="Message to ${uid}" style="width:70%"/>
+      <button data-user="${uid}" class="pv-send small">Send</button>`;
+    privateChatsDiv.appendChild(box);
+    const container = box.querySelector('#pv-' + uid);
+    container.innerHTML = msgs.map(m=>`<div><strong>${escapeHtml(m.from||'')}</strong>: ${escapeHtml(m.text)}</div>`).join('');
+  });
 
-ws.onopen = ()=> {
-    ws.send(JSON.stringify({type:"register", userId:myId}));
-};
-
-// --- Réception de messages WebSocket ---
-ws.onmessage = e=>{
-    const data = JSON.parse(e.data);
-    if(data.type==="userlist"){
-        users = data.users;
-        refreshUserArea();
-    } else if(data.type==="chat"){
-        appendChat(`${data.from}: ${data.text}`);
-    }
-};
-
-// --- Rafraîchissement périodique du textarea ---
-setInterval(()=>{
-    ws.send(JSON.stringify({type:"ping"})); // envoie ping au serveur (facultatif)
-    refreshUserArea(); // met à jour la zone utilisateur localement
-}, 3000); // toutes les 3 secondes
-
-// --- PeerJS ---
-peer = new Peer(myId, {host:'0.peerjs.com', secure:true, port:443, path:'/'});
-peer.on('call', c=>{
-    calls[c.peer] = c;
-    c.answer(localStream);
-    c.on('stream', s=> document.getElementById("remoteVideo").srcObject = s);
-});
-
-// --- Sauvegarde ID ---
-document.getElementById("saveIdBtn").onclick = ()=>{
-    myId = document.getElementById("userIdInput").value.trim();
-    localStorage.setItem("myUserId", myId);
-    ws.send(JSON.stringify({type:"register", userId:myId}));
-};
-
-// --- Rafraîchissement du userArea ---
-function refreshUserArea(){
-    userArea.value = users.join("\n");
+  // attach pv send handlers
+  privateChatsDiv.querySelectorAll('.pv-send').forEach(btn=>{
+    btn.onclick = ()=>{
+      const uid = btn.getAttribute('data-user');
+      const input = document.getElementById('pv-in-' + uid);
+      const text = input.value.trim();
+      if(!text) return;
+      sendChat(text, uid);
+      appendPrivate(uid, text, 'Me');
+      input.value = '';
+    };
+  });
 }
 
-// --- Sélection d’un utilisateur ---
-userArea.addEventListener("click", e=>{
-    const lines = userArea.value.split("\n");
-    const index = Math.floor(e.offsetY / (userArea.scrollHeight / lines.length));
-    const selected = lines[index];
-    if(selected && selected!==myId) targetInput.value = selected;
+/* simple escape */
+function escapeHtml(s){ return (s||'').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
+
+/* ----------------------------
+  WebSocket: register / userlist / chat / control
+   ---------------------------- */
+function connectWS(){
+  // Adjust the wsUrl if your server uses a different endpoint
+  const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+  ws = new WebSocket(url);
+  ws.onopen = ()=> {
+    ws.send(JSON.stringify({type:'register', userId:myId}));
+    console.log('ws open -> registered', myId);
+  };
+  ws.onmessage = e=>{
+    let data;
+    try{ data = JSON.parse(e.data); } catch(err){ return; }
+    if(data.type === 'userlist'){
+      users = data.users.filter(u=>u !== undefined);
+      renderUserArea();
+    } else if(data.type === 'chat'){
+      if(data.target && data.target === myId){
+        // private message to me
+        appendPrivate(data.from, data.text, data.from);
+      } else if(data.target){
+        // private message to someone else (ignore)
+      } else {
+        appendPublic({from:data.from,text:data.text});
+      }
+    } else if(data.type === 'control'){
+      // forward control event to page / to remote handlers
+      if(data.to === myId){
+        // you received remote control events
+        // you must decide how to apply them — here we just log
+        console.log('control event', data.event);
+      }
+    } else if(data.type === 'ping'){
+      // optional
+    }
+  };
+  ws.onclose = ()=> setTimeout(connectWS, 2000);
+}
+connectWS();
+
+/* ----------------------------
+  PeerJS: media calls (screenshare, player stream)
+   ---------------------------- */
+function initPeer(){
+  peer = new Peer(myId, {host:'0.peerjs.com', secure:true, port:443, path:'/'});
+  peer.on('open', id => console.log('Peer open', id));
+
+  peer.on('call', call=>{
+    // incoming call: answer with localStream if available OR ask user permission
+    console.log('incoming call from', call.peer);
+    calls[call.peer] = call;
+    const wantToAnswer = true; // automatic for demo — adapt security accordingly
+    if(localStream){
+      call.answer(localStream);
+    } else {
+      // answer with no media (or request)
+      call.answer();
+    }
+    call.on('stream', stream=>{
+      // attach to remoteVideo (screenshare) or to mainPlayer container if desired
+      console.log('incoming stream from', call.peer);
+      document.getElementById('remoteVideo')?.remove();
+      const remoteV = document.getElementById('remoteVideo') || document.createElement('video');
+      remoteV.id = 'remoteVideo';
+      remoteV.autoplay = true; remoteV.playsInline = true;
+      remoteV.srcObject = stream;
+      // if in screens area, put remote video there:
+      const screens = document.getElementById('screensArea');
+      if(screens){
+        const container = screens.querySelector('div[style*="Remote"]') || screens;
+        // we add video element into the screens area second column
+        const remoteWrap = screens.querySelectorAll('video')[1] || document.createElement('video');
+        remoteWrap.id = 'remoteVideo';
+        remoteWrap.autoplay = true; remoteWrap.playsInline = true; remoteWrap.style.width = '100%';
+        remoteWrap.srcObject = stream;
+        // ensure appended
+        if(!screens.querySelector('#remoteVideo')) screens.querySelectorAll('div')[2]?.appendChild(remoteWrap);
+      }
+    });
+    call.on('close', ()=> { delete calls[call.peer]; });
+  });
+}
+initPeer();
+
+/* ----------------------------
+  UI: user selection via textarea click
+   ---------------------------- */
+document.getElementById('userArea').addEventListener('click', e=>{
+  const lines = userArea.value.split('\\n').filter(Boolean);
+  if(!lines.length) return;
+  // compute clicked line using mouse position relative to caret
+  const rect = userArea.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  const approxLine = Math.floor( y / (rect.height / lines.length) );
+  const selected = lines[Math.min(Math.max(0,approxLine), lines.length-1)];
+  if(selected) targetInput.value = selected;
 });
 
-// --- Partage d’écran ---
-document.getElementById("startBtn").onclick = async ()=>{
-    const target = targetInput.value.trim();
-    if(!target) return alert("Sélectionner un utilisateur");
-    localStream = await navigator.mediaDevices.getDisplayMedia({video:true});
-    document.getElementById("localVideo").srcObject = localStream;
+/* ----------------------------
+  Save / Random / Delete username
+   ---------------------------- */
+document.getElementById('saveIdBtn').onclick = ()=>{
+  const v = document.getElementById('userIdInput').value.trim();
+  if(!v) return alert('enter a valid id');
+  myId = v;
+  localStorage.setItem('myUserId', myId);
+  if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type:'register', userId:myId}));
+  if(peer && peer.open) peer.disconnect();
+  setTimeout(()=>{ initPeer(); }, 200);
+};
+document.getElementById('randBtn').onclick = ()=>{
+  const r = 'User' + Math.floor(Math.random()*90000 + 1000);
+  document.getElementById('userIdInput').value = r;
+  localStorage.setItem('myUserId', r);
+  myId = r;
+  if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'register', userId:myId}));
+};
+document.getElementById('deleteBtn').onclick = ()=>{
+  localStorage.removeItem('myUserId');
+  myId = 'User' + Math.floor(Math.random()*10000);
+  document.getElementById('userIdInput').value = myId;
+  if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'register', userId:myId}));
+};
+
+/* ----------------------------
+  Refresh interval slider
+   ---------------------------- */
+intervalRange.oninput = ()=>{
+  refreshInterval = parseInt(intervalRange.value,10);
+  intervalDisplay.textContent = refreshInterval;
+};
+
+/* ----------------------------
+  Periodic refresh (ping and update UI) every N seconds
+   ---------------------------- */
+setInterval(()=>{
+  // ask server for up-to-date user list
+  try{ if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'ping'})); }catch(e){}
+  // re-render locally
+  renderUserArea();
+  renderPrivateWindows();
+}, 1000 * refreshInterval);
+
+/* ----------------------------
+  Chat send (public or private)
+   ---------------------------- */
+function sendChat(text, target=null){
+  if(!text) return;
+  const payload = { type:'chat', from: myId, text };
+  if(target) payload.target = target;
+  try{ ws.send(JSON.stringify(payload)); } catch(e){ console.warn('ws send fail', e); }
+  if(!target) appendPublic({from:'Me', text});
+  else appendPrivate(target, text, 'Me');
+}
+
+/* send from main input (public or private depending on checkbox & selected target) */
+document.getElementById('sendBtn').onclick = ()=>{
+  const text = msgInput.value.trim();
+  if(!text) return;
+  const privateMode = document.getElementById('privateMode').checked;
+  const tgt = privateMode ? (targetInput.value.trim() || null) : null;
+  sendChat(text, tgt);
+  msgInput.value = '';
+};
+msgInput.addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('sendBtn').click(); }
+});
+
+/* emoji palette */
+document.getElementById('emojiBtn').onclick = ()=>{
+  const pal = document.getElementById('emojiPalette');
+  pal.style.display = pal.style.display === 'block' ? 'none' : 'block';
+  if(pal.style.display === 'block'){
+    pal.innerHTML = emojis.map(em=>`<span class="emoji">${em}</span>`).join(' ');
+    pal.querySelectorAll('.emoji').forEach(el=>{
+      el.onclick = ()=> { msgInput.value += el.textContent; msgInput.focus(); };
+    });
+  }
+};
+
+/* ----------------------------
+  Calls: call targetId or end
+   ---------------------------- */
+document.getElementById('callBtn').onclick = async ()=>{
+  const target = targetInput.value.trim();
+  if(!target) return alert('Select a target to call');
+  // if user wants to call with screen share
+  if(localStream){
     const call = peer.call(target, localStream);
     calls[target] = call;
-    call.on('stream', s=> document.getElementById("remoteVideo").srcObject = s);
+    call.on('stream', s => {
+      // attach remotely
+      const v = document.getElementById('remoteVideo');
+      v.srcObject = s;
+    });
+  } else {
+    // call with no local media - initiate a data-only connection or ask to share screen
+    try{ await startScreenShareAndCall(target); } catch(e){ alert('failed to share: ' + e.message); }
+  }
 };
 
-// --- Chat ---
-document.getElementById("sendBtn").onclick = sendMessage;
-document.getElementById("message").addEventListener("keypress", e=>{if(e.key==='Enter') sendMessage();});
-document.getElementById("chatTypeBtn").onclick = ()=> chatPrivate = !chatPrivate;
+document.getElementById('endCallBtn').onclick = ()=>{
+  const target = targetInput.value.trim();
+  if(target && calls[target]){
+    try{ calls[target].close(); } catch(e){}
+    delete calls[target];
+  }
+  // stop local stream if any
+  if(localStream){
+    localStream.getTracks().forEach(t=>t.stop());
+    document.getElementById('localVideo').srcObject = null;
+    localStream = null;
+  }
+};
 
-function sendMessage(){
-    const msg = document.getElementById("message").value.trim();
-    if(!msg) return;
-    const target = targetInput.value.trim();
-    if(chatPrivate && target)
-        ws.send(JSON.stringify({type:"chat", text:msg, from:myId, target}));
-    else
-        ws.send(JSON.stringify({type:"chat", text:msg, from:myId}));
-    appendChat(`Moi: ${msg}`);
-    document.getElementById("message").value="";
+/* Start/stop screen share (and optionally call target) */
+async function startScreenShareAndCall(targetToCall){
+  const s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+  localStream = s;
+  document.getElementById('localVideo').srcObject = s;
+  // if target specified, call them
+  if(targetToCall){
+    const call = peer.call(targetToCall, s);
+    calls[targetToCall] = call;
+    call.on('stream', remoteStream => { document.getElementById('remoteVideo').srcObject = remoteStream; });
+  }
 }
 
-function appendChat(txt){
-    chatDiv.innerHTML += txt+"<br>";
-    chatDiv.scrollTop = chatDiv.scrollHeight;
-}
+/* share screen button (call current target if set) */
+document.getElementById('shareScreenBtn').onclick = async ()=>{
+  const target = targetInput.value.trim();
+  try{ await startScreenShareAndCall(target || null); } catch(err){ alert('Share failed: ' + err.message); }
+};
+document.getElementById('stopShareBtn').onclick = ()=>{
+  if(localStream){ localStream.getTracks().forEach(t=>t.stop()); document.getElementById('localVideo').srcObject=null; localStream=null; }
+};
 
-// --- Emoji ---
-const emojis = ["😀","😂","😎","😍","😢","👍","🎉"];
-document.getElementById("toggleEmoji").onclick = ()=> 
-    emojiPalette.style.display = emojiPalette.style.display==="none"?"block":"none";
-emojiPalette.innerHTML = emojis.map(e=>`<span class="emoji">${e}</span>`).join(" ");
-emojiPalette.addEventListener("click", e=>{
-    if(e.target.classList.contains("emoji")) 
-        document.getElementById("message").value += e.target.textContent;
+/* ----------------------------
+  Video: open file, playlist, stream via captureStream()
+   ---------------------------- */
+const openFile = document.getElementById('openFile');
+const playlist = document.getElementById('playlist');
+const mainPlayer = document.getElementById('mainPlayer');
+const streamBtn = document.getElementById('streamBtn');
+const stopStreamBtn = document.getElementById('stopStreamBtn');
+
+openFile.addEventListener('change', e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const url = URL.createObjectURL(f);
+  const id = 'vid-' + Date.now();
+  const item = document.createElement('div');
+  item.className = 'listItem';
+  item.innerHTML = `<div style="flex:1">${f.name} <span class="muted">(${Math.round(f.size/1024)} KB)</span></div>
+    <div><button data-url="${url}" class="play small">Play</button>
+    <button data-url="${url}" class="stream small">Stream P2P</button></div>`;
+  playlist.appendChild(item);
+  // attach handlers
+  item.querySelector('.play').onclick = ()=> { mainPlayer.src = url; mainPlayer.play(); };
+  item.querySelector('.stream').onclick = ()=> { mainPlayer.src = url; mainPlayer.play(); startStreamingFromPlayer(); };
 });
 
-// --- Contrôle clavier/souris ---
-document.getElementById("remoteVideo").addEventListener("mousemove", sendControl);
-document.getElementById("remoteVideo").addEventListener("click", sendControl);
-document.getElementById("remoteVideo").addEventListener("keydown", sendControl);
-document.getElementById("remoteVideo").tabIndex = 0;
-
-function sendControl(e){
-    if(!allowControl.checked) return;
+/* start streaming from player to target (captureStream) */
+async function startStreamingFromPlayer(){
+  if(!mainPlayer.src) return alert('No video loaded in player');
+  try{
+    // captureStream is supported in modern browsers on <video>
+    const ms = mainPlayer.captureStream ? mainPlayer.captureStream() : null;
+    if(!ms) return alert('captureStream not supported in this browser');
+    mainPlayerStream = ms;
+    // call all selected user if target specified
     const target = targetInput.value.trim();
-    if(!target) return;
-    ws.send(JSON.stringify({
-        type:"control",
-        from:myId,
-        to:target,
-        event:{type:e.type,x:e.clientX,y:e.clientY,key:e.key,button:e.button}
-    }));
+    if(target){
+      const call = peer.call(target, ms);
+      streamCallRefs[target] = call;
+      call.on('close', ()=> delete streamCallRefs[target]);
+    } else {
+      // optionally broadcast to all connected users (careful)
+      users.forEach(u=>{
+        if(u === myId) return;
+        const call = peer.call(u, ms);
+        streamCallRefs[u] = call;
+        call.on('close', ()=> delete streamCallRefs[u]);
+      });
+    }
+    alert('Streaming started (P2P captureStream).');
+  }catch(e){ console.error(e); alert('Stream failed: ' + e.message); }
 }
+function stopStreamingFromPlayer(){
+  if(mainPlayerStream){
+    mainPlayerStream.getTracks().forEach(t=>t.stop());
+    mainPlayerStream = null;
+  }
+  Object.keys(streamCallRefs).forEach(k=>{ try{ streamCallRefs[k].close(); } catch(e){} delete streamCallRefs[k]; });
+}
+streamBtn.onclick = startStreamingFromPlayer;
+stopStreamBtn.onclick = stopStreamingFromPlayer;
+
+/* Screens area remote video placeholder */
+(function ensureScreensPlace(){
+  const screens = document.getElementById('screensArea');
+  // add a remote video placeholder if not present
+  setTimeout(()=>{
+    const videos = screens.querySelectorAll('video');
+    if(videos.length < 2){
+      const remote = document.createElement('video');
+      remote.id = 'remoteVideo';
+      remote.autoplay = true; remote.playsInline = true; remote.style.width = '100%';
+      screens.querySelectorAll('div')[2]?.appendChild(remote);
+    }
+  }, 200);
+})();
+
+/* ----------------------------
+  Controls forwarding (mouse/key)
+   ---------------------------- */
+function sendControlEvent(e){
+  if(!allowControl.checked) return;
+  const tgt = targetInput.value.trim();
+  if(!tgt) return;
+  const payload = { type:'control', from: myId, to: tgt, event:{
+    type: e.type, x: e.clientX||0, y: e.clientY||0, key: e.key||null, button: e.button||null
+  }};
+  try{ ws.send(JSON.stringify(payload)); } catch(e){}
+}
+const remoteVideoArea = document; // listen document-level for demo
+['mousemove','click','keydown'].forEach(ev => {
+  remoteVideoArea.addEventListener(ev, throttle(sendControlEvent, 100), true);
+});
+
+/* trivial throttle */
+function throttle(fn, wait){
+  let last = 0;
+  return function(...a){
+    const now = Date.now();
+    if(now - last > wait){ last = now; fn.apply(this,a); }
+  };
+}
+
+/* ----------------------------
+  Tab switching
+   ---------------------------- */
+document.querySelectorAll('.tabbtn').forEach(b=>{
+  b.onclick = ()=> {
+    document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    const tab = b.getAttribute('data-tab');
+    ['chatArea','videoArea','screensArea'].forEach(id=>document.getElementById(id).style.display = id===tab ? 'block' : 'none');
+  };
+});
+document.querySelector('.tabbtn[data-tab="chatArea"]').click();
+
+/* ----------------------------
+  Helpers for control: allow clicking user to open private window
+   ---------------------------- */
+userArea.addEventListener('dblclick', ()=>{
+  const selected = targetInput.value.trim();
+  if(!selected) return alert('select a target first');
+  if(!privateChats[selected]) privateChats[selected] = [];
+  renderPrivateWindows();
+});
+
+/* ----------------------------
+  init: small emoji palette prebuild for speed
+   ---------------------------- */
+emojiPalette.style.display = 'none';
+
+/* ----------------------------
+  End of main
+   ---------------------------- */
+console.log('Client initialized. MyId=', myId);
 </script>
 </body>
 </html>
