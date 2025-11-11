@@ -127,7 +127,8 @@ a.download-link{display:inline-block;margin-top:6px}
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
           <input id="openFile" type="file" accept="video/*" />
           <div>
-            <button id="streamBtn" class="small">Start P2P Stream (player → peers)</button>
+           <!--  <button id="streamBtn" class="small">Start P2P Stream (player → peers)</button>  -->
+			<button id="playStreamBtn" class="small">Play & Stream to Peers</button>
             <button id="stopStreamBtn" class="small">Stop Stream</button>
           </div>
         </div>
@@ -236,7 +237,7 @@ const tabs = document.querySelectorAll('.tabbtn');
 const openFile = document.getElementById('openFile'); // video tab
 const playlist = document.getElementById('playlist');
 const mainPlayer = document.getElementById('mainPlayer');
-const streamBtn = document.getElementById('streamBtn');
+//const streamBtn = document.getElementById('streamBtn');
 const stopStreamBtn = document.getElementById('stopStreamBtn');
 
 const shareScreenBtn = document.getElementById('shareScreenBtn');
@@ -249,6 +250,9 @@ const sendFileBtn = document.getElementById('sendFileBtn');
 const broadcastFileBtn = document.getElementById('broadcastFileBtn');
 const transfersDiv = document.getElementById('transfers');
 const receivedFilesDiv = document.getElementById('receivedFiles');
+
+const playStreamBtn = document.getElementById('playStreamBtn');
+
 
 /* ========= Init UI ========= */
 userIdInput.value = myId;
@@ -433,16 +437,39 @@ endCallBtn.onclick = ()=>{ const target = targetInput.value.trim(); if(target &&
 
 /* ========= Screen share ========= */
 async function startScreenShare(){
-  try{
+  try {
     const s = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:false });
     localStream = s;
     localVideo.srcObject = s;
-    s.getTracks()[0].addEventListener('ended', ()=>{ localStream=null; localVideo.srcObject=null; });
+
+    // Stream automatiquement aux peers si target sélectionné
+    const targets = targetInput.value.trim()
+      ? [targetInput.value.trim()]
+      : Object.keys(connections).filter(k => connections[k].open);
+
+    if(targets.length){
+      targets.forEach(pid => {
+        const call = peer.call(pid, s, { metadata: { type:'screen' } }); // <- type screen
+        calls[pid] = call;
+        call.on('stream', remoteStream => remoteVideo.srcObject = remoteStream);
+        call.on('close', () => { delete calls[pid]; if(remoteVideo.srcObject === remoteStream) remoteVideo.srcObject = null; });
+        call.on('error', e => console.error('call error', e));
+      });
+    }
+
+    s.getTracks()[0].addEventListener('ended', () => { localStream=null; localVideo.srcObject=null; });
     gossipPresence();
     return s;
-  }catch(e){ throw e; }
+  } catch(e) { throw e; }
 }
-shareScreenBtn.onclick = async ()=>{ try{ await startScreenShare(); alert('Screen ready — use Call to send to target'); }catch(e){ alert('Share failed: '+e.message); } };
+
+shareScreenBtn.onclick = async () => {
+  try{
+    await startScreenShare();
+    localVideo.requestFullscreen?.();
+    alert('Screen ready — use Call to send to target');
+  }catch(e){ alert('Share failed: '+e.message); }
+};
 stopShareBtn.onclick = ()=>{ if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; localVideo.srcObject=null; } };
 
 /* control forwarding */
@@ -465,18 +492,150 @@ openFile.addEventListener('change', e=>{
   playlist.appendChild(item);
   item.querySelector('.play').onclick = ()=>{ mainPlayer.src = url; mainPlayer.play(); };
   item.querySelector('.stream').onclick = ()=>{ mainPlayer.src = url; mainPlayer.play(); startStreamingFromPlayer(); };
+  const files = Array.from(e.target.files);
+  files.forEach(file => {
+    const videoId = 'video-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const videoEl = document.createElement('video');
+    videoEl.id = videoId;
+    videoEl.className = 'player';
+    videoEl.controls = true;
+    videoEl.playsInline = true;
+    videoEl.src = URL.createObjectURL(file);
+    videoEl.style.marginTop = '8px';
+
+    const controlsDiv = document.createElement('div');
+    controlsDiv.style.display = 'flex';
+    controlsDiv.style.gap = '6px';
+    controlsDiv.style.marginBottom = '12px';
+
+    // Play local
+    const playBtn = document.createElement('button');
+    playBtn.textContent = 'Play';
+    playBtn.className = 'small';
+    playBtn.onclick = () => videoEl.play();
+
+    // Stream to peers
+    const streamBtn = document.createElement('button');
+    streamBtn.textContent = 'Stream to Peers';
+    streamBtn.className = 'small';
+    streamBtn.onclick = async () => {
+      if (!videoEl.captureStream) return alert('captureStream non supporté');
+      const stream = videoEl.captureStream();
+      await videoEl.play();
+      const targets = targetInput.value.trim() ? [targetInput.value.trim()] : Object.keys(connections).filter(k => connections[k].open);
+      if (!targets.length) return alert('Aucun peer connecté');
+      targets.forEach(pid => {
+        const call = peer.call(pid, stream);
+        calls[pid] = call;
+        call.on('stream', remoteStream => showRemotePlayer(pid, remoteStream));
+        call.on('close', () => {
+          delete calls[pid];
+          const p = document.getElementById('remotePlayer-' + pid);
+          if (p) p.remove();
+        });
+        call.on('error', e => console.error('call error', e));
+      });
+      alert('Streaming démarré vers les peers');
+    };
+
+    // Remove video
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.className = 'small';
+    removeBtn.onclick = () => { videoEl.remove(); controlsDiv.remove(); };
+
+    controlsDiv.appendChild(playBtn);
+    controlsDiv.appendChild(streamBtn);
+    controlsDiv.appendChild(removeBtn);
+
+    playlist.appendChild(videoEl);
+    playlist.appendChild(controlsDiv);
+  });
 });
+function showRemotePlayer(pid, stream) {
+  let player = document.getElementById('remotePlayer-' + pid);
+  if (!player) {
+    player = document.createElement('video');
+    player.id = 'remotePlayer-' + pid;
+    player.autoplay = true;
+    player.playsInline = true;
+    player.controls = true;
+    player.style.width = '100%';
+    player.style.marginTop = '8px';
+    document.getElementById('videoArea').appendChild(player);
+  }
+  player.srcObject = stream;
+  player.play().catch(e => console.warn('Autoplay failed', e));
+}
 
 async function startStreamingFromPlayer(){
-  if(!mainPlayer.src) return alert('Load a video first'); if(!mainPlayer.captureStream) return alert('captureStream not supported');
-  try{
-    playerStream = mainPlayer.captureStream();
-    const target = targetInput.value.trim();
-    if(target){ const call = peer.call(target, playerStream); streamingCalls[target]=call; call.on('close', ()=> delete streamingCalls[target]); } else { Object.keys(connections).forEach(pid=>{ const call = peer.call(pid, playerStream); streamingCalls[pid]=call; call.on('close', ()=> delete streamingCalls[pid]); }); }
-    alert('Streaming started to peers.');
-  }catch(e){ console.error(e); alert('Stream failed: '+e.message); }
+  if(!mainPlayer.src) return alert('Chargez une vidéo d\'abord');
+  if(!mainPlayer.captureStream) return alert('captureStream non supporté');
+
+  playerStream = mainPlayer.captureStream();
+  await mainPlayer.play();
+
+  const targets = targetInput.value.trim()
+    ? [targetInput.value.trim()]
+    : Object.keys(connections).filter(k => connections[k].open);
+
+  if(!targets.length) return alert('Aucun peer connecté');
+
+  targets.forEach(pid => {
+    const call = peer.call(pid, playerStream, { metadata: { type:'video' } }); // <- type vidéo
+    calls[pid] = call;
+
+    call.on('stream', remoteStream => showRemotePlayer(pid, remoteStream));
+    call.on('close', () => { delete calls[pid]; const p = document.getElementById('remotePlayer-' + pid); if(p) p.remove(); });
+    call.on('error', e => console.error('call error', e));
+  });
 }
-stopStreamBtn.onclick = ()=>{ if(playerStream){ playerStream.getTracks().forEach(t=>t.stop()); playerStream=null; } Object.keys(streamingCalls).forEach(k=>{ try{ streamingCalls[k].close(); }catch(e){} delete streamingCalls[k]; }); };
+
+
+playStreamBtn.onclick=startStreamingFromPlayer;
+
+/* streamBtn.onclick = async () => {
+    const target = targetInput.value.trim();
+    if (!target) return alert('Enter a target ID');
+
+    const file = openFile.files[0];
+    if (!file) return alert('Select a video file');
+
+    mainPlayer.src = URL.createObjectURL(file);
+    await mainPlayer.play();
+
+    if (!mainPlayer.captureStream) return alert('captureStream not supported');
+
+    playerStream = mainPlayer.captureStream();
+
+    // Appelle la fonction centralisée
+    startStreamingFromPlayer();
+}; */
+
+stopStreamBtn.onclick = () => {
+    // Stop player stream
+    if (playerStream) {
+        playerStream.getTracks().forEach(track => track.stop());
+        playerStream = null;
+    }
+
+    // Stop remote calls
+    Object.keys(calls).forEach(pid => {
+        try {
+            calls[pid].close();
+        } catch (e) {}
+        delete calls[pid];
+    });
+
+    // Stop local player
+    if (mainPlayer) {
+        mainPlayer.pause();
+        mainPlayer.src = '';
+    }
+
+    alert('Streaming stopped.');
+};
+
 
 /* ========= FILE TRANSFER (chunked) ========= */
 
@@ -637,10 +796,58 @@ function initPeer(){
   peer.on('open', id=>{ logStatus('Peer open: '+id); addKnownUser(id); gossipPresence(); });
   peer.on('error', err=>{ console.warn('peer error',err); logStatus('Peer error: '+(err && err.type?err.type:err)); });
   peer.on('connection', conn=> setupConnection(conn));
-  peer.on('call', call=>{ calls[call.peer]=call; try{ if(localStream) call.answer(localStream); else call.answer(); }catch(e){ call.answer(); } call.on('stream', s=> remoteVideo.srcObject = s); call.on('close', ()=> delete calls[call.peer]); });
+peer.on('call', call => {
+  calls[call.peer] = call;
+
+  // Répond avec ton flux local s’il existe, sinon sans stream
+  try {
+    call.answer(localStream || undefined);
+  } catch (e) {
+    call.answer();
+  }
+
+  // Quand tu reçois un flux entrant
+  call.on('stream', remoteStream => {
+    // Vérifie le type du flux envoyé
+    const t = call.metadata?.type;
+    console.log(`🔗 Reçu flux type = ${t}`);
+
+    if (t === 'screen') {
+      // C’est un partage d’écran → onglet Screenshare
+      remoteVideo.srcObject = remoteStream;
+    } else if (t === 'video') {
+      // C’est un flux vidéo (player) → onglet Video
+      showRemotePlayer(call.peer, remoteStream);
+    } else {
+      console.warn('Flux sans type, ignoré');
+    }
+  });
+
+    call.on('close', () => {
+        delete calls[call.peer];
+
+        // Nettoyage du player vidéo
+        const p = document.getElementById('remotePlayer-' + call.peer);
+        if(p) p.remove();
+
+        if(remoteVideo.srcObject === calls[call.peer]?.remoteStream)
+            remoteVideo.srcObject = null;
+    });
+});
+
 }
 clearUsersBtn.onclick=()=>{knownUsers=new Set([myId]);renderUserArea();};
 initPeer();
+// Double-clic pour fullscreen sur tous les players
+[mainPlayer, localVideo, remoteVideo].forEach(v => {
+  v.addEventListener('dblclick', () => {
+    if (!document.fullscreenElement) {
+      v.requestFullscreen().catch(err => console.warn('Fullscreen failed:', err));
+    } else {
+      document.exitFullscreen().catch(err => console.warn('Exit fullscreen failed:', err));
+    }
+  });
+});
 
 /* ========= End ========= */
 </script>
