@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Mini Fuser P2P</title>
+<style>
+body { font-family:sans-serif; margin:10px; text-align:center; }
+video { width:45%; margin:5px; border:1px solid #333; }
+#userArea { width:200px; height:150px; overflow-y:scroll; cursor:pointer; }
+#chat { width:60%; height:200px; border:1px solid #333; overflow-y:scroll; margin:10px auto; text-align:left; padding:5px; }
+#message { width:70%; }
+#emojiPalette { display:none; border:1px solid #333; width:200px; margin:auto; padding:5px; text-align:left; }
+.emoji { cursor:pointer; padding:2px; }
+</style>
+</head>
+<body>
+
+<h1>Mini Fuser P2P</h1>
+
+<label>ID utilisateur : <input type="text" id="userIdInput"></label>
+<button id="saveIdBtn">Save</button><br>
+
+<label>Utilisateurs connectés :</label><br>
+<textarea id="userArea" readonly></textarea><br>
+
+<label>Rejoindre utilisateur :</label>
+<input type="text" id="targetUserInput"><br>
+
+<label><input type="checkbox" id="allowControl"> Autoriser contrôle</label><br>
+
+<button id="startBtn">Partager écran</button>
+<button id="chatTypeBtn">Chat privé/public</button>
+<button id="toggleEmoji">Emoji</button>
+
+<div id="emojiPalette"></div>
+
+<video id="localVideo" autoplay muted></video>
+<video id="remoteVideo" autoplay></video>
+
+<div id="chat"></div>
+<input type="text" id="message">
+<button id="sendBtn">Envoyer</button>
+
+<!-- PeerJS en ligne -->
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
+<script>
+// --- Configuration ---
+let myId = localStorage.getItem("myUserId") || "User"+Math.floor(Math.random()*1000);
+document.getElementById("userIdInput").value = myId;
+
+let peer, localStream, calls={}, connections={};
+let ws, users = [];
+let chatPrivate = true;
+
+const userArea = document.getElementById("userArea");
+const targetInput = document.getElementById("targetUserInput");
+const allowControl = document.getElementById("allowControl");
+const chatDiv = document.getElementById("chat");
+const emojiPalette = document.getElementById("emojiPalette");
+
+// --- WebSocket pour liste des utilisateurs et chat ---
+ws = new WebSocket("wss://3xploitch3ats.github.io/FuserServer.js");
+ws.onopen = ()=> {
+    ws.send(JSON.stringify({type:"register", userId:myId}));
+};
+ws.onmessage = e=>{
+    const data = JSON.parse(e.data);
+    if(data.type==="userlist"){
+        users = data.users;
+        refreshUserArea();
+    } else if(data.type==="chat"){
+        appendChat(`${data.from}: ${data.text}`);
+    }
+};
+
+// --- PeerJS ---
+peer = new Peer(myId, {host:'0.peerjs.com', secure:true, port:443, path:'/'});
+peer.on('call', c=>{
+    calls[c.peer] = c;
+    c.answer(localStream);
+    c.on('stream', s=> document.getElementById("remoteVideo").srcObject = s);
+});
+
+// --- Save ID ---
+document.getElementById("saveIdBtn").onclick = ()=>{
+    myId = document.getElementById("userIdInput").value.trim();
+    localStorage.setItem("myUserId", myId);
+    ws.send(JSON.stringify({type:"register", userId:myId}));
+};
+
+// --- Refresh utilisateur ---
+function refreshUserArea(){
+    userArea.value = users.join("\n");
+}
+
+// --- Cliquer sur un utilisateur ---
+userArea.addEventListener("click", e=>{
+    const lines = userArea.value.split("\n");
+    const lineHeight = userArea.scrollHeight / lines.length;
+    const index = Math.floor(e.offsetY / (userArea.offsetHeight/lines.length));
+    const selected = lines[index];
+    if(selected && selected!==myId) targetInput.value = selected;
+});
+
+// --- Partage écran ---
+document.getElementById("startBtn").onclick = async ()=>{
+    const target = targetInput.value.trim();
+    if(!target) return alert("Sélectionner un utilisateur");
+    localStream = await navigator.mediaDevices.getDisplayMedia({video:true});
+    document.getElementById("localVideo").srcObject = localStream;
+    const call = peer.call(target, localStream);
+    calls[target] = call;
+    call.on('stream', s=> document.getElementById("remoteVideo").srcObject = s);
+};
+
+// --- Chat ---
+document.getElementById("sendBtn").onclick = sendMessage;
+document.getElementById("message").addEventListener("keypress", e=>{if(e.key==='Enter') sendMessage();});
+document.getElementById("chatTypeBtn").onclick = ()=> chatPrivate = !chatPrivate;
+
+function sendMessage(){
+    const msg = document.getElementById("message").value.trim();
+    if(!msg) return;
+    const target = targetInput.value.trim();
+    if(chatPrivate && target) ws.send(JSON.stringify({type:"chat", text:msg, from:myId, target}));
+    else ws.send(JSON.stringify({type:"chat", text:msg, from:myId}));
+    appendChat(`Moi: ${msg}`);
+    document.getElementById("message").value="";
+}
+function appendChat(txt){
+    chatDiv.innerHTML += txt+"<br>";
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+// --- Emoji ---
+const emojis = ["😀","😂","😎","😍","😢","👍","🎉"];
+document.getElementById("toggleEmoji").onclick = ()=> emojiPalette.style.display = emojiPalette.style.display==="none"?"block":"none";
+emojiPalette.innerHTML = emojis.map(e=>`<span class="emoji">${e}</span>`).join(" ");
+emojiPalette.addEventListener("click", e=>{
+    if(e.target.classList.contains("emoji")) document.getElementById("message").value += e.target.textContent;
+});
+
+// --- Contrôle clavier/souris ---
+document.getElementById("remoteVideo").addEventListener("mousemove", sendControl);
+document.getElementById("remoteVideo").addEventListener("click", sendControl);
+document.getElementById("remoteVideo").addEventListener("keydown", sendControl);
+document.getElementById("remoteVideo").tabIndex = 0;
+
+function sendControl(e){
+    if(!allowControl.checked) return;
+    const target = targetInput.value.trim();
+    if(!target) return;
+    ws.send(JSON.stringify({type:"control", from:myId, to:target, event:{type:e.type,x:e.clientX,y:e.clientY,key:e.key,button:e.button}}));
+}
+
+</script>
+</body>
+</html>
