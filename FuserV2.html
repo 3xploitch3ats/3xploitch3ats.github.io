@@ -436,32 +436,78 @@ callBtn.onclick = async ()=>{ const target = targetInput.value.trim(); if(!targe
 endCallBtn.onclick = ()=>{ const target = targetInput.value.trim(); if(target && calls[target]){ try{ calls[target].close(); }catch(e){} delete calls[target]; } if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; localVideo.srcObject=null; } };
 
 /* ========= Screen share ========= */
-async function startScreenShare(){
+async function startScreenShare() {
   try {
-    const s = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:false });
-    localStream = s;
-    localVideo.srcObject = s;
+    // ✅ Enable audio in screen share
+    const s = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 44100
+      }
+    });
 
-    // Stream automatiquement aux peers si target sélectionné
+    // Optional: if you want to mix mic + screen audio
+    try {
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioContext = new AudioContext();
+      const dest = audioContext.createMediaStreamDestination();
+
+      const screenAudio = audioContext.createMediaStreamSource(s);
+      const micAudio = audioContext.createMediaStreamSource(mic);
+
+      screenAudio.connect(dest);
+      micAudio.connect(dest);
+
+      const combined = new MediaStream([
+        ...s.getVideoTracks(),
+        ...dest.stream.getAudioTracks()
+      ]);
+
+      localStream = combined;
+      localVideo.srcObject = combined;
+    } catch (err) {
+      console.warn('⚠️ Microphone mix failed, using screen audio only:', err);
+      localStream = s;
+      localVideo.srcObject = s;
+    }
+
+    // Auto stream to peers
     const targets = targetInput.value.trim()
       ? [targetInput.value.trim()]
       : Object.keys(connections).filter(k => connections[k].open);
 
-    if(targets.length){
+    if (targets.length) {
       targets.forEach(pid => {
-        const call = peer.call(pid, s, { metadata: { type:'screen' } }); // <- type screen
+        const call = peer.call(pid, localStream, { metadata: { type: 'screen' } });
         calls[pid] = call;
-        call.on('stream', remoteStream => remoteVideo.srcObject = remoteStream);
-        call.on('close', () => { delete calls[pid]; if(remoteVideo.srcObject === remoteStream) remoteVideo.srcObject = null; });
+        call.on('stream', remoteStream => (remoteVideo.srcObject = remoteStream));
+        call.on('close', () => {
+          delete calls[pid];
+          if (remoteVideo.srcObject === remoteStream)
+            remoteVideo.srcObject = null;
+        });
         call.on('error', e => console.error('call error', e));
       });
     }
 
-    s.getTracks()[0].addEventListener('ended', () => { localStream=null; localVideo.srcObject=null; });
+    // Stop behavior
+    localStream.getTracks().forEach(track => {
+      track.addEventListener('ended', () => {
+        localStream = null;
+        localVideo.srcObject = null;
+      });
+    });
+
     gossipPresence();
-    return s;
-  } catch(e) { throw e; }
+    return localStream;
+  } catch (e) {
+    console.error('Screen share failed', e);
+    throw e;
+  }
 }
+
 
 shareScreenBtn.onclick = async () => {
   try{
